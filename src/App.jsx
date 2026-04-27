@@ -5,13 +5,13 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Home, Dumbbell, Calendar, Trophy, Plus, Flame, Search, X, ExternalLink,
+   Home, Dumbbell, Calendar, Trophy, Plus, Flame, Search, X, ExternalLink,
   Check, Video, Target, Award, TrendingUp, ChevronRight, Zap, Play, Pause,
-  RotateCcw, LogOut
+  RotateCcw, LogOut, Shield, Eye, ArrowLeft
 } from 'lucide-react';
 import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 
 const STATUS_LEVELS = [
   { id: 'not_started', label: 'Not started', color: 'bg-gray-600', textColor: 'text-gray-300', emoji: '⚪' },
@@ -323,6 +323,7 @@ export default function ParkourApp() {
 function MainApp({ user }) {
   const [activeTab, setActiveTab] = useState('home');
   const [trainingSection, setTrainingSection] = useState('goals');
+  const userIsAdmin = isAdmin(user.email);
   const [tricks, setTricks] = useState([]);
   const [trainingDays, setTrainingDays] = useState([]);
   const [journal, setJournal] = useState([]);
@@ -518,6 +519,9 @@ function MainApp({ user }) {
         {activeTab === 'add' && (
           <AddTab onAddTrick={addTrick} setActiveTab={setActiveTab} />
         )}
+        {activeTab === 'admin' && userIsAdmin && (
+         <AdminTab currentUserUid={user.uid} />
+        )}
       </div>
 
       {selectedTrick && (
@@ -530,9 +534,12 @@ function MainApp({ user }) {
         <div className="flex justify-around items-center py-2 px-2 max-w-2xl mx-auto">
           <NavButton icon={Home} label="Home" active={activeTab === 'home'} onClick={() => { setSelectedTrick(null); setActiveTab('home'); }} />
           <NavButton icon={Dumbbell} label="Tricks" active={activeTab === 'tricks'} onClick={() => { setSelectedTrick(null); setActiveTab('tricks'); }} />
-          <NavButton icon={Calendar} label="Training" active={activeTab === 'training'} onClick={() => { setSelectedTrick(null); setActiveTab('training'); }} />
+         <NavButton icon={Calendar} label="Training" active={activeTab === 'training'} onClick={() => { setSelectedTrick(null); setActiveTab('training'); }} />
           <NavButton icon={Trophy} label="Progress" active={activeTab === 'progress'} onClick={() => { setSelectedTrick(null); setActiveTab('progress'); }} />
-          <NavButton icon={Plus} label="Add" active={activeTab === 'add'} onClick={() => { setSelectedTrick(null); setActiveTab('add'); }} />
+         <NavButton icon={Plus} label="Add" active={activeTab === 'add'} onClick={() => { setSelectedTrick(null); setActiveTab('add'); }} />
+         {userIsAdmin && (
+         <NavButton icon={Shield} label="Admin" active={activeTab === 'admin'} onClick={() => { setSelectedTrick(null); setActiveTab('admin'); }} />
+         )}
         </div>
       </div>
     </div>
@@ -1209,6 +1216,276 @@ function ExerciseTimer({ totalSeconds, color = 'orange' }) {
       </div>
       <button onClick={toggle} className={`flex-shrink-0 w-9 h-9 rounded-lg ${c.bgLight} ${c.text} hover:opacity-80 flex items-center justify-center transition`}>{running ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}</button>
       <button onClick={reset} className="flex-shrink-0 w-9 h-9 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 flex items-center justify-center transition"><RotateCcw className="w-4 h-4" /></button>
+    </div>
+  );
+}
+
+function AdminTab({ currentUserUid }) {
+  const [profiles, setProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(false);
+
+  useEffect(() => {
+    const loadProfiles = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'userProfiles'));
+        const list = snap.docs.map(d => d.data()).sort((a, b) => (b.lastSignIn || 0) - (a.lastSignIn || 0));
+        setProfiles(list);
+      } catch (e) {
+        console.error('Profile load error', e);
+      }
+      setLoading(false);
+    };
+    loadProfiles();
+  }, []);
+
+  const viewUser = async (profile) => {
+    setSelectedUser(profile);
+    setLoadingUser(true);
+    setUserData(null);
+    try {
+      const [tricks, days, journal, goals, warmups, conditioning] = await Promise.all([
+        loadUserData(profile.uid, 'tricks'),
+        loadUserData(profile.uid, 'trainingDays'),
+        loadUserData(profile.uid, 'journal'),
+        loadUserData(profile.uid, 'weeklyGoals'),
+        loadUserData(profile.uid, 'completedWarmups'),
+        loadUserData(profile.uid, 'completedConditioning'),
+      ]);
+      setUserData({
+        tricks: tricks || [],
+        trainingDays: days || [],
+        journal: journal || [],
+        weeklyGoals: goals || [],
+        completedWarmups: warmups || {},
+        completedConditioning: conditioning || {},
+      });
+    } catch (e) {
+      console.error('User data load error', e);
+    }
+    setLoadingUser(false);
+  };
+
+  const formatDate = (ts) => {
+    if (!ts) return 'Never';
+    return new Date(ts).toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12">
+        <div className="text-4xl mb-3 animate-bounce">🛡️</div>
+        <div className="text-slate-400">Loading users...</div>
+      </div>
+    );
+  }
+
+  // User detail view
+  if (selectedUser && userData) {
+    const mastered = userData.tricks.filter(t => t.status === 'yes_i_can').length;
+    const inProgress = userData.tricks.filter(t => t.status !== 'not_started' && t.status !== 'yes_i_can').length;
+    const notStarted = userData.tricks.filter(t => t.status === 'not_started').length;
+
+    // Group tricks by status
+    const byStatus = STATUS_LEVELS.map(level => ({
+      ...level,
+      tricks: userData.tricks.filter(t => t.status === level.id),
+    }));
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-4">
+        <button
+          onClick={() => { setSelectedUser(null); setUserData(null); }}
+          className="flex items-center gap-2 text-purple-400 hover:text-purple-300 font-semibold"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to user list
+        </button>
+
+        {/* User header */}
+        <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-5">
+          <div className="flex items-center gap-4">
+            {selectedUser.photoURL ? (
+              <img src={selectedUser.photoURL} alt="" className="w-16 h-16 rounded-full" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-purple-500/30 flex items-center justify-center text-2xl font-black">
+                {selectedUser.displayName?.[0] || '?'}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="font-black text-lg truncate">{selectedUser.displayName || 'Unknown'}</div>
+              <div className="text-xs text-slate-400 truncate">{selectedUser.email}</div>
+              <div className="text-xs text-slate-500 mt-1">Last sign-in: {formatDate(selectedUser.lastSignIn)}</div>
+            </div>
+            {selectedUser.isAdmin && (
+              <span className="text-xs font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-2 py-1 rounded">
+                🛡️ Admin
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-3 text-center">
+            <div className="text-2xl font-black">{mastered}</div>
+            <div className="text-xs text-green-300 font-semibold">Mastered</div>
+          </div>
+          <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3 text-center">
+            <div className="text-2xl font-black">{inProgress}</div>
+            <div className="text-xs text-blue-300 font-semibold">Training</div>
+          </div>
+          <div className="bg-orange-500/20 border border-orange-500/30 rounded-xl p-3 text-center">
+            <div className="text-2xl font-black">{userData.trainingDays.length}</div>
+            <div className="text-xs text-orange-300 font-semibold">Days</div>
+          </div>
+        </div>
+
+        {/* Tricks by status */}
+        <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+          <div className="font-bold mb-3">Tricks by Status</div>
+          <div className="space-y-3">
+            {byStatus.filter(s => s.tricks.length > 0).map(s => (
+              <div key={s.id}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">{s.emoji}</span>
+                  <span className="font-bold text-sm">{s.label}</span>
+                  <span className="text-xs text-slate-400">({s.tricks.length})</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {s.tricks.map(t => (
+                    <span key={t.id} className="text-xs bg-slate-900 px-2 py-1 rounded border border-slate-700">
+                      {CATEGORY_ICONS[t.category]} {t.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {notStarted > 0 && (
+              <div className="text-xs text-slate-500 italic">Not started: {notStarted} tricks</div>
+            )}
+          </div>
+        </div>
+
+        {/* Weekly Goals */}
+        {userData.weeklyGoals.length > 0 && (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+            <div className="font-bold mb-3">Current Weekly Goals</div>
+            <div className="space-y-1">
+              {userData.weeklyGoals.map(g => {
+                const trick = userData.tricks.find(t => t.id === g.trickId);
+                if (!trick) return null;
+                return (
+                  <div key={g.trickId} className="text-sm flex items-center gap-2">
+                    <span>{CATEGORY_ICONS[trick.category]}</span>
+                    <span>{trick.name}</span>
+                    <span className="text-xs text-slate-400 ml-auto">
+                      {STATUS_LEVELS.find(s => s.id === trick.status)?.emoji}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Recent journal entries */}
+        {userData.journal.length > 0 && (
+          <div className="bg-slate-800/50 border border-green-500/30 rounded-2xl p-4">
+            <div className="font-bold mb-3 flex items-center gap-2">
+              📝 Recent Journal Entries ({userData.journal.length})
+            </div>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {userData.journal.slice(0, 10).map(j => (
+                <div key={j.timestamp} className="bg-slate-900 rounded-lg p-3">
+                  <div className="text-xs text-slate-400 mb-1">{j.date}</div>
+                  <div className="text-sm whitespace-pre-wrap">{j.text}</div>
+                </div>
+              ))}
+              {userData.journal.length > 10 && (
+                <div className="text-xs text-slate-500 text-center italic">
+                  ...and {userData.journal.length - 10} more entries
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="text-xs text-slate-500 text-center italic py-4">
+          🔒 Read-only view — admin cannot modify user data
+        </div>
+      </div>
+    );
+  }
+
+  // Loading user detail
+  if (selectedUser && loadingUser) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12">
+        <div className="text-4xl mb-3 animate-bounce">🤸</div>
+        <div className="text-slate-400">Loading {selectedUser.displayName}'s data...</div>
+      </div>
+    );
+  }
+
+  // User list view
+  return (
+    <div className="max-w-2xl mx-auto space-y-4">
+      <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Shield className="w-5 h-5 text-yellow-400" />
+          <h2 className="font-bold text-lg">Admin Panel</h2>
+        </div>
+        <p className="text-sm text-slate-400">
+          Tap a user to view their training progress in read-only mode.
+        </p>
+      </div>
+
+      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+        <div className="font-bold mb-3">All Users ({profiles.length})</div>
+        {profiles.length === 0 ? (
+          <div className="text-sm text-slate-500 text-center py-4">
+            No users have signed in yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {profiles.map(p => (
+              <button
+                key={p.uid}
+                onClick={() => viewUser(p)}
+                className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left transition"
+              >
+                {p.photoURL ? (
+                  <img src={p.photoURL} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center font-black flex-shrink-0">
+                    {p.displayName?.[0] || '?'}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold truncate">{p.displayName || 'Unknown'}</span>
+                    {p.uid === currentUserUid && (
+                      <span className="text-xs font-bold bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded">You</span>
+                    )}
+                    {p.isAdmin && (
+                      <span className="text-xs">🛡️</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-400 truncate">{p.email}</div>
+                  <div className="text-xs text-slate-500">
+                    Last seen: {formatDate(p.lastSignIn)}
+                  </div>
+                </div>
+                <Eye className="w-5 h-5 text-slate-500 flex-shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
