@@ -498,7 +498,8 @@ function MainApp({ user }) {
             earnedBadges={earnedBadges} onLogTraining={logTrainingDay}
             hasTrainedToday={trainingDays.includes(new Date().toISOString().split('T')[0])}
             setActiveTab={setActiveTab}
-            goToWarmup={() => { setTrainingSection('warmup'); setActiveTab('training'); }} />
+            goToWarmup={() => { setTrainingSection('warmup'); setActiveTab('training'); }}
+            goToStrength={() => { setTrainingSection('conditioning'); setActiveTab('training'); }} />
         )}
         {activeTab === 'tricks' && (
           <TricksTab tricks={tricks} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -556,7 +557,7 @@ function NavButton({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function HomeTab({ stats, streak, mastered, inProgress, total, tricksOfTheDay, onOpenTrick, earnedBadges, onLogTraining, hasTrainedToday, setActiveTab, goToWarmup }) {
+function HomeTab({ stats, streak, mastered, inProgress, total, tricksOfTheDay, onOpenTrick, earnedBadges, onLogTraining, hasTrainedToday, setActiveTab, goToWarmup, goToStrength }) {
   const progressPct = total > 0 ? Math.round((mastered / total) * 100) : 0;
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
@@ -617,7 +618,7 @@ function HomeTab({ stats, streak, mastered, inProgress, total, tricksOfTheDay, o
       )}
       <div className="grid grid-cols-2 gap-3">
         <QuickLink label="Warm Up" icon="🔥" onClick={goToWarmup} color="from-red-500/30 to-orange-500/30" />
-        <QuickLink label="Browse Tricks" icon="🤸" onClick={() => setActiveTab('tricks')} color="from-blue-500/30 to-purple-500/30" />
+        <QuickLink label="Strength" icon="💪" onClick={goToStrength} color="from-blue-500/30 to-purple-500/30" />
       </div>
     </div>
   );
