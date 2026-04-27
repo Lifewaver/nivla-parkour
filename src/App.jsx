@@ -929,7 +929,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex gap-2 mb-4 overflow-x-auto">
-        {[{id:'goals',label:'Weekly Goals',icon:'🎯'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Conditioning',icon:'💪'},{id:'journal',label:'Journal',icon:'📝'},{id:'history',label:'History',icon:'📅'}].map(s => (
+        {[{id:'goals',label:'Weekly Goals',icon:'🎯'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Strength',icon:'💪'},{id:'journal',label:'Journal',icon:'📝'},{id:'history',label:'History',icon:'📅'}].map(s => (
           <button key={s.id} onClick={() => setSection(s.id)} className={`flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm transition ${section === s.id ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}>
             <span className="mr-1">{s.icon}</span>{s.label}
           </button>
@@ -1014,7 +1014,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
         <div className="space-y-3">
           <div className="bg-slate-800/50 border border-blue-500/30 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div><div className="font-bold">Strength & Conditioning</div><div className="text-sm text-slate-400">{todayConditioning.length}/{CONDITIONING.length} completed today</div></div>
+              <div><div className="font-bold">Strength</div><div className="text-sm text-slate-400">{todayConditioning.length}/{CONDITIONING.length} completed today</div></div>
               {todayConditioning.length > 0 && <button onClick={resetConditioning} className="text-xs text-slate-400 hover:text-white">Reset</button>}
             </div>
             <div className="space-y-2">
@@ -1059,7 +1059,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
 
       {section === 'history' && (
         <div className="space-y-3">
-          {history.length === 0 && <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 text-center"><div className="text-5xl mb-3">📅</div><div className="font-bold mb-1">No training history yet</div><div className="text-sm text-slate-400">Complete warm-ups, conditioning, or journal entries.</div></div>}
+          {history.length === 0 && <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 text-center"><div className="text-5xl mb-3">📅</div><div className="font-bold mb-1">No training history yet</div><div className="text-sm text-slate-400">Complete warm-ups, strength, or journal entries.</div></div>}
           {history.map(week => {
             const isExpanded = expandedWeek === week.weekStart;
             const totalW = Object.values(week.warmups).reduce((s, a) => s + a.length, 0);
@@ -1089,7 +1089,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
                         <div key={date} className="bg-slate-900/50 rounded-xl p-3 mt-3">
                           <div className="font-bold text-sm text-purple-300 mb-2">{label}</div>
                           {wIds.length > 0 && <div className="mb-2"><div className="text-xs font-bold text-orange-400 mb-1">🔥 Warm-ups ({wIds.length})</div><div className="flex flex-wrap gap-1">{wIds.map(id => { const w = WARMUPS.find(x => x.id === id); return w ? <span key={id} className="text-xs bg-orange-500/10 text-orange-200 px-2 py-1 rounded">{w.name}</span> : null; })}</div></div>}
-                          {cIds.length > 0 && <div className="mb-2"><div className="text-xs font-bold text-blue-400 mb-1">💪 Conditioning ({cIds.length})</div><div className="flex flex-wrap gap-1">{cIds.map(id => { const c = CONDITIONING.find(x => x.id === id); return c ? <span key={id} className="text-xs bg-blue-500/10 text-blue-200 px-2 py-1 rounded">{c.name} · {c.reps}</span> : null; })}</div></div>}
+                          {cIds.length > 0 && <div className="mb-2"><div className="text-xs font-bold text-blue-400 mb-1">💪 Strength ({cIds.length})</div><div className="flex flex-wrap gap-1">{cIds.map(id => { const c = CONDITIONING.find(x => x.id === id); return c ? <span key={id} className="text-xs bg-blue-500/10 text-blue-200 px-2 py-1 rounded">{c.name} · {c.reps}</span> : null; })}</div></div>}
                           {dj.length > 0 && <div><div className="text-xs font-bold text-green-400 mb-1">📝 Journal</div>{dj.map(j => <div key={j.timestamp} className="text-xs bg-green-500/10 text-green-100 p-2 rounded whitespace-pre-wrap">{j.text}</div>)}</div>}
                         </div>
                       );
