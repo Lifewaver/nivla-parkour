@@ -18,8 +18,15 @@ export const googleProvider = new GoogleAuthProvider();
 
 // List of allowed email addresses
 export const ALLOWED_EMAILS = [
-  'fredrik.aasberg@gmail.com',
+'fredrik.aasberg@gmail.com',
   'asberg.alvin@gmail.com',
   'asberg.tilda@gmail.com',
-  'charlotta.asberg@gmail.com',
+  'charlotta.asberg@gmail.com'
 ];
+
+// List of admin emails (must also be in ALLOWED_EMAILS)
+export const ADMIN_EMAILS = [
+  'fredrik.aasberg@gmail.com',
+];
+
+export const isAdmin = (email) => ADMIN_EMAILS.includes(email);

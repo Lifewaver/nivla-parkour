@@ -9,7 +9,7 @@ import {
   Check, Video, Target, Award, TrendingUp, ChevronRight, Zap, Play, Pause,
   RotateCcw, LogOut
 } from 'lucide-react';
-import { auth, db, googleProvider, ALLOWED_EMAILS } from './firebase';
+import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -279,6 +279,19 @@ export default function ParkourApp() {
         } else {
           setAuthError(null);
           setUser(firebaseUser);
+          // Save/update user profile for admin visibility
+          try {
+            await setDoc(doc(db, 'userProfiles', firebaseUser.uid), {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || '',
+              photoURL: firebaseUser.photoURL || '',
+              lastSignIn: Date.now(),
+              isAdmin: ADMIN_EMAILS.includes(firebaseUser.email),
+            }, { merge: true });
+          } catch (e) {
+            console.error('Profile save error', e);
+          }
         }
       } else {
         setUser(null);
@@ -287,7 +300,7 @@ export default function ParkourApp() {
     });
     return unsub;
   }, []);
-
+ 
   if (authChecking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
