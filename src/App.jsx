@@ -436,9 +436,10 @@ function MainApp({ user }) {
   const inProgressTricks = tricks.filter(t => t.status !== 'yes_i_can' && t.status !== 'not_started');
   const notStartedEasy = tricks.filter(t => t.status === 'not_started' && t.difficulty === 'Easy');
   const pool = inProgressTricks.length >= 3 ? inProgressTricks : [...inProgressTricks, ...notStartedEasy];
-  const dayNum = new Date().getDate();
-  const tricksOfTheDay = pool.length > 0
-    ? [0, 1, 2].map(i => pool[(dayNum + i * 7) % pool.length]).filter((t, i, arr) => t && arr.findIndex(x => x.id === t.id) === i)
+  const now = new Date();
+  const weekNum = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 604800000);
+  const weeklyFocus = pool.length > 0
+    ? [0, 1, 2].map(i => pool[(weekNum + i * 7) % pool.length]).filter((t, i, arr) => t && arr.findIndex(x => x.id === t.id) === i)
     : [];
 
   if (loading) {
@@ -493,7 +494,7 @@ function MainApp({ user }) {
       <div className="px-4 py-4">
         {activeTab === 'home' && (
           <HomeTab stats={stats} streak={streak} mastered={mastered} inProgress={inProgress}
-            total={tricks.length} tricksOfTheDay={tricksOfTheDay} onOpenTrick={setSelectedTrick}
+            total={tricks.length} tricksOfTheDay={weeklyFocus} onOpenTrick={setSelectedTrick}
             earnedBadges={earnedBadges} onLogTraining={logTrainingDay}
             hasTrainedToday={trainingDays.includes(new Date().toISOString().split('T')[0])}
             setActiveTab={setActiveTab}
@@ -579,7 +580,7 @@ function HomeTab({ stats, streak, mastered, inProgress, total, tricksOfTheDay, o
       </div>
       {tricksOfTheDay.length > 0 && (
         <div className="bg-slate-800/50 backdrop-blur border border-purple-500/30 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-3"><Target className="w-5 h-5 text-purple-400" /><h2 className="font-bold text-lg">Tricks of the Day</h2></div>
+          <div className="flex items-center gap-2 mb-3"><Target className="w-5 h-5 text-purple-400" /><h2 className="font-bold text-lg">This Week's Focus</h2></div>
           <div className="space-y-2">
             {tricksOfTheDay.map((trick, idx) => (
               <button key={trick.id} onClick={() => onOpenTrick(trick)} className="w-full text-left bg-gradient-to-br from-purple-600/40 to-pink-600/40 border border-purple-400/50 rounded-xl p-4 hover:scale-[1.02] active:scale-95 transition">
