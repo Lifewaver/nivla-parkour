@@ -10,10 +10,18 @@ import {
   RotateCcw, LogOut, Shield, Eye, ArrowLeft, ScrollText
 } from 'lucide-react';
 import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from './firebase';
+import { GiAcrobatic, GiJumpAcross, GiHighKick, GiLeapfrog, GiMuscleUp, GiRunningNinja, GiContortionist, GiBodyBalance } from 'react-icons/gi';
+import { MdSportsGymnastics } from 'react-icons/md';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 const RELEASE_NOTES = [
+  {
+    version: '1.6',
+    date: '2026-04-28',
+    title: 'Parkour category icons',
+    notes: ['Replaced emoji category labels with proper SVG icons from Game Icons and Material Design.', 'Each category now has a dedicated movement icon: acrobatic (Flips), jump across (Jump), high kick (Kicks), leapfrog (Leap), muscle-up (Swings), running ninja (Vaults), gymnastics (Trampoline), contortionist (Tumbling), body balance (Floor).'],
+  },
   {
     version: '1.5',
     date: '2026-04-28',
@@ -72,6 +80,24 @@ const CATEGORY_ICONS = {
   Flips: '🤸', Jump: '🤾‍♂️', Kicks: '🥋', Leap: '🐆', Swings: '🦧',
   Vaults: '🧗', Trampoline: '⛹️', Tumbling: '🤼', Floor: '🧘',
 };
+
+const CATEGORY_ICON_COMPONENTS = {
+  Flips: GiAcrobatic,
+  Jump: GiJumpAcross,
+  Kicks: GiHighKick,
+  Leap: GiLeapfrog,
+  Swings: GiMuscleUp,
+  Vaults: GiRunningNinja,
+  Trampoline: MdSportsGymnastics,
+  Tumbling: GiContortionist,
+  Floor: GiBodyBalance,
+};
+
+function CategoryIcon({ category, size = 22, className = '' }) {
+  const Icon = CATEGORY_ICON_COMPONENTS[category];
+  if (!Icon) return <span>{CATEGORY_ICONS[category]}</span>;
+  return <Icon size={size} className={className} />;
+}
 
 const INITIAL_TRICKS = [
   { id: 1, name: 'Front Flip', difficulty: 'Easy', category: 'Flips' },
@@ -774,7 +800,7 @@ function HomeTab({ stats, streak, mastered, inProgress, total, tricksOfTheDay, o
                   <div className="flex items-center gap-3">
                     <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-black text-lg">{idx + 1}</div>
                     <div>
-                      <div className="flex items-center gap-2"><span className="text-xl">{CATEGORY_ICONS[trick.category]}</span><span className="font-black text-lg">{trick.name}</span></div>
+                      <div className="flex items-center gap-2"><CategoryIcon category={trick.category} size={22} className="text-white/80 flex-shrink-0" /><span className="font-black text-lg">{trick.name}</span></div>
                       <div className="flex items-center gap-2 mt-1"><span className={`text-xs font-bold px-2 py-0.5 rounded ${DIFFICULTY_COLORS[trick.difficulty].bg} ${DIFFICULTY_COLORS[trick.difficulty].text}`}>{trick.difficulty}</span><span className="text-xs text-slate-300">{trick.category}</span></div>
                     </div>
                   </div>
@@ -861,7 +887,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
         return (
           <div key={cat}>
             <div className="flex items-center gap-2 mb-2 mt-4">
-              <span className="text-2xl">{CATEGORY_ICONS[cat]}</span>
+              <CategoryIcon category={cat} size={28} className="text-slate-200" />
               <h3 className={`font-black text-lg uppercase tracking-wide ${isGymnastics ? 'text-cyan-300' : 'text-slate-200'}`}>{cat}</h3>
               <span className="text-sm text-slate-500">({grouped[cat].length})</span>
               {isGymnastics && <span className="text-xs font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Gymnastics</span>}
@@ -946,7 +972,7 @@ function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUp
       <div onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-t sm:border border-purple-500/30 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-full sm:max-h-[85vh] overflow-y-auto">
         <div className={`relative ${diff.bg} p-6 border-b border-slate-700`}>
           <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-slate-700"><X className="w-5 h-5" /></button>
-          <div className="text-3xl mb-1">{CATEGORY_ICONS[trick.category]}</div>
+          <div className="mb-2"><CategoryIcon category={trick.category} size={36} className="text-white/90" /></div>
           <div className="text-2xl font-black">{trick.name}</div>
           <div className="flex items-center gap-2 mt-2">
             <span className={`text-xs font-bold px-2 py-1 rounded ${diff.bg} ${diff.text} border ${diff.border}`}>{trick.difficulty}</span>
@@ -1155,7 +1181,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
                 const status = STATUS_LEVELS.find(s => s.id === trick.status);
                 return (
                   <div key={g.trickId} className="flex items-center gap-2 bg-slate-800 rounded-lg p-2">
-                    <button onClick={() => onOpenTrick(trick)} className="flex-1 text-left flex items-center gap-2"><span>{CATEGORY_ICONS[trick.category]}</span><span className="font-semibold text-sm">{trick.name}</span><span className="ml-auto text-lg">{status.emoji}</span></button>
+                    <button onClick={() => onOpenTrick(trick)} className="flex-1 text-left flex items-center gap-2"><CategoryIcon category={trick.category} size={18} className="text-slate-300 flex-shrink-0" /><span className="font-semibold text-sm">{trick.name}</span><span className="ml-auto text-lg">{status.emoji}</span></button>
                     <button onClick={() => removeGoal(g.trickId)} className="text-slate-500 hover:text-red-400"><X className="w-4 h-4" /></button>
                   </div>
                 );
@@ -1321,7 +1347,7 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
         <div className="space-y-2">
           {categoryStats.map(c => (
             <div key={c.cat}>
-              <div className="flex items-center justify-between text-sm mb-1"><span className="font-semibold"><span className="mr-1">{CATEGORY_ICONS[c.cat]}</span>{c.cat}</span><span className="text-slate-400">{c.mastered}/{c.total}</span></div>
+              <div className="flex items-center justify-between text-sm mb-1"><span className="font-semibold flex items-center gap-1.5"><CategoryIcon category={c.cat} size={16} className="text-slate-300" />{c.cat}</span><span className="text-slate-400">{c.mastered}/{c.total}</span></div>
               <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${c.pct}%` }} /></div>
             </div>
           ))}
@@ -1363,7 +1389,7 @@ function AddTab({ onAddTrick, setActiveTab }) {
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Category</div>
             <div className="flex flex-wrap gap-2">
-              {categories.map(c => <button key={c} onClick={() => setCategory(c)} className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${category === c ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}><span className="mr-1">{CATEGORY_ICONS[c]}</span>{c}</button>)}
+              {categories.map(c => <button key={c} onClick={() => setCategory(c)} className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 ${category === c ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}><CategoryIcon category={c} size={16} />{c}</button>)}
             </div>
           </div>
           <div>
@@ -1578,7 +1604,7 @@ function AdminTab({ currentUserUid }) {
                 <div className="flex flex-wrap gap-1">
                   {s.tricks.map(t => (
                     <span key={t.id} className="text-xs bg-slate-900 px-2 py-1 rounded border border-slate-700">
-                      {CATEGORY_ICONS[t.category]} {t.name}
+                      <CategoryIcon category={t.category} size={13} className="inline-block mr-1" /> {t.name}
                     </span>
                   ))}
                 </div>
@@ -1600,7 +1626,7 @@ function AdminTab({ currentUserUid }) {
                 if (!trick) return null;
                 return (
                   <div key={g.trickId} className="text-sm flex items-center gap-2">
-                    <span>{CATEGORY_ICONS[trick.category]}</span>
+                    <CategoryIcon category={trick.category} size={16} className="text-slate-300 flex-shrink-0" />
                     <span>{trick.name}</span>
                     <span className="text-xs text-slate-400 ml-auto">
                       {STATUS_LEVELS.find(s => s.id === trick.status)?.emoji}
