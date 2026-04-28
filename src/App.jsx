@@ -1474,6 +1474,8 @@ function AdminTab({ currentUserUid }) {
   const [editingTrick, setEditingTrick] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', category: 'Flips', difficulty: 'Medium' });
   const [savingTrick, setSavingTrick] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [saveOk, setSaveOk] = useState(false);
 
   useEffect(() => {
     const loadAll = async () => {
@@ -1578,15 +1580,27 @@ function AdminTab({ currentUserUid }) {
   };
 
   const saveTrickOverride = async () => {
+    if (!editingTrick) return;
+    const trimmedName = editForm.name.trim();
+    if (!trimmedName) {
+      setSaveError('Name cannot be empty.');
+      return;
+    }
     setSavingTrick(true);
-    const newOverrides = { ...overrides, [String(editingTrick.id)]: { name: editForm.name, category: editForm.category, difficulty: editForm.difficulty } };
+    setSaveError(null);
+    const newOverrides = {
+      ...overrides,
+      [String(editingTrick.id)]: { name: trimmedName, category: editForm.category, difficulty: editForm.difficulty },
+    };
     try {
-      await setDoc(doc(db, 'globalConfig', 'tricks'), { overrides: newOverrides });
+      await setDoc(doc(db, 'globalConfig', 'tricks'), { overrides: newOverrides, updatedAt: Date.now() }, { merge: true });
       setOverrides(newOverrides);
+      setSaveOk(true);
+      setTimeout(() => setSaveOk(false), 1500);
       setEditingTrick(null);
     } catch (e) {
       console.error('Save override error', e);
-      alert('Could not save. Try again.');
+      setSaveError(`${e.code || 'error'}: ${e.message || 'Could not save'}`);
     }
     setSavingTrick(false);
   };
@@ -1839,6 +1853,7 @@ service cloud.firestore {
       <div className="bg-slate-800/50 border border-blue-500/40 rounded-2xl p-4">
         <div className="font-bold mb-3 flex items-center gap-2">
           <span className="text-lg">✏️</span> Trick Management
+          {saveOk && <span className="text-xs font-bold bg-green-500/20 text-green-300 border border-green-500/40 px-2 py-0.5 rounded">✓ Saved</span>}
           <span className="ml-auto text-xs text-slate-400 font-normal">{INITIAL_TRICKS.length} tricks</span>
         </div>
         <input
@@ -1893,12 +1908,21 @@ service cloud.firestore {
                 })}
               </div>
             </div>
+            {saveError && (
+              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-xs text-red-200 break-words">
+                <div className="font-bold mb-1">Save failed</div>
+                <div className="font-mono">{saveError}</div>
+                <div className="mt-2 text-slate-300">
+                  If this is a permission error, set Firestore rules to <code className="bg-slate-900 px-1 rounded">allow read, write: if request.auth != null</code> for <code className="bg-slate-900 px-1 rounded">/{'{document=**}'}</code>.
+                </div>
+              </div>
+            )}
             <div className="flex gap-2">
               <button onClick={saveTrickOverride} disabled={savingTrick || !editForm.name.trim()}
                 className="flex-1 py-2.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl font-bold text-sm disabled:opacity-50 transition">
                 {savingTrick ? 'Saving…' : 'Save changes'}
               </button>
-              <button onClick={() => setEditingTrick(null)}
+              <button onClick={() => { setEditingTrick(null); setSaveError(null); }}
                 className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-sm transition">
                 Cancel
               </button>
