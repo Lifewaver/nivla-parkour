@@ -7,11 +7,44 @@ import React, { useState, useEffect } from 'react';
 import {
    Home, Dumbbell, Calendar, Trophy, Plus, Flame, Search, X, ExternalLink,
   Check, Video, Target, Award, TrendingUp, ChevronRight, Zap, Play, Pause,
-  RotateCcw, LogOut, Shield, Eye, ArrowLeft
+  RotateCcw, LogOut, Shield, Eye, ArrowLeft, ScrollText
 } from 'lucide-react';
 import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
+
+const RELEASE_NOTES = [
+  {
+    version: '1.4',
+    date: '2026-04-27',
+    title: 'Home screen quick links updated',
+    notes: ['Replaced the "Browse Tricks" quick link with a "Strength" shortcut that navigates directly to the Strength section of the Training tab.'],
+  },
+  {
+    version: '1.3',
+    date: '2026-04-27',
+    title: 'Conditioning renamed to Strength',
+    notes: ['The Training tab section previously labelled "Conditioning" is now called "Strength" throughout the app. Existing data is unaffected.'],
+  },
+  {
+    version: '1.2',
+    date: '2026-04-27',
+    title: 'This Week\'s Focus',
+    notes: ['Renamed "Tricks of the Day" to "This Week\'s Focus" on the home screen.', 'Suggested tricks now stay consistent for the entire week instead of changing daily.'],
+  },
+  {
+    version: '1.1',
+    date: '2026-04-27',
+    title: 'Admin panel',
+    notes: ['New Admin tab (visible to admins only) showing all family members who have signed in.', 'Admins can view a read-only summary of any user\'s tricks, training days, weekly goals, journal entries, and warmup/strength completions.'],
+  },
+  {
+    version: '1.0',
+    date: '2026-04-27',
+    title: 'Initial release',
+    notes: ['Google Sign-In with family allowlist.', '92 parkour tricks across 9 categories with 6-step mastery progression.', 'Training streak tracking and daily log.', 'Warmup and strength routines with countdown timers.', 'Weekly goal setting with smart suggestions.', 'Training journal and history view.', 'Progress tab with badges and category breakdowns.', 'Add custom tricks.'],
+  },
+];
 
 const STATUS_LEVELS = [
   { id: 'not_started', label: 'Not started', color: 'bg-gray-600', textColor: 'text-gray-300', emoji: '⚪' },
@@ -336,6 +369,7 @@ function MainApp({ user }) {
   const [filterDifficulty, setFilterDifficulty] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [celebrationTrick, setCelebrationTrick] = useState(null);
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -480,6 +514,14 @@ function MainApp({ user }) {
               <span className="font-bold text-orange-300">{streak}</span>
             </div>
             <button
+              onClick={() => setShowReleaseNotes(true)}
+              className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition"
+              aria-label="Release notes"
+              title="Release notes"
+            >
+              <ScrollText className="w-4 h-4 text-slate-300" />
+            </button>
+            <button
               onClick={() => signOut(auth)}
               className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition"
               aria-label="Sign out"
@@ -526,6 +568,8 @@ function MainApp({ user }) {
         )}
       </div>
 
+      {showReleaseNotes && <ReleaseNotesModal onClose={() => setShowReleaseNotes(false)} />}
+
       {selectedTrick && (
         <TrickDetailModal trick={tricks.find(t => t.id === selectedTrick.id) || selectedTrick}
           onClose={() => setSelectedTrick(null)} onUpdateStatus={updateTrickStatus}
@@ -542,6 +586,38 @@ function MainApp({ user }) {
          {userIsAdmin && (
          <NavButton icon={Shield} label="Admin" active={activeTab === 'admin'} onClick={() => { setSelectedTrick(null); setActiveTab('admin'); }} />
          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReleaseNotesModal({ onClose }) {
+  return (
+    <div className="fixed inset-x-0 top-0 bottom-20 z-40 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-t sm:border border-purple-500/30 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-full sm:max-h-[85vh] overflow-y-auto">
+        <div className="sticky top-0 bg-slate-900 border-b border-slate-700 px-6 py-4 flex items-center justify-between rounded-t-3xl">
+          <div className="flex items-center gap-2">
+            <ScrollText className="w-5 h-5 text-purple-400" />
+            <h2 className="font-black text-lg">Release Notes</h2>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-5 space-y-5">
+          {RELEASE_NOTES.map((r) => (
+            <div key={r.version} className="border-l-2 border-purple-500/50 pl-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-bold bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">v{r.version}</span>
+                <span className="text-xs text-slate-400">{r.date}</span>
+              </div>
+              <div className="font-bold text-white mb-2">{r.title}</div>
+              <ul className="space-y-1">
+                {r.notes.map((n, i) => (
+                  <li key={i} className="text-sm text-slate-300 flex gap-2"><span className="text-purple-400 flex-shrink-0">·</span>{n}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       </div>
     </div>
