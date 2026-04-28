@@ -17,6 +17,12 @@ import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase
 
 const RELEASE_NOTES = [
   {
+    version: '1.8',
+    date: '2026-04-28',
+    title: 'Trick management for admins',
+    notes: ['Admins can now edit any trick\'s name, category, and difficulty directly from the Admin panel.', 'Changes apply globally — all family members see the updated values on next load.', 'Overridden tricks are highlighted with an edit indicator in the list.'],
+  },
+  {
     version: '1.7',
     date: '2026-04-28',
     title: 'Gymnastics category',
@@ -525,14 +531,27 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'completedConditioning'),
           ]);
 
-        if (tricksData) {
+        // Load global trick overrides set by admin
+        let globalOverrides = {};
+        try {
+          const overridesSnap = await getDoc(doc(db, 'globalConfig', 'tricks'));
+          if (overridesSnap.exists()) globalOverrides = overridesSnap.data().overrides || {};
+        } catch (e) { console.error('Global overrides load error', e); }
+
+        const applyOverrides = (t) => {
           const OLD_GYM = ['Trampoline', 'Tumbling', 'Floor'];
-          const migrated = tricksData.map(t => OLD_GYM.includes(t.category) ? { ...t, category: 'Gymnastics' } : t);
+          const base = OLD_GYM.includes(t.category) ? { ...t, category: 'Gymnastics' } : t;
+          const override = globalOverrides[String(base.id)];
+          return override ? { ...base, ...override } : base;
+        };
+
+        if (tricksData) {
+          const migrated = tricksData.map(applyOverrides);
           const changed = migrated.some((t, i) => t.category !== tricksData[i].category);
           setTricks(migrated);
           if (changed) await saveUserData(user.uid, 'tricks', migrated);
         } else {
-          const initial = INITIAL_TRICKS.map(t => ({ ...t, status: 'not_started', videos: [], notes: '' }));
+          const initial = INITIAL_TRICKS.map(t => applyOverrides({ ...t, status: 'not_started', videos: [], notes: '' }));
           setTricks(initial);
           await saveUserData(user.uid, 'tricks', initial);
         }
@@ -1445,11 +1464,16 @@ function ExerciseTimer({ totalSeconds, color = 'orange' }) {
 function AdminTab({ currentUserUid }) {
   const [profiles, setProfiles] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [overrides, setOverrides] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loadingUser, setLoadingUser] = useState(false);
+  const [trickSearch, setTrickSearch] = useState('');
+  const [editingTrick, setEditingTrick] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', category: 'Flips', difficulty: 'Medium' });
+  const [savingTrick, setSavingTrick] = useState(false);
 
   useEffect(() => {
     const loadAll = async () => {
@@ -1476,6 +1500,11 @@ function AdminTab({ currentUserUid }) {
         console.error('accessRequests load error', e);
         if (!profilesOk) setLoadError(`Could not load data: ${e.code || e.message}. Check Firestore rules.`);
       }
+
+      try {
+        const snap = await getDoc(doc(db, 'globalConfig', 'tricks'));
+        if (snap.exists()) setOverrides(snap.data().overrides || {});
+      } catch (e) { console.error('Global overrides load error', e); }
 
       setLoading(false);
     };
@@ -1536,6 +1565,30 @@ function AdminTab({ currentUserUid }) {
       console.error('User data load error', e);
     }
     setLoadingUser(false);
+  };
+
+  const startEdit = (trick) => {
+    const override = overrides[String(trick.id)];
+    setEditingTrick(trick);
+    setEditForm({
+      name: override?.name || trick.name,
+      category: override?.category || trick.category,
+      difficulty: override?.difficulty || trick.difficulty,
+    });
+  };
+
+  const saveTrickOverride = async () => {
+    setSavingTrick(true);
+    const newOverrides = { ...overrides, [String(editingTrick.id)]: { name: editForm.name, category: editForm.category, difficulty: editForm.difficulty } };
+    try {
+      await setDoc(doc(db, 'globalConfig', 'tricks'), { overrides: newOverrides });
+      setOverrides(newOverrides);
+      setEditingTrick(null);
+    } catch (e) {
+      console.error('Save override error', e);
+      alert('Could not save. Try again.');
+    }
+    setSavingTrick(false);
   };
 
   const formatDate = (ts) => {
@@ -1777,6 +1830,95 @@ service cloud.firestore {
                     </div>
                   )}
                 </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-slate-800/50 border border-blue-500/40 rounded-2xl p-4">
+        <div className="font-bold mb-3 flex items-center gap-2">
+          <span className="text-lg">✏️</span> Trick Management
+          <span className="ml-auto text-xs text-slate-400 font-normal">{INITIAL_TRICKS.length} tricks</span>
+        </div>
+        <input
+          type="text"
+          value={trickSearch}
+          onChange={e => setTrickSearch(e.target.value)}
+          placeholder="Search tricks..."
+          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-3"
+        />
+        {editingTrick ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <button onClick={() => setEditingTrick(null)} className="text-slate-400 hover:text-white transition">
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <span className="font-semibold text-sm truncate">Editing: {editingTrick.name}</span>
+              {overrides[String(editingTrick.id)] && (
+                <span className="text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 px-1.5 py-0.5 rounded ml-auto flex-shrink-0">overridden</span>
+              )}
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Name</div>
+              <input
+                type="text"
+                value={editForm.name}
+                onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Category</div>
+              <div className="flex flex-wrap gap-2">
+                {['Flips', 'Jump', 'Kicks', 'Leap', 'Swings', 'Vaults', 'Gymnastics'].map(c => (
+                  <button key={c} onClick={() => setEditForm(f => ({ ...f, category: c }))}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 ${editForm.category === c ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}>
+                    <CategoryIcon category={c} size={16} />{c}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Difficulty</div>
+              <div className="flex gap-2">
+                {['Easy', 'Medium', 'Hard', 'Super'].map(d => {
+                  const col = DIFFICULTY_COLORS[d];
+                  return (
+                    <button key={d} onClick={() => setEditForm(f => ({ ...f, difficulty: d }))}
+                      className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${editForm.difficulty === d ? `${col.strip} text-white` : 'bg-slate-800 text-slate-300'}`}>
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={saveTrickOverride} disabled={savingTrick || !editForm.name.trim()}
+                className="flex-1 py-2.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl font-bold text-sm disabled:opacity-50 transition">
+                {savingTrick ? 'Saving…' : 'Save changes'}
+              </button>
+              <button onClick={() => setEditingTrick(null)}
+                className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-sm transition">
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {INITIAL_TRICKS.filter(t => t.name.toLowerCase().includes(trickSearch.toLowerCase())).map(t => {
+              const ov = overrides[String(t.id)];
+              const effective = ov ? { ...t, ...ov } : t;
+              const col = DIFFICULTY_COLORS[effective.difficulty];
+              return (
+                <button key={t.id} onClick={() => startEdit(t)}
+                  className="w-full flex items-center gap-2 bg-slate-900 hover:bg-slate-800 rounded-lg px-3 py-2 text-left transition text-sm">
+                  <div className={`w-1.5 h-6 rounded-full ${col.strip} flex-shrink-0`} />
+                  <CategoryIcon category={effective.category} size={15} className="flex-shrink-0 text-slate-400" />
+                  <span className="flex-1 truncate font-medium">{effective.name}</span>
+                  {ov && <span className="text-xs text-blue-400 flex-shrink-0">✏️</span>}
+                  <span className={`text-xs font-semibold flex-shrink-0 ${col.text}`}>{effective.difficulty}</span>
+                </button>
               );
             })}
           </div>
