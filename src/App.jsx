@@ -462,7 +462,8 @@ export default function ParkourApp() {
           }
         } catch (e) {
           console.error('Request error', e);
-          setAuthError('Could not process your request. Please try again.');
+          setRequestStatus('submitted'); // show submitted screen so they know to try again
+          setAuthError(`Request may not have saved (${e.code || e.message}). Please try again.`);
         }
         await signOut(auth);
       } else {
@@ -1465,8 +1466,12 @@ function AdminTab({ currentUserUid }) {
       }
 
       try {
-        const snap = await getDocs(query(collection(db, 'accessRequests'), where('status', '==', 'pending')));
-        setRequests(snap.docs.map(d => d.data()).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0)));
+        const snap = await getDocs(collection(db, 'accessRequests'));
+        const statusOrder = { pending: 0, submitted: 1, rejected: 2, approved: 3 };
+        setRequests(snap.docs.map(d => d.data()).sort((a, b) =>
+          (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) ||
+          (a.requestedAt || 0) - (b.requestedAt || 0)
+        ));
       } catch (e) {
         console.error('accessRequests load error', e);
         if (!profilesOk) setLoadError(`Could not load data: ${e.code || e.message}. Check Firestore rules.`);
@@ -1731,46 +1736,52 @@ service cloud.firestore {
         </p>
       </div>
 
-      {requests.length > 0 && (
-        <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl p-4">
-          <div className="font-bold mb-3 flex items-center gap-2">
-            <span className="text-lg">📬</span> Access Requests
-            <span className="ml-auto text-xs font-bold bg-purple-500 text-white px-2 py-0.5 rounded-full">{requests.length}</span>
-          </div>
-          <div className="space-y-3">
-            {requests.map(req => (
-              <div key={req.uid} className="bg-slate-900 rounded-xl p-3 flex items-center gap-3">
-                {req.photoURL ? (
-                  <img src={req.photoURL} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center font-black flex-shrink-0">
-                    {req.displayName?.[0] || '?'}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-sm truncate">{req.displayName || 'Unknown'}</div>
-                  <div className="text-xs text-slate-400 truncate">{req.email}</div>
-                  <div className="text-xs text-slate-500">{formatDate(req.requestedAt)}</div>
-                </div>
-                <div className="flex flex-col gap-1 flex-shrink-0">
-                  <button
-                    onClick={() => approveRequest(req)}
-                    className="px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold transition"
-                  >
-                    ✓ Approve
-                  </button>
-                  <button
-                    onClick={() => denyRequest(req)}
-                    className="px-3 py-1.5 bg-slate-700 hover:bg-red-600 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition"
-                  >
-                    ✕ Deny
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl p-4">
+        <div className="font-bold mb-3 flex items-center gap-2">
+          <span className="text-lg">📬</span> Access Requests
+          {requests.filter(r => r.status === 'pending').length > 0 && (
+            <span className="ml-auto text-xs font-bold bg-purple-500 text-white px-2 py-0.5 rounded-full">
+              {requests.filter(r => r.status === 'pending').length} pending
+            </span>
+          )}
         </div>
-      )}
+        {requests.length === 0 ? (
+          <div className="text-sm text-slate-500 text-center py-3">No access requests yet.</div>
+        ) : (
+          <div className="space-y-3">
+            {requests.map(req => {
+              const isPending = req.status === 'pending';
+              const statusLabel = { pending: '⏳ Pending', approved: '✅ Approved', rejected: '🚫 Denied' }[req.status] || req.status;
+              return (
+                <div key={req.uid} className={`bg-slate-900 rounded-xl p-3 flex items-center gap-3 ${!isPending ? 'opacity-60' : ''}`}>
+                  {req.photoURL ? (
+                    <img src={req.photoURL} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center font-black flex-shrink-0">
+                      {req.displayName?.[0] || '?'}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm truncate">{req.displayName || 'Unknown'}</div>
+                    <div className="text-xs text-slate-400 truncate">{req.email}</div>
+                    <div className="text-xs text-slate-500">{formatDate(req.requestedAt)} · {statusLabel}</div>
+                  </div>
+                  {isPending && (
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <button onClick={() => approveRequest(req)} className="px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold transition">
+                        ✓ Approve
+                      </button>
+                      <button onClick={() => denyRequest(req)} className="px-3 py-1.5 bg-slate-700 hover:bg-red-600 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">
+                        ✕ Deny
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
         <div className="font-bold mb-3">All Users ({profiles.length})</div>
