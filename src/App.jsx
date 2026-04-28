@@ -11,9 +11,15 @@ import {
 } from 'lucide-react';
 import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 const RELEASE_NOTES = [
+  {
+    version: '1.5',
+    date: '2026-04-28',
+    title: 'Access request flow',
+    notes: ['New users can now request access directly from the login screen by signing in with Google.', 'Pending requests appear in the Admin panel where they can be approved or denied.', 'Approved users can sign in immediately without any code changes needed.'],
+  },
   {
     version: '1.4',
     date: '2026-04-27',
@@ -251,7 +257,18 @@ async function saveUserData(uid, key, value) {
 // =================================================================
 // LOGIN SCREEN
 // =================================================================
-function LoginScreen({ error }) {
+function GoogleIcon() {
+  return (
+    <svg className="w-5 h-5" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+  );
+}
+
+function LoginScreen({ error, requestStatus }) {
   const handleSignIn = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -261,8 +278,52 @@ function LoginScreen({ error }) {
     }
   };
 
+  const bg = 'min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center p-4';
+
+  if (requestStatus === 'submitted') {
+    return (
+      <div className={bg}>
+        <div className="max-w-sm w-full text-center">
+          <div className="text-7xl mb-6">📬</div>
+          <h1 className="text-3xl font-black text-white mb-3">Request submitted!</h1>
+          <p className="text-slate-400 mb-8">An admin will review your request. Sign in again once you've been approved.</p>
+          <button onClick={handleSignIn} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-3 transition shadow-xl">
+            <GoogleIcon /> Check if approved
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (requestStatus === 'pending') {
+    return (
+      <div className={bg}>
+        <div className="max-w-sm w-full text-center">
+          <div className="text-7xl mb-6">⏳</div>
+          <h1 className="text-3xl font-black text-white mb-3">Request pending</h1>
+          <p className="text-slate-400 mb-8">Your request is waiting for admin approval. Check back soon!</p>
+          <button onClick={handleSignIn} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-3 transition shadow-xl">
+            <GoogleIcon /> Check if approved
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (requestStatus === 'rejected') {
+    return (
+      <div className={bg}>
+        <div className="max-w-sm w-full text-center">
+          <div className="text-7xl mb-6">🚫</div>
+          <h1 className="text-3xl font-black text-white mb-3">Access not approved</h1>
+          <p className="text-slate-400 mb-8">Your request was not approved. Contact a family admin if you think this is a mistake.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center p-4">
+    <div className={bg}>
       <div className="max-w-sm w-full text-center">
         <div className="text-7xl mb-6">🤸</div>
         <h1 className="text-4xl font-black bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500 bg-clip-text text-transparent mb-2">
@@ -278,17 +339,18 @@ function LoginScreen({ error }) {
           onClick={handleSignIn}
           className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-3 transition shadow-xl"
         >
-          <svg className="w-5 h-5" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Sign in with Google
+          <GoogleIcon /> Sign in with Google
         </button>
-        <p className="text-xs text-slate-500 mt-6">
-          Sign in is restricted to allowed users only.
-        </p>
+        <div className="mt-6 border-t border-slate-700 pt-6">
+          <p className="text-sm text-slate-400 mb-3">Don't have access yet?</p>
+          <button
+            onClick={handleSignIn}
+            className="w-full border border-purple-500/50 hover:border-purple-400 text-purple-300 hover:text-purple-200 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-3 transition"
+          >
+            <GoogleIcon /> Request access
+          </button>
+          <p className="text-xs text-slate-500 mt-3">Sign in with Google to submit a request. An admin will approve it.</p>
+        </div>
       </div>
     </div>
   );
@@ -301,18 +363,16 @@ export default function ParkourApp() {
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [authError, setAuthError] = useState(null);
+  const [requestStatus, setRequestStatus] = useState(null); // null | 'pending' | 'submitted' | 'rejected'
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        if (!ALLOWED_EMAILS.includes(firebaseUser.email)) {
-          await signOut(auth);
-          setAuthError(`Sorry, ${firebaseUser.email} is not authorized to use this app.`);
-          setUser(null);
-        } else {
+        // Fast path: hardcoded family emails and admins
+        if (ALLOWED_EMAILS.includes(firebaseUser.email)) {
           setAuthError(null);
+          setRequestStatus(null);
           setUser(firebaseUser);
-          // Save/update user profile for admin visibility
           try {
             await setDoc(doc(db, 'userProfiles', firebaseUser.uid), {
               uid: firebaseUser.uid,
@@ -325,7 +385,56 @@ export default function ParkourApp() {
           } catch (e) {
             console.error('Profile save error', e);
           }
+          setAuthChecking(false);
+          return;
         }
+
+        // Check if dynamically approved by admin
+        try {
+          const approvedDoc = await getDoc(doc(db, 'approvedUsers', firebaseUser.uid));
+          if (approvedDoc.exists()) {
+            setAuthError(null);
+            setRequestStatus(null);
+            setUser(firebaseUser);
+            try {
+              await setDoc(doc(db, 'userProfiles', firebaseUser.uid), {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || '',
+                photoURL: firebaseUser.photoURL || '',
+                lastSignIn: Date.now(),
+                isAdmin: false,
+              }, { merge: true });
+            } catch (e) {}
+            setAuthChecking(false);
+            return;
+          }
+        } catch (e) {
+          console.error('Approved check error', e);
+        }
+
+        // Not approved — check or create an access request
+        try {
+          const requestRef = doc(db, 'accessRequests', firebaseUser.uid);
+          const requestDoc = await getDoc(requestRef);
+          if (requestDoc.exists()) {
+            setRequestStatus(requestDoc.data().status === 'rejected' ? 'rejected' : 'pending');
+          } else {
+            await setDoc(requestRef, {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || '',
+              photoURL: firebaseUser.photoURL || '',
+              requestedAt: Date.now(),
+              status: 'pending',
+            });
+            setRequestStatus('submitted');
+          }
+        } catch (e) {
+          console.error('Request error', e);
+          setAuthError('Could not process your request. Please try again.');
+        }
+        await signOut(auth);
       } else {
         setUser(null);
       }
@@ -333,7 +442,7 @@ export default function ParkourApp() {
     });
     return unsub;
   }, []);
- 
+
   if (authChecking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
@@ -345,7 +454,7 @@ export default function ParkourApp() {
     );
   }
 
-  if (!user) return <LoginScreen error={authError} />;
+  if (!user) return <LoginScreen error={authError} requestStatus={requestStatus} />;
 
   return <MainApp user={user} key={user.uid} />;
 }
@@ -1300,24 +1409,57 @@ function ExerciseTimer({ totalSeconds, color = 'orange' }) {
 
 function AdminTab({ currentUserUid }) {
   const [profiles, setProfiles] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loadingUser, setLoadingUser] = useState(false);
 
   useEffect(() => {
-    const loadProfiles = async () => {
+    const loadAll = async () => {
       try {
-        const snap = await getDocs(collection(db, 'userProfiles'));
-        const list = snap.docs.map(d => d.data()).sort((a, b) => (b.lastSignIn || 0) - (a.lastSignIn || 0));
-        setProfiles(list);
+        const [profilesSnap, requestsSnap] = await Promise.all([
+          getDocs(collection(db, 'userProfiles')),
+          getDocs(query(collection(db, 'accessRequests'), where('status', '==', 'pending'))),
+        ]);
+        setProfiles(profilesSnap.docs.map(d => d.data()).sort((a, b) => (b.lastSignIn || 0) - (a.lastSignIn || 0)));
+        setRequests(requestsSnap.docs.map(d => d.data()).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0)));
       } catch (e) {
-        console.error('Profile load error', e);
+        console.error('Admin load error', e);
       }
       setLoading(false);
     };
-    loadProfiles();
+    loadAll();
   }, []);
+
+  const approveRequest = async (req) => {
+    try {
+      await Promise.all([
+        setDoc(doc(db, 'approvedUsers', req.uid), {
+          uid: req.uid,
+          email: req.email,
+          displayName: req.displayName,
+          photoURL: req.photoURL,
+          approvedAt: Date.now(),
+        }),
+        setDoc(doc(db, 'accessRequests', req.uid), { ...req, status: 'approved' }),
+      ]);
+      setRequests(r => r.filter(x => x.uid !== req.uid));
+    } catch (e) {
+      console.error('Approve error', e);
+      alert('Could not approve. Try again.');
+    }
+  };
+
+  const denyRequest = async (req) => {
+    try {
+      await setDoc(doc(db, 'accessRequests', req.uid), { ...req, status: 'rejected' });
+      setRequests(r => r.filter(x => x.uid !== req.uid));
+    } catch (e) {
+      console.error('Deny error', e);
+      alert('Could not deny. Try again.');
+    }
+  };
 
   const viewUser = async (profile) => {
     setSelectedUser(profile);
@@ -1521,6 +1663,47 @@ function AdminTab({ currentUserUid }) {
           Tap a user to view their training progress in read-only mode.
         </p>
       </div>
+
+      {requests.length > 0 && (
+        <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl p-4">
+          <div className="font-bold mb-3 flex items-center gap-2">
+            <span className="text-lg">📬</span> Access Requests
+            <span className="ml-auto text-xs font-bold bg-purple-500 text-white px-2 py-0.5 rounded-full">{requests.length}</span>
+          </div>
+          <div className="space-y-3">
+            {requests.map(req => (
+              <div key={req.uid} className="bg-slate-900 rounded-xl p-3 flex items-center gap-3">
+                {req.photoURL ? (
+                  <img src={req.photoURL} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center font-black flex-shrink-0">
+                    {req.displayName?.[0] || '?'}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-sm truncate">{req.displayName || 'Unknown'}</div>
+                  <div className="text-xs text-slate-400 truncate">{req.email}</div>
+                  <div className="text-xs text-slate-500">{formatDate(req.requestedAt)}</div>
+                </div>
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => approveRequest(req)}
+                    className="px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold transition"
+                  >
+                    ✓ Approve
+                  </button>
+                  <button
+                    onClick={() => denyRequest(req)}
+                    className="px-3 py-1.5 bg-slate-700 hover:bg-red-600 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition"
+                  >
+                    ✕ Deny
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
         <div className="font-bold mb-3">All Users ({profiles.length})</div>
