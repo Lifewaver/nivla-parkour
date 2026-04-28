@@ -1445,22 +1445,33 @@ function AdminTab({ currentUserUid }) {
   const [profiles, setProfiles] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loadingUser, setLoadingUser] = useState(false);
 
   useEffect(() => {
     const loadAll = async () => {
+      let profilesOk = false;
+
+      // Load user profiles independently so one failure doesn't kill the other
       try {
-        const [profilesSnap, requestsSnap] = await Promise.all([
-          getDocs(collection(db, 'userProfiles')),
-          getDocs(query(collection(db, 'accessRequests'), where('status', '==', 'pending'))),
-        ]);
-        setProfiles(profilesSnap.docs.map(d => d.data()).sort((a, b) => (b.lastSignIn || 0) - (a.lastSignIn || 0)));
-        setRequests(requestsSnap.docs.map(d => d.data()).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0)));
+        const snap = await getDocs(collection(db, 'userProfiles'));
+        setProfiles(snap.docs.map(d => d.data()).sort((a, b) => (b.lastSignIn || 0) - (a.lastSignIn || 0)));
+        profilesOk = true;
       } catch (e) {
-        console.error('Admin load error', e);
+        console.error('userProfiles load error', e);
+        setLoadError(`Could not load users: ${e.code || e.message}. Check Firestore rules.`);
       }
+
+      try {
+        const snap = await getDocs(query(collection(db, 'accessRequests'), where('status', '==', 'pending')));
+        setRequests(snap.docs.map(d => d.data()).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0)));
+      } catch (e) {
+        console.error('accessRequests load error', e);
+        if (!profilesOk) setLoadError(`Could not load data: ${e.code || e.message}. Check Firestore rules.`);
+      }
+
       setLoading(false);
     };
     loadAll();
@@ -1534,6 +1545,28 @@ function AdminTab({ currentUserUid }) {
       <div className="max-w-2xl mx-auto text-center py-12">
         <div className="text-4xl mb-3 animate-bounce">🛡️</div>
         <div className="text-slate-400">Loading users...</div>
+      </div>
+    );
+  }
+
+  if (loadError && profiles.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-4">
+        <div className="bg-red-500/20 border border-red-500/50 rounded-2xl p-5">
+          <div className="font-bold text-red-300 mb-2">⚠️ Firestore permission error</div>
+          <div className="text-sm text-red-200 mb-4">{loadError}</div>
+          <div className="text-xs text-slate-300 leading-relaxed">
+            Go to <strong>Firebase Console → Firestore → Rules</strong> and set:
+            <pre className="mt-2 bg-slate-900 rounded-lg p-3 text-xs text-green-300 overflow-x-auto whitespace-pre">{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}`}</pre>
+          </div>
+        </div>
       </div>
     );
   }
