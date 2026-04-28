@@ -17,6 +17,12 @@ import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase
 
 const RELEASE_NOTES = [
   {
+    version: '1.7',
+    date: '2026-04-28',
+    title: 'Gymnastics category',
+    notes: ['Merged Trampoline, Tumbling, and Floor into a single Gymnastics category.', 'Existing trick progress is preserved — all 24 tricks are migrated automatically on next load.'],
+  },
+  {
     version: '1.6',
     date: '2026-04-28',
     title: 'Parkour category icons',
@@ -78,7 +84,7 @@ const DIFFICULTY_COLORS = {
 
 const CATEGORY_ICONS = {
   Flips: '🤸', Jump: '🤾‍♂️', Kicks: '🥋', Leap: '🐆', Swings: '🦧',
-  Vaults: '🧗', Trampoline: '⛹️', Tumbling: '🤼', Floor: '🧘',
+  Vaults: '🧗', Gymnastics: '🤸',
 };
 
 const CATEGORY_ICON_COMPONENTS = {
@@ -88,9 +94,7 @@ const CATEGORY_ICON_COMPONENTS = {
   Leap: GiLeapfrog,
   Swings: GiMuscleUp,
   Vaults: GiRunningNinja,
-  Trampoline: MdSportsGymnastics,
-  Tumbling: GiContortionist,
-  Floor: GiBodyBalance,
+  Gymnastics: MdSportsGymnastics,
 };
 
 function CategoryIcon({ category, size = 22, className = '' }) {
@@ -168,30 +172,30 @@ const INITIAL_TRICKS = [
   { id: 66, name: 'Gate Vault', difficulty: 'Medium', category: 'Vaults' },
   { id: 67, name: 'Palm Spin', difficulty: 'Easy', category: 'Vaults' },
   { id: 68, name: 'Wall Spin', difficulty: 'Medium', category: 'Vaults' },
-  { id: 69, name: 'Tucked', difficulty: 'Easy', category: 'Trampoline' },
-  { id: 70, name: 'PIK (Pike)', difficulty: 'Medium', category: 'Trampoline' },
-  { id: 71, name: 'Straight', difficulty: 'Medium', category: 'Trampoline' },
-  { id: 72, name: 'Tucked 180', difficulty: 'Hard', category: 'Trampoline' },
-  { id: 73, name: 'PIK 180', difficulty: 'Hard', category: 'Trampoline' },
-  { id: 74, name: 'Straight 180', difficulty: 'Hard', category: 'Trampoline' },
-  { id: 75, name: 'Tucked 360', difficulty: 'Hard', category: 'Trampoline' },
-  { id: 76, name: 'PIK 360', difficulty: 'Hard', category: 'Trampoline' },
-  { id: 77, name: 'Straight 360', difficulty: 'Hard', category: 'Trampoline' },
-  { id: 78, name: 'Table to Stand', difficulty: 'Medium', category: 'Trampoline' },
-  { id: 79, name: 'Round-off', difficulty: 'Easy', category: 'Tumbling' },
-  { id: 80, name: 'Cartwheel', difficulty: 'Easy', category: 'Tumbling' },
-  { id: 81, name: 'One-hand Cartwheel', difficulty: 'Hard', category: 'Tumbling' },
-  { id: 82, name: 'No-hand Cartwheel', difficulty: 'Super', category: 'Tumbling' },
-  { id: 83, name: 'Round-off Back Handspring', difficulty: 'Medium', category: 'Tumbling' },
-  { id: 84, name: 'Round-off Back Handspring x2', difficulty: 'Hard', category: 'Tumbling' },
-  { id: 85, name: 'Round-off Handspring', difficulty: 'Medium', category: 'Tumbling' },
-  { id: 86, name: 'Round-off Salto', difficulty: 'Medium', category: 'Tumbling' },
-  { id: 87, name: 'Round-off Back Handspring - Salto', difficulty: 'Hard', category: 'Tumbling' },
-  { id: 88, name: 'Round-off Front Salto', difficulty: 'Easy', category: 'Tumbling' },
-  { id: 89, name: 'Round-off Front Salto - Handspring', difficulty: 'Hard', category: 'Tumbling' },
-  { id: 90, name: 'Handstand', difficulty: 'Medium', category: 'Floor' },
-  { id: 91, name: 'Pike Sit', difficulty: 'Hard', category: 'Floor' },
-  { id: 92, name: 'Spider', difficulty: 'Medium', category: 'Floor' },
+  { id: 69, name: 'Tucked', difficulty: 'Easy', category: 'Gymnastics' },
+  { id: 70, name: 'PIK (Pike)', difficulty: 'Medium', category: 'Gymnastics' },
+  { id: 71, name: 'Straight', difficulty: 'Medium', category: 'Gymnastics' },
+  { id: 72, name: 'Tucked 180', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 73, name: 'PIK 180', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 74, name: 'Straight 180', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 75, name: 'Tucked 360', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 76, name: 'PIK 360', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 77, name: 'Straight 360', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 78, name: 'Table to Stand', difficulty: 'Medium', category: 'Gymnastics' },
+  { id: 79, name: 'Round-off', difficulty: 'Easy', category: 'Gymnastics' },
+  { id: 80, name: 'Cartwheel', difficulty: 'Easy', category: 'Gymnastics' },
+  { id: 81, name: 'One-hand Cartwheel', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 82, name: 'No-hand Cartwheel', difficulty: 'Super', category: 'Gymnastics' },
+  { id: 83, name: 'Round-off Back Handspring', difficulty: 'Medium', category: 'Gymnastics' },
+  { id: 84, name: 'Round-off Back Handspring x2', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 85, name: 'Round-off Handspring', difficulty: 'Medium', category: 'Gymnastics' },
+  { id: 86, name: 'Round-off Salto', difficulty: 'Medium', category: 'Gymnastics' },
+  { id: 87, name: 'Round-off Back Handspring - Salto', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 88, name: 'Round-off Front Salto', difficulty: 'Easy', category: 'Gymnastics' },
+  { id: 89, name: 'Round-off Front Salto - Handspring', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 90, name: 'Handstand', difficulty: 'Medium', category: 'Gymnastics' },
+  { id: 91, name: 'Pike Sit', difficulty: 'Hard', category: 'Gymnastics' },
+  { id: 92, name: 'Spider', difficulty: 'Medium', category: 'Gymnastics' },
 ];
 
 const WARMUPS = [
@@ -521,7 +525,11 @@ function MainApp({ user }) {
           ]);
 
         if (tricksData) {
-          setTricks(tricksData);
+          const OLD_GYM = ['Trampoline', 'Tumbling', 'Floor'];
+          const migrated = tricksData.map(t => OLD_GYM.includes(t.category) ? { ...t, category: 'Gymnastics' } : t);
+          const changed = migrated.some((t, i) => t.category !== tricksData[i].category);
+          setTricks(migrated);
+          if (changed) await saveUserData(user.uid, 'tricks', migrated);
         } else {
           const initial = INITIAL_TRICKS.map(t => ({ ...t, status: 'not_started', videos: [], notes: '' }));
           setTricks(initial);
@@ -864,7 +872,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
     return true;
   });
   const grouped = filtered.reduce((acc, t) => { if (!acc[t.category]) acc[t.category] = []; acc[t.category].push(t); return acc; }, {});
-  const GYMNASTICS_CATEGORIES = ['Trampoline', 'Tumbling', 'Floor'];
+  const GYMNASTICS_CATEGORIES = ['Gymnastics'];
   const sortedCategories = Object.keys(grouped).sort((a, b) => {
     const aIsGym = GYMNASTICS_CATEGORIES.includes(a), bIsGym = GYMNASTICS_CATEGORIES.includes(b);
     if (aIsGym && !bIsGym) return 1; if (!aIsGym && bIsGym) return -1;
@@ -1377,7 +1385,7 @@ function AddTab({ onAddTrick, setActiveTab }) {
   const [category, setCategory] = useState('Flips');
   const [difficulty, setDifficulty] = useState('Medium');
   const [added, setAdded] = useState(false);
-  const categories = ['Flips', 'Jump', 'Kicks', 'Leap', 'Swings', 'Vaults', 'Trampoline', 'Tumbling', 'Floor'];
+  const categories = ['Flips', 'Jump', 'Kicks', 'Leap', 'Swings', 'Vaults', 'Gymnastics'];
   const difficulties = ['Easy', 'Medium', 'Hard', 'Super'];
   const submit = () => { if (!name.trim()) return; onAddTrick({ name: name.trim(), category, difficulty }); setName(''); setAdded(true); setTimeout(() => setAdded(false), 2000); };
   return (
