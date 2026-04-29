@@ -1787,6 +1787,15 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const [planOpen, setPlanOpen] = useState(false);
   const [expandedSessions, setExpandedSessions] = useState({});
   const toggleSessionOpen = (dateStr) => setExpandedSessions(prev => ({ ...prev, [dateStr]: !prev[dateStr] }));
+  const lastLoggedSession = useMemo(() => {
+    return [...(Array.isArray(trainingSessions) ? trainingSessions : [])]
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .find(s => Array.isArray(s.practicedTricks) && s.practicedTricks.length > 0) || null;
+  }, [trainingSessions]);
+  const copyLastSessionTo = (dateStr) => {
+    if (!lastLoggedSession) return;
+    setFocusForDate(dateStr, [...lastLoggedSession.practicedTricks]);
+  };
   const [practicedTricks, setPracticedTricks] = useState([]);
   useEffect(() => {
     const locked = Array.isArray(plannedSessionFocus[date]) ? plannedSessionFocus[date] : [];
@@ -2165,6 +2174,14 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                     )}
                     {logged && <span className="text-[10px] font-bold bg-green-500/20 text-green-300 border border-green-500/40 px-2 py-0.5 rounded">✓ Logged · RPE {logged.rpe}</span>}
                   </button>
+
+                  {isOpen && lastLoggedSession && (
+                    <button onClick={() => copyLastSessionTo(us.date)}
+                      className="w-full mb-2 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded font-bold text-xs transition flex items-center justify-center gap-1"
+                      title={`Copy practiced tricks from session on ${lastLoggedSession.date}`}>
+                      📋 Copy last session ({lastLoggedSession.practicedTricks.length} {lastLoggedSession.practicedTricks.length === 1 ? 'trick' : 'tricks'} from {lastLoggedSession.date})
+                    </button>
+                  )}
 
                   {isOpen && lockedTricks.length > 0 && (
                     <div className="mb-2">
