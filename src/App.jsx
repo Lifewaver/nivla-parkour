@@ -1785,6 +1785,7 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
   ];
   const [expandedDifficulty, setExpandedDifficulty] = useState(null);
   const [expandedCategory, setExpandedCategory] = useState(null);
+  const [expandedLanding, setExpandedLanding] = useState(null);
   const [achievementsOpen, setAchievementsOpen] = useState(true);
   const sortByStatus = (a, b) => {
     const order = (t) => t.status === 'yes_i_can' ? 0 : t.status && t.status !== 'not_started' ? 1 : 2;
@@ -1831,6 +1832,47 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
                   <div className="space-y-1 mt-2 ml-4">
                     {rows.length === 0 ? (
                       <div className="text-xs text-slate-500 italic">No tricks at this difficulty.</div>
+                    ) : rows.map(t => <TrickRow key={t.id} t={t} />)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+        <div className="font-bold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-cyan-400" /> By Landing</div>
+        <div className="space-y-2">
+          {[
+            { id: 'trampoline_landing', label: 'Trampoline landing', emoji: '🤾', color: 'bg-cyan-500' },
+            { id: 'soft_landing', label: 'Soft landing', emoji: '🛬', color: 'bg-blue-500' },
+            { id: 'hard_landing', label: 'Hard landing', emoji: '🪨', color: 'bg-stone-500' },
+          ].map(l => {
+            const open = expandedLanding === l.id;
+            const matched = tricks.filter(t => Array.isArray(t.progress) && t.progress.includes(l.id));
+            const rows = matched.slice().sort(sortByStatus);
+            const count = matched.length;
+            const totalTricks = tricks.length;
+            return (
+              <div key={l.id}>
+                <button onClick={() => setExpandedLanding(open ? null : l.id)}
+                  className="w-full text-left hover:bg-slate-800/50 rounded-lg p-1 -m-1 transition">
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="font-semibold flex items-center gap-1">
+                      <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${open ? 'rotate-180' : '-rotate-90'}`} />
+                      <span className="text-base">{l.emoji}</span>
+                      {l.label}
+                    </span>
+                    <span className="text-slate-400">{count}/{totalTricks}</span>
+                  </div>
+                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className={`h-full ${l.color} transition-all duration-500`} style={{ width: `${totalTricks > 0 ? (count / totalTricks) * 100 : 0}%` }} />
+                  </div>
+                </button>
+                {open && (
+                  <div className="space-y-1 mt-2 ml-4">
+                    {rows.length === 0 ? (
+                      <div className="text-xs text-slate-500 italic">No tricks at this landing yet.</div>
                     ) : rows.map(t => <TrickRow key={t.id} t={t} />)}
                   </div>
                 )}
@@ -2172,6 +2214,7 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
   const [deletingTrickId, setDeletingTrickId] = useState(null);
   const [expandedUserDifficulty, setExpandedUserDifficulty] = useState(null);
   const [expandedUserCategory, setExpandedUserCategory] = useState(null);
+  const [expandedUserLanding, setExpandedUserLanding] = useState(null);
   const [suggestionError, setSuggestionError] = useState(null);
   const [processingSuggestion, setProcessingSuggestion] = useState(null);
   const [syncing, setSyncing] = useState(false);
@@ -2644,6 +2687,60 @@ service cloud.firestore {
                           <div className="space-y-1 mt-2 ml-4">
                             {rows.length === 0 ? (
                               <div className="text-xs text-slate-500 italic">No tricks at this difficulty.</div>
+                            ) : rows.map(t => {
+                              const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+                              return (
+                                <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
+                                  <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
+                                  <span className="flex-1 truncate">{t.name}</span>
+                                  <span className="text-base flex-shrink-0">{status.emoji}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+                <div className="font-bold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-cyan-400" /> By Landing</div>
+                <div className="space-y-2">
+                  {[
+                    { id: 'trampoline_landing', label: 'Trampoline landing', emoji: '🤾', color: 'bg-cyan-500' },
+                    { id: 'soft_landing', label: 'Soft landing', emoji: '🛬', color: 'bg-blue-500' },
+                    { id: 'hard_landing', label: 'Hard landing', emoji: '🪨', color: 'bg-stone-500' },
+                  ].map(l => {
+                    const open = expandedUserLanding === l.id;
+                    const sortByStatus = (a, b) => {
+                      const order = (t) => t.status === 'yes_i_can' ? 0 : t.status && t.status !== 'not_started' ? 1 : 2;
+                      return order(a) - order(b) || a.name.localeCompare(b.name);
+                    };
+                    const matched = userData.tricks.filter(t => Array.isArray(t.progress) && t.progress.includes(l.id));
+                    const rows = matched.slice().sort(sortByStatus);
+                    const count = matched.length;
+                    const totalTricks = userData.tricks.length;
+                    return (
+                      <div key={l.id}>
+                        <button onClick={() => setExpandedUserLanding(open ? null : l.id)}
+                          className="w-full text-left hover:bg-slate-800/50 rounded-lg p-1 -m-1 transition">
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span className="font-semibold flex items-center gap-1">
+                              <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${open ? 'rotate-180' : '-rotate-90'}`} />
+                              <span className="text-base">{l.emoji}</span>
+                              {l.label}
+                            </span>
+                            <span className="text-slate-400">{count}/{totalTricks}</span>
+                          </div>
+                          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div className={`h-full ${l.color} transition-all duration-500`} style={{ width: `${totalTricks > 0 ? (count / totalTricks) * 100 : 0}%` }} />
+                          </div>
+                        </button>
+                        {open && (
+                          <div className="space-y-1 mt-2 ml-4">
+                            {rows.length === 0 ? (
+                              <div className="text-xs text-slate-500 italic">No tricks at this landing yet.</div>
                             ) : rows.map(t => {
                               const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
                               return (
