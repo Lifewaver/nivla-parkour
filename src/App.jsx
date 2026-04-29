@@ -924,6 +924,10 @@ function HomeTab({ stats, streak, mastered, inProgress, total, tricksOfTheDay, o
         <StatCard label="Training" value={inProgress} icon="💪" color="from-blue-500 to-cyan-600" />
         <StatCard label="Progress" value={`${progressPct}%`} icon="📈" color="from-purple-500 to-pink-600" />
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <QuickLink label="Warm Up" icon="🔥" onClick={goToWarmup} color="from-red-500/30 to-orange-500/30" />
+        <QuickLink label="Strength" icon="💪" onClick={goToStrength} color="from-blue-500/30 to-purple-500/30" />
+      </div>
       {tricksOfTheDay.length > 0 && (
         <div className="bg-slate-800/50 backdrop-blur border border-purple-500/30 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-3"><Target className="w-5 h-5 text-purple-400" /><h2 className="font-bold text-lg">This Week's Focus</h2></div>
@@ -961,10 +965,6 @@ function HomeTab({ stats, streak, mastered, inProgress, total, tricksOfTheDay, o
           </div>
         </div>
       )}
-      <div className="grid grid-cols-2 gap-3">
-        <QuickLink label="Warm Up" icon="🔥" onClick={goToWarmup} color="from-red-500/30 to-orange-500/30" />
-        <QuickLink label="Strength" icon="💪" onClick={goToStrength} color="from-blue-500/30 to-purple-500/30" />
-      </div>
     </div>
   );
 }
