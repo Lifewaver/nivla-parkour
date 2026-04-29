@@ -1266,7 +1266,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
                   <button key={n}
                     onClick={() => onUpdateCoolness(trick.id, (trick.coolness || 0) === n ? 0 : n)}
                     className="transition hover:scale-110 p-0.5">
-                    <Star className={`w-4 h-4 ${filled ? 'fill-yellow-400 text-yellow-400' : 'text-white/40 hover:text-yellow-300'}`} />
+                    <Star className={`w-6 h-6 ${filled ? 'fill-yellow-400 text-yellow-400' : 'text-white/40 hover:text-yellow-300'}`} />
                   </button>
                 );
               })}
