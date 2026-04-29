@@ -670,9 +670,10 @@ function MainApp({ user }) {
     return { ...t, videos: [...personals, ...globals], progress };
   }), [tricks, globalVideos]);
 
-  const addTrick = (trick) => {
+  const addTrick = (trick, globalVideoList = []) => {
     const newTrick = { status: 'not_started', videos: [], notes: '', progress: [], coolness: 0, ...trick, id: Date.now() };
     saveTricks([...tricks, newTrick]);
+    if (globalVideoList.length > 0) updateGlobalVideos(newTrick.id, globalVideoList);
   };
 
   const logTrainingDay = () => {
@@ -813,7 +814,7 @@ function MainApp({ user }) {
           <SkillTreeTab tricks={tricks} onOpenTrick={openTrick} />
         )}
         {activeTab === 'add' && (
-          <AddTab onAddTrick={addTrick} setActiveTab={setActiveTab} />
+          <AddTab onAddTrick={addTrick} setActiveTab={setActiveTab} isAdmin={userIsAdmin} />
         )}
         {activeTab === 'admin' && userIsAdmin && (
          <AdminTab currentUserUid={user.uid} />
@@ -1877,7 +1878,7 @@ function SkillTreeTab({ tricks, onOpenTrick }) {
   );
 }
 
-function AddTab({ onAddTrick, setActiveTab }) {
+function AddTab({ onAddTrick, setActiveTab, isAdmin }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Flips');
   const [difficulty, setDifficulty] = useState('Medium');
@@ -1888,6 +1889,7 @@ function AddTab({ onAddTrick, setActiveTab }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
   const [newVideoType, setNewVideoType] = useState('reference');
+  const [newVideoGlobal, setNewVideoGlobal] = useState(false);
   const [notes, setNotes] = useState('');
   const [added, setAdded] = useState(false);
   const categories = ['Flips', 'Jump', 'Kicks', 'Leap', 'Swings', 'Vaults', 'Gymnastics'];
@@ -1909,18 +1911,23 @@ function AddTab({ onAddTrick, setActiveTab }) {
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
     const url = normalizeUrl(newVideoUrl.trim());
-    setVideos([...videos, { url, label: newVideoLabel.trim() || (newVideoType === 'tutorial' ? 'Tutorial' : 'Video'), type: newVideoType }]);
-    setNewVideoUrl(''); setNewVideoLabel('');
+    const entry = { url, label: newVideoLabel.trim() || (newVideoType === 'tutorial' ? 'Tutorial' : 'Video'), type: newVideoType };
+    if (isAdmin && newVideoGlobal) entry._global = true;
+    setVideos([...videos, entry]);
+    setNewVideoUrl(''); setNewVideoLabel(''); setNewVideoGlobal(false);
   };
   const removeVideo = (idx) => setVideos(videos.filter((_, i) => i !== idx));
   const reset = () => {
     setName(''); setCategory('Flips'); setDifficulty('Medium'); setCoolness(0);
     setStatus('not_started'); setProgress([]); setVideos([]); setNotes('');
-    setNewVideoUrl(''); setNewVideoLabel(''); setNewVideoType('reference');
+    setNewVideoUrl(''); setNewVideoLabel(''); setNewVideoType('reference'); setNewVideoGlobal(false);
   };
   const submit = () => {
     if (!name.trim()) return;
-    onAddTrick({ name: name.trim(), category, difficulty, coolness, status, progress, videos, notes });
+    const stripFlag = ({ _global, ...rest }) => rest;
+    const personalVideos = videos.filter(v => !v._global).map(stripFlag);
+    const globalVideos = videos.filter(v => v._global).map(stripFlag);
+    onAddTrick({ name: name.trim(), category, difficulty, coolness, status, progress, videos: personalVideos, notes }, globalVideos);
     reset();
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
@@ -2007,6 +2014,7 @@ function AddTab({ onAddTrick, setActiveTab }) {
                   <div key={i} className="flex items-center gap-2 bg-slate-900/50 border border-slate-700 rounded-lg p-2 text-sm">
                     <span className="text-base">{v.type === 'tutorial' ? '🎓' : '📹'}</span>
                     <span className="truncate flex-1">{v.label}</span>
+                    {v._global && <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40" title="Visible to everyone">🌐</span>}
                     <span className="text-xs text-slate-500 truncate flex-shrink-0 max-w-[120px]">{v.url}</span>
                     <button onClick={() => removeVideo(i)} className="text-slate-500 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
                   </div>
@@ -2023,6 +2031,12 @@ function AddTab({ onAddTrick, setActiveTab }) {
                 <input type="url" value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} placeholder="YouTube or Vimeo URL" className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
                 <button onClick={addVideo} disabled={!newVideoUrl.trim()} className="px-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg font-bold text-sm">Add</button>
               </div>
+              {isAdmin && (
+                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                  <input type="checkbox" checked={newVideoGlobal} onChange={e => setNewVideoGlobal(e.target.checked)} className="accent-purple-500" />
+                  <span>🌐 Share with everyone (global)</span>
+                </label>
+              )}
             </div>
           </div>
           <div>
