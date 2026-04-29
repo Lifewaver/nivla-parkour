@@ -2653,6 +2653,9 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                     if (!t) return null;
                     const diff = DIFFICULTY_COLORS[t.difficulty];
                     const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+                    const tutorialVideo = t.videos?.find(v => v.type === 'tutorial' && v.primary) || t.videos?.find(v => v.type === 'tutorial');
+                    const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
+                    const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
                     return (
                       <div key={g.trickId} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-purple-500/40 rounded-xl p-3 flex items-center gap-2 transition">
                         <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
@@ -2666,6 +2669,16 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                             </div>
                           </div>
                         </button>
+                        {referenceVideo && (
+                          <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
+                            <Play className="w-4 h-4 fill-current" />
+                          </button>
+                        )}
+                        {tutorialVideo && (
+                          <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
+                            <span className="text-base">🎓</span>
+                          </button>
+                        )}
                         <button onClick={() => onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
                         <button onClick={() => removeGoal(g.trickId)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove from focus"><X className="w-4 h-4" /></button>
                       </div>
@@ -2712,6 +2725,9 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
         const renderTierRow = (t) => {
           const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
           const diff = DIFFICULTY_COLORS[t.difficulty];
+          const tutorialVideo = t.videos?.find(v => v.type === 'tutorial' && v.primary) || t.videos?.find(v => v.type === 'tutorial');
+          const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
+          const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
           return (
             <div key={t.id} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
               <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
@@ -2725,6 +2741,16 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                   </div>
                 </div>
               </button>
+              {referenceVideo && (
+                <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
+                  <Play className="w-4 h-4 fill-current" />
+                </button>
+              )}
+              {tutorialVideo && (
+                <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
+                  <span className="text-base">🎓</span>
+                </button>
+              )}
               <button onClick={() => onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
               <button onClick={() => addSuggestion(t.id)}
                 className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition">
