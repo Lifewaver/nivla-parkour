@@ -109,6 +109,16 @@ function CategoryIcon({ category, size = 22, className = '' }) {
   return <Icon size={size} className={className} />;
 }
 
+const LOADING_ICONS = [
+  GiRunningNinja, GiAcrobatic, GiJumpAcross, GiLeapfrog,
+  GiMuscleUp, GiHighKick, GiContortionist, GiBodyBalance,
+];
+
+function LoadingIcon({ size = 72, className = '' }) {
+  const [Icon] = useState(() => LOADING_ICONS[Math.floor(Math.random() * LOADING_ICONS.length)]);
+  return <Icon size={size} className={`animate-bounce text-purple-300 ${className}`} />;
+}
+
 const INITIAL_TRICKS = [
   { id: 1, name: 'Front Flip', difficulty: 'Easy', category: 'Flips' },
   { id: 2, name: 'Wallflip', difficulty: 'Medium', category: 'Flips' },
@@ -484,7 +494,7 @@ export default function ParkourApp() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-bounce">🤸</div>
+          <div className="mb-4 flex justify-center"><LoadingIcon size={72} /></div>
           <div className="text-white text-xl font-bold">Loading...</div>
         </div>
       </div>
@@ -643,7 +653,7 @@ function MainApp({ user }) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-bounce">🤸</div>
+          <div className="mb-4 flex justify-center"><LoadingIcon size={72} /></div>
           <div className="text-white text-xl font-bold">Loading your training...</div>
         </div>
       </div>
@@ -1784,7 +1794,7 @@ service cloud.firestore {
   if (selectedUser && loadingUser) {
     return (
       <div className="max-w-2xl mx-auto text-center py-12">
-        <div className="text-4xl mb-3 animate-bounce">🤸</div>
+        <div className="mb-3 flex justify-center"><LoadingIcon size={48} /></div>
         <div className="text-slate-400">Loading {selectedUser.displayName}'s data...</div>
       </div>
     );
