@@ -91,14 +91,14 @@ const DIFFICULTY_COLORS = {
 };
 
 const CATEGORY_ICONS = {
-  Flips: '🤸', Jump: '🤾‍♂️', Kicks: '🥋', Leap: '🐆', Swings: '🦧',
+  Flips: '🤸', Jump: '🤾‍♂️', Tricks: '🥋', Leap: '🐆', Swings: '🦧',
   Vaults: '🧗', Gymnastics: '🤸',
 };
 
 const CATEGORY_ICON_COMPONENTS = {
   Flips: GiAcrobatic,
   Jump: GiJumpAcross,
-  Kicks: GiHighKick,
+  Tricks: GiHighKick,
   Leap: GiLeapfrog,
   Swings: GiMuscleUp,
   Vaults: GiRunningNinja,
@@ -155,15 +155,15 @@ const INITIAL_TRICKS = [
   { id: 31, name: 'High Dive Roll Cart', difficulty: 'Hard', category: 'Jump' },
   { id: 32, name: 'Dive Roll Gap', difficulty: 'Medium', category: 'Jump' },
   { id: 33, name: 'Cartwheel in Roll out', difficulty: 'Medium', category: 'Jump' },
-  { id: 34, name: 'Twist Cart', difficulty: 'Hard', category: 'Kicks' },
-  { id: 35, name: 'Atwist Gumbi', difficulty: 'Hard', category: 'Kicks' },
-  { id: 36, name: 'Kick the Moon', difficulty: 'Medium', category: 'Kicks' },
-  { id: 37, name: 'Turtle walk', difficulty: 'Medium', category: 'Kicks' },
-  { id: 38, name: 'Coin Drop', difficulty: 'Medium', category: 'Kicks' },
-  { id: 39, name: 'Helicoptero', difficulty: 'Medium', category: 'Kicks' },
-  { id: 40, name: 'Windmill', difficulty: 'Medium', category: 'Kicks' },
-  { id: 41, name: 'Flare', difficulty: 'Medium', category: 'Kicks' },
-  { id: 42, name: 'Butterfly', difficulty: 'Medium', category: 'Kicks' },
+  { id: 34, name: 'Twist Cart', difficulty: 'Hard', category: 'Tricks' },
+  { id: 35, name: 'Atwist Gumbi', difficulty: 'Hard', category: 'Tricks' },
+  { id: 36, name: 'Kick the Moon', difficulty: 'Medium', category: 'Tricks' },
+  { id: 37, name: 'Turtle walk', difficulty: 'Medium', category: 'Tricks' },
+  { id: 38, name: 'Coin Drop', difficulty: 'Medium', category: 'Tricks' },
+  { id: 39, name: 'Helicoptero', difficulty: 'Medium', category: 'Tricks' },
+  { id: 40, name: 'Windmill', difficulty: 'Medium', category: 'Tricks' },
+  { id: 41, name: 'Flare', difficulty: 'Medium', category: 'Tricks' },
+  { id: 42, name: 'Butterfly', difficulty: 'Medium', category: 'Tricks' },
   { id: 43, name: '180 Cat to Cat', difficulty: 'Medium', category: 'Leap' },
   { id: 44, name: 'Kong to Cat Leap', difficulty: 'Medium', category: 'Leap' },
   { id: 45, name: '360 Cat Leap', difficulty: 'Medium', category: 'Leap' },
@@ -595,7 +595,8 @@ function MainApp({ user }) {
 
         const applyOverrides = (t) => {
           const OLD_GYM = ['Trampoline', 'Tumbling', 'Floor'];
-          const base = OLD_GYM.includes(t.category) ? { ...t, category: 'Gymnastics' } : t;
+          let base = OLD_GYM.includes(t.category) ? { ...t, category: 'Gymnastics' } : t;
+          if (base.category === 'Kicks') base = { ...base, category: 'Tricks' };
           const override = globalOverrides[String(base.id)];
           return override ? { ...base, ...override } : base;
         };
@@ -1903,7 +1904,7 @@ function AddTab({ user, setActiveTab }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [sent, setSent] = useState(false);
-  const categories = ['Flips', 'Jump', 'Kicks', 'Leap', 'Swings', 'Vaults', 'Gymnastics'];
+  const categories = ['Flips', 'Jump', 'Tricks', 'Leap', 'Swings', 'Vaults', 'Gymnastics'];
   const difficulties = ['Easy', 'Medium', 'Hard', 'Super'];
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
@@ -2832,7 +2833,7 @@ service cloud.firestore {
             <div>
               <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Category</div>
               <div className="flex flex-wrap gap-2">
-                {['Flips', 'Jump', 'Kicks', 'Leap', 'Swings', 'Vaults', 'Gymnastics'].map(c => (
+                {['Flips', 'Jump', 'Tricks', 'Leap', 'Swings', 'Vaults', 'Gymnastics'].map(c => (
                   <button key={c} onClick={() => setEditForm(f => ({ ...f, category: c }))}
                     className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 ${editForm.category === c ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}>
                     <CategoryIcon category={c} size={16} />{c}
