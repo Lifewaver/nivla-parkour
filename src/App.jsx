@@ -6,8 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import {
    Home, Dumbbell, Calendar, Trophy, Plus, Flame, Search, X, ExternalLink,
-  Check, Video, Target, Award, TrendingUp, ChevronRight, Zap, Play, Pause,
-  RotateCcw, LogOut, Shield, Eye, ArrowLeft, ScrollText
+  Check, Video, Target, Award, TrendingUp, ChevronRight, ChevronDown, Zap, Play, Pause,
+  RotateCcw, LogOut, Shield, Eye, ArrowLeft, ScrollText, GitBranch
 } from 'lucide-react';
 import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from './firebase';
 import { GiAcrobatic, GiJumpAcross, GiHighKick, GiLeapfrog, GiMuscleUp, GiRunningNinja, GiContortionist, GiBodyBalance } from 'react-icons/gi';
@@ -764,6 +764,9 @@ function MainApp({ user }) {
         {activeTab === 'progress' && (
           <ProgressTab stats={stats} tricks={tricks} earnedBadges={earnedBadges} trainingDays={trainingDays} />
         )}
+        {activeTab === 'skilltree' && (
+          <SkillTreeTab tricks={tricks} onOpenTrick={setSelectedTrick} />
+        )}
         {activeTab === 'add' && (
           <AddTab onAddTrick={addTrick} setActiveTab={setActiveTab} />
         )}
@@ -784,6 +787,7 @@ function MainApp({ user }) {
         <div className="flex justify-around items-center py-2 px-2 max-w-2xl mx-auto">
           <NavButton icon={Home} label="Home" active={activeTab === 'home'} onClick={() => { setSelectedTrick(null); setActiveTab('home'); }} />
           <NavButton icon={Dumbbell} label="Tricks" active={activeTab === 'tricks'} onClick={() => { setSelectedTrick(null); setActiveTab('tricks'); }} />
+         <NavButton icon={GitBranch} label="Tree" active={activeTab === 'skilltree'} onClick={() => { setSelectedTrick(null); setActiveTab('skilltree'); }} />
          <NavButton icon={Calendar} label="Training" active={activeTab === 'training'} onClick={() => { setSelectedTrick(null); setActiveTab('training'); }} />
           <NavButton icon={Trophy} label="Progress" active={activeTab === 'progress'} onClick={() => { setSelectedTrick(null); setActiveTab('progress'); }} />
          {userIsAdmin && (
@@ -1442,6 +1446,114 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+function SkillTreeTab({ tricks, onOpenTrick }) {
+  const TIERS = ['Easy', 'Medium', 'Hard', 'Super'];
+  const allCategories = [...new Set(tricks.map(t => t.category))].sort((a, b) => {
+    if (a === 'Gymnastics') return 1;
+    if (b === 'Gymnastics') return -1;
+    return a.localeCompare(b);
+  });
+  const [selectedCategory, setSelectedCategory] = useState(allCategories[0] || 'Flips');
+
+  const inCategory = tricks.filter(t => t.category === selectedCategory);
+  const totalMastered = inCategory.filter(t => t.status === 'yes_i_can').length;
+
+  return (
+    <div className="space-y-4 max-w-2xl mx-auto">
+      <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <GitBranch className="w-5 h-5 text-purple-400" />
+          <h2 className="font-bold text-lg">Skill Tree</h2>
+        </div>
+        <p className="text-sm text-slate-400">
+          Climb each category from Easy to Super. Tap a trick to open it.
+        </p>
+      </div>
+
+      <div>
+        <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Category</div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {allCategories.map(c => (
+            <button
+              key={c}
+              onClick={() => setSelectedCategory(c)}
+              className={`flex-shrink-0 px-3 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 ${selectedCategory === c ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+            >
+              <CategoryIcon category={c} size={16} />{c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {inCategory.length === 0 ? (
+        <div className="text-center py-12 text-slate-400">
+          <div className="text-5xl mb-2">🌱</div>
+          <div>No tricks in this category yet.</div>
+        </div>
+      ) : (
+        <>
+          <div className="text-sm text-slate-400 text-center">
+            <span className="font-bold text-white">{totalMastered}</span> / {inCategory.length} mastered in {selectedCategory}
+          </div>
+
+          <div className="space-y-2">
+            {TIERS.map((tier, idx) => {
+              const tricksAtTier = inCategory.filter(t => t.difficulty === tier);
+              if (tricksAtTier.length === 0) return null;
+              const masteredCount = tricksAtTier.filter(t => t.status === 'yes_i_can').length;
+              const allMastered = masteredCount === tricksAtTier.length;
+              const col = DIFFICULTY_COLORS[tier];
+              const nextHasContent = TIERS.slice(idx + 1).some(t => inCategory.some(tr => tr.difficulty === t));
+              return (
+                <React.Fragment key={tier}>
+                  <div className={`bg-slate-800/50 border ${allMastered ? 'border-green-500/50' : col.border + '/40'} rounded-2xl p-4`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className={`text-xs font-black px-2 py-1 rounded ${col.strip} text-white`}>{tier.toUpperCase()}</span>
+                      <span className="text-sm font-bold text-slate-200">{masteredCount} / {tricksAtTier.length}</span>
+                      {allMastered && <span className="ml-auto text-xs font-bold text-green-300">✅ Tier complete</span>}
+                    </div>
+                    <div className="space-y-2">
+                      {tricksAtTier.map(t => {
+                        const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+                        const mastered = t.status === 'yes_i_can';
+                        const inProgress = t.status && t.status !== 'not_started' && !mastered;
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => onOpenTrick(t)}
+                            className={`w-full flex items-center gap-3 rounded-lg p-2.5 text-left transition border ${
+                              mastered
+                                ? 'bg-green-500/10 border-green-500/40 hover:bg-green-500/20'
+                                : inProgress
+                                  ? 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20'
+                                  : 'bg-slate-900 border-transparent hover:bg-slate-800'
+                            }`}
+                          >
+                            <span className="text-lg flex-shrink-0">{status.emoji}</span>
+                            <span className="flex-1 truncate font-medium text-sm">{t.name}</span>
+                            <span className={`text-xs flex-shrink-0 ${mastered ? 'text-green-300' : inProgress ? 'text-yellow-300' : 'text-slate-500'}`}>
+                              {status.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {nextHasContent && (
+                    <div className="flex justify-center py-1">
+                      <ChevronDown className="w-6 h-6 text-slate-600" />
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }
