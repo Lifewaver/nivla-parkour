@@ -78,6 +78,7 @@ const STATUS_LEVELS = [
   { id: 'trampoline_landing', label: 'Trampoline landing', color: 'bg-cyan-500', textColor: 'text-cyan-100', emoji: '🤾' },
   { id: 'soft_landing', label: 'Soft landing', color: 'bg-blue-500', textColor: 'text-blue-100', emoji: '🛬' },
   { id: 'training_like_hell', label: 'Training like hell', color: 'bg-orange-500', textColor: 'text-orange-100', emoji: '🔥' },
+  { id: 'hard_landing', label: 'Hard landing', color: 'bg-red-500', textColor: 'text-red-100', emoji: '🪨' },
   { id: 'yes_i_can', label: 'Yes I can!', color: 'bg-green-500', textColor: 'text-green-100', emoji: '✅' },
 ];
 
@@ -773,7 +774,7 @@ function MainApp({ user }) {
             filterCategory={filterCategory} setFilterCategory={setFilterCategory}
             filterDifficulty={filterDifficulty} setFilterDifficulty={setFilterDifficulty}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
-            onOpenTrick={openTrick}
+            onOpenTrick={openTrick} onUpdateStatus={updateTrickStatus}
             onAddNew={() => setActiveTab('add')} />
         )}
         {activeTab === 'training' && (
@@ -949,7 +950,7 @@ function QuickLink({ label, icon, onClick, color }) {
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, onOpenTrick, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, onOpenTrick, onUpdateStatus, onAddNew }) {
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
   const statuses = ['all', ...STATUS_LEVELS.map(s => s.id)];
@@ -996,7 +997,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
               {isGymnastics && <span className="text-xs font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Gymnastics</span>}
             </div>
             <div className={`space-y-2 ${isGymnastics ? 'bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-2' : ''}`}>
-              {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} isGymnastics={isGymnastics} />)}
+              {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} onUpdateStatus={onUpdateStatus} isGymnastics={isGymnastics} />)}
             </div>
           </div>
         );
@@ -1026,7 +1027,7 @@ function normalizeUrl(url) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
-function TrickCard({ trick, onOpen, isGymnastics }) {
+function TrickCard({ trick, onOpen, onUpdateStatus, isGymnastics }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const status = STATUS_LEVELS.find(s => s.id === trick.status);
   const tutorialVideo = trick.videos?.find(v => v.type === 'tutorial' && v.primary)
@@ -1035,30 +1036,50 @@ function TrickCard({ trick, onOpen, isGymnastics }) {
     || trick.videos?.find(v => v.type !== 'tutorial');
   const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpen(normalizeUrl(video.url)); };
   const openCard = () => onOpen();
+  const trackerSteps = ['not_started', 'trampoline_landing', 'soft_landing', 'hard_landing']
+    .map(id => STATUS_LEVELS.find(s => s.id === id))
+    .filter(Boolean);
+  const setStatus = (e, id) => { e.stopPropagation(); if (onUpdateStatus) onUpdateStatus(trick.id, id); };
   return (
-    <div className={`w-full border rounded-xl p-3 flex items-center gap-2 text-left transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
-      <button onClick={openCard} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-        <div className={`w-1 h-12 ${diff.strip} rounded-full flex-shrink-0`} />
-        <CategoryIcon category={trick.category} size={20} className="text-slate-300 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="font-bold truncate">{trick.name}</div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff.bg} ${diff.text}`}>{trick.difficulty}</span>
-            {trick.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {trick.videos.length}</span>}
+    <div className={`w-full border rounded-xl p-3 transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
+      <div className="flex items-center gap-2 text-left">
+        <button onClick={openCard} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+          <div className={`w-1 h-12 ${diff.strip} rounded-full flex-shrink-0`} />
+          <CategoryIcon category={trick.category} size={20} className="text-slate-300 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="font-bold truncate">{trick.name}</div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff.bg} ${diff.text}`}>{trick.difficulty}</span>
+              {trick.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {trick.videos.length}</span>}
+            </div>
           </div>
+        </button>
+        {referenceVideo && (
+          <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={`📹 ${referenceVideo.label}`}>
+            <span className="text-base">📹</span>
+          </button>
+        )}
+        {tutorialVideo && (
+          <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
+            <span className="text-base">🎓</span>
+          </button>
+        )}
+        <button onClick={openCard} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
+      </div>
+      <div className="mt-2 pt-2 border-t border-slate-700/60">
+        <div className="text-[10px] font-semibold uppercase text-slate-400 mb-1">Progress Tracker</div>
+        <div className="flex gap-1.5 flex-wrap">
+          {trackerSteps.map(s => {
+            const active = trick.status === s.id;
+            return (
+              <button key={s.id} onClick={(e) => setStatus(e, s.id)}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition border ${active ? `${s.color} ${s.textColor} border-white/40` : 'bg-slate-900/60 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                <span>{s.emoji}</span><span>{s.label}</span>
+              </button>
+            );
+          })}
         </div>
-      </button>
-      {referenceVideo && (
-        <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={`📹 ${referenceVideo.label}`}>
-          <span className="text-base">📹</span>
-        </button>
-      )}
-      {tutorialVideo && (
-        <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
-          <span className="text-base">🎓</span>
-        </button>
-      )}
-      <button onClick={openCard} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
+      </div>
     </div>
   );
 }
