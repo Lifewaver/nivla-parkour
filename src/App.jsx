@@ -1248,7 +1248,7 @@ function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [],
         <div className="bg-slate-800/50 backdrop-blur border border-cyan-500/30 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <Plus className="w-5 h-5 text-cyan-400" />
-            <h2 className="font-bold text-lg">Latest community tricks</h2>
+            <h2 className="font-bold text-lg">New Tricks</h2>
             <button onClick={() => setActiveTab('tricks')} className="ml-auto text-sm text-cyan-300 hover:text-cyan-200 font-semibold">All →</button>
           </div>
           <div className="space-y-2">
