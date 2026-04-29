@@ -2174,7 +2174,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                                 <CategoryIcon category={s.trick.category} size={14} className="text-slate-400 flex-shrink-0" />
                                 <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className="flex-1 truncate font-medium text-left">{s.trick.name}</button>
                                 <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
-                                <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="text-purple-300 hover:text-purple-100 flex-shrink-0 font-bold text-base leading-none" title="Lock in for this session">+</button>
+                                <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition" title="Lock in for this session">+ Add</button>
                                 {canDismiss && (
                                   <button onClick={() => dismissSuggestion(us.date, s.trick.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Dismiss this suggestion"><X className="w-3.5 h-3.5" /></button>
                                 )}
