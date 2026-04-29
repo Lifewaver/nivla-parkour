@@ -638,6 +638,7 @@ function MainApp({ user }) {
   };
 
   const updateTrickProgress = (id, progress) => saveTricks(tricks.map(t => t.id === id ? { ...t, progress } : t));
+  const updateTrickCoolness = (id, coolness) => saveTricks(tricks.map(t => t.id === id ? { ...t, coolness } : t));
   const updateTrickStatusAndProgress = (id, status, progress) => {
     const oldTrick = tricks.find(t => t.id === id);
     const newTricks = tricks.map(t => t.id === id ? { ...t, status, progress } : t);
@@ -824,7 +825,7 @@ function MainApp({ user }) {
           autoplayUrl={autoplayVideoUrl}
           isAdmin={userIsAdmin}
           onClose={closeTrick} onUpdateStatus={updateTrickStatus} onUpdateProgress={updateTrickProgress}
-          onUpdateStatusAndProgress={updateTrickStatusAndProgress}
+          onUpdateStatusAndProgress={updateTrickStatusAndProgress} onUpdateCoolness={updateTrickCoolness}
           onUpdateVideos={updateTrickVideos} onUpdateGlobalVideos={updateGlobalVideos}
           onUpdateNotes={updateTrickNotes} />
       )}
@@ -1193,7 +1194,7 @@ function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef, isGl
   );
 }
 
-function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus, onUpdateProgress, onUpdateStatusAndProgress, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
+function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus, onUpdateProgress, onUpdateStatusAndProgress, onUpdateCoolness, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
   const [newVideoType, setNewVideoType] = useState('reference');
@@ -1256,7 +1257,21 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
         <div className={`relative ${diff.bg} p-6 border-b border-slate-700`}>
           <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-slate-700"><X className="w-5 h-5" /></button>
           <div className="mb-2"><CategoryIcon category={trick.category} size={36} className="text-white/90" /></div>
-          <div className="text-2xl font-black">{trick.name}</div>
+          <div className="flex items-start gap-3 pr-10">
+            <div className="text-2xl font-black flex-1 min-w-0">{trick.name}</div>
+            <div className="flex items-center gap-0.5 flex-shrink-0 mt-1" title={`Cool factor: ${trick.coolness || 0} / 5`}>
+              {[1, 2, 3, 4, 5].map(n => {
+                const filled = (trick.coolness || 0) >= n;
+                return (
+                  <button key={n}
+                    onClick={() => onUpdateCoolness(trick.id, (trick.coolness || 0) === n ? 0 : n)}
+                    className="transition hover:scale-110 p-0.5">
+                    <Star className={`w-4 h-4 ${filled ? 'fill-yellow-400 text-yellow-400' : 'text-white/40 hover:text-yellow-300'}`} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="flex items-center gap-2 mt-2">
             <span className={`text-xs font-bold px-2 py-1 rounded ${diff.bg} ${diff.text} border ${diff.border}`}>{trick.difficulty}</span>
             <span className="text-xs text-slate-300">{trick.category}</span>
