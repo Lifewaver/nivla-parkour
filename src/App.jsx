@@ -1785,6 +1785,8 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const [notes, setNotes] = useState('');
   const [savedToast, setSavedToast] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
+  const [expandedSessions, setExpandedSessions] = useState({});
+  const toggleSessionOpen = (dateStr) => setExpandedSessions(prev => ({ ...prev, [dateStr]: !prev[dateStr] }));
   const [practicedTricks, setPracticedTricks] = useState([]);
   useEffect(() => {
     const locked = Array.isArray(plannedSessionFocus[date]) ? plannedSessionFocus[date] : [];
@@ -2152,14 +2154,19 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
               const remainingSuggestions = sessionSuggestions.filter(s => !lockedIds.includes(s.trick.id) && !dismissedIds.includes(s.trick.id));
               const addable = tricks.filter(t => !lockedIds.includes(t.id) && t.status !== 'yes_i_can')
                 .sort((a, b) => a.name.localeCompare(b.name));
+              const isOpen = !!expandedSessions[us.date];
               return (
                 <div key={us.date} className={`bg-slate-900 border rounded-xl p-3 ${logged ? 'border-green-500/40' : 'border-slate-700'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="font-bold text-sm">{formatUpcomingDate(us.date)}</div>
+                  <button onClick={() => toggleSessionOpen(us.date)} className={`w-full flex items-center gap-2 text-left ${isOpen ? 'mb-2' : ''}`}>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    <span className="font-bold text-sm flex-1">{formatUpcomingDate(us.date)}</span>
+                    {!isOpen && lockedTricks.length > 0 && (
+                      <span className="text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 px-1.5 py-0.5 rounded">{lockedTricks.length} locked</span>
+                    )}
                     {logged && <span className="text-[10px] font-bold bg-green-500/20 text-green-300 border border-green-500/40 px-2 py-0.5 rounded">✓ Logged · RPE {logged.rpe}</span>}
-                  </div>
+                  </button>
 
-                  {lockedTricks.length > 0 && (
+                  {isOpen && lockedTricks.length > 0 && (
                     <div className="mb-2">
                       <div className="text-[10px] font-semibold text-purple-300 uppercase mb-1">🔒 Focus for this session ({lockedTricks.length})</div>
                       <div className="space-y-1">
@@ -2175,7 +2182,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                     </div>
                   )}
 
-                  {remainingSuggestions.length > 0 && (() => {
+                  {isOpen && remainingSuggestions.length > 0 && (() => {
                     const suggestionLimit = Math.max(1, 5 - lockedTricks.length);
                     const visible = remainingSuggestions.slice(0, suggestionLimit);
                     return (
@@ -2206,7 +2213,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                     );
                   })()}
 
-                  {!logged && addable.length > 0 && (
+                  {isOpen && !logged && addable.length > 0 && (
                     <div className="mb-2">
                       <select value=""
                         onChange={(e) => { if (e.target.value) lockFocusTrick(us.date, parseInt(e.target.value, 10)); }}
@@ -2217,17 +2224,19 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                     </div>
                   )}
 
-                  {lockedTricks.length === 0 && remainingSuggestions.length === 0 && (
+                  {isOpen && lockedTricks.length === 0 && remainingSuggestions.length === 0 && (
                     <div className="text-xs text-slate-500 italic mb-2">No suggestions yet — set tricks in focus or mark tricks as Looking into / Training hard.</div>
                   )}
 
-                  <div className="flex gap-1.5">
-                    <button onClick={() => setSection && setSection('warmup')} className="flex-1 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 rounded font-bold text-xs transition">🔥 Warm Up</button>
-                    <button onClick={() => setSection && setSection('conditioning')} className="flex-1 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded font-bold text-xs transition">💪 Strength</button>
-                    {!logged && (
-                      <button onClick={() => startLogFor(us.date)} className="flex-1 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded font-bold text-xs transition">📝 Log it</button>
-                    )}
-                  </div>
+                  {isOpen && (
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setSection && setSection('warmup')} className="flex-1 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 rounded font-bold text-xs transition">🔥 Warm Up</button>
+                      <button onClick={() => setSection && setSection('conditioning')} className="flex-1 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded font-bold text-xs transition">💪 Strength</button>
+                      {!logged && (
+                        <button onClick={() => startLogFor(us.date)} className="flex-1 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded font-bold text-xs transition">📝 Log it</button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
