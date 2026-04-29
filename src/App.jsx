@@ -795,12 +795,13 @@ function MainApp({ user }) {
       <div className="px-4 py-4">
         {activeTab === 'home' && (
           <HomeTab stats={stats} streak={streak} mastered={mastered} inProgress={inProgress}
-            total={tricks.length} tricksOfTheDay={weeklyFocus} onOpenTrick={openTrick}
+            total={tricks.length} weeklyGoals={weeklyGoals} tricks={tricks} onOpenTrick={openTrick}
             earnedBadges={earnedBadges} onLogTraining={logTrainingDay}
             hasTrainedToday={trainingDays.includes(new Date().toISOString().split('T')[0])}
             setActiveTab={setActiveTab}
             goToWarmup={() => { setTrainingSection('warmup'); setActiveTab('training'); }}
-            goToStrength={() => { setTrainingSection('conditioning'); setActiveTab('training'); }} />
+            goToStrength={() => { setTrainingSection('conditioning'); setActiveTab('training'); }}
+            goToGoals={() => { setTrainingSection('goals'); setActiveTab('training'); }} />
         )}
         {activeTab === 'tricks' && (
           <TricksTab tricks={displayTricks} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -904,7 +905,7 @@ function NavButton({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function HomeTab({ stats, streak, mastered, inProgress, total, tricksOfTheDay, onOpenTrick, earnedBadges, onLogTraining, hasTrainedToday, setActiveTab, goToWarmup, goToStrength }) {
+function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [], tricks = [], onOpenTrick, earnedBadges, onLogTraining, hasTrainedToday, setActiveTab, goToWarmup, goToStrength, goToGoals }) {
   const progressPct = total > 0 ? Math.round((mastered / total) * 100) : 0;
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
@@ -929,6 +930,31 @@ function HomeTab({ stats, streak, mastered, inProgress, total, tricksOfTheDay, o
       <div className="grid grid-cols-2 gap-3">
         <QuickLink label="Warm Up" icon="🔥" onClick={goToWarmup} color="from-red-500/30 to-orange-500/30" />
         <QuickLink label="Strength" icon="💪" onClick={goToStrength} color="from-blue-500/30 to-purple-500/30" />
+      </div>
+      <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Target className="w-5 h-5 text-purple-400" />
+          <h2 className="font-bold text-lg">This week's focus</h2>
+          {goToGoals && <button onClick={goToGoals} className="ml-auto text-xs text-purple-300 hover:text-purple-200 font-semibold">Manage →</button>}
+        </div>
+        {weeklyGoals.length === 0 ? (
+          <div className="text-sm text-slate-500 text-center py-4">No goals yet. Pick some tricks to focus on in Training!</div>
+        ) : (
+          <div className="space-y-2">
+            {weeklyGoals.map(g => {
+              const trick = tricks.find(t => t.id === g.trickId); if (!trick) return null;
+              const status = STATUS_LEVELS.find(s => s.id === trick.status);
+              return (
+                <button key={g.trickId} onClick={() => onOpenTrick(trick)}
+                  className="w-full flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded-lg p-2 text-left transition">
+                  <CategoryIcon category={trick.category} size={18} className="text-slate-300 flex-shrink-0" />
+                  <span className="font-semibold text-sm flex-1 truncate">{trick.name}</span>
+                  <span className="text-lg flex-shrink-0">{status?.emoji}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
       {earnedBadges.length > 0 && (
         <div className="bg-slate-800/50 backdrop-blur border border-yellow-500/30 rounded-2xl p-5">
