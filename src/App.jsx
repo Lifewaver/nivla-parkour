@@ -1512,6 +1512,7 @@ function AdminTab({ currentUserUid }) {
   const [saveError, setSaveError] = useState(null);
   const [saveOk, setSaveOk] = useState(false);
   const [requestError, setRequestError] = useState(null);
+  const [usersExpanded, setUsersExpanded] = useState(false);
 
   useEffect(() => {
     const loadAll = async () => {
@@ -1856,7 +1857,24 @@ service cloud.firestore {
         </p>
       </div>
 
-      <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl p-4">
+      <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl">
+        <button
+          onClick={() => setUsersExpanded(v => !v)}
+          className="w-full p-4 flex items-center gap-2 hover:bg-slate-800/70 transition rounded-2xl text-left"
+        >
+          <span className="text-lg">👥</span>
+          <span className="font-bold">Users</span>
+          {requests.filter(r => r.status === 'pending').length > 0 && (
+            <span className="text-xs font-bold bg-purple-500 text-white px-2 py-0.5 rounded-full">
+              {requests.filter(r => r.status === 'pending').length} pending
+            </span>
+          )}
+          <span className="ml-auto text-xs text-slate-400 font-normal">{profiles.length} active</span>
+          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${usersExpanded ? 'rotate-90' : ''}`} />
+        </button>
+        {usersExpanded && (
+        <div className="px-4 pb-4 border-t border-slate-700 pt-4 space-y-4">
+        <div>
         <div className="font-bold mb-3 flex items-center gap-2">
           <span className="text-lg">📬</span> Access Requests
           {requests.filter(r => r.status === 'pending').length > 0 && (
@@ -1913,6 +1931,52 @@ service cloud.firestore {
               );
             })}
           </div>
+        )}
+        </div>
+
+        <div>
+          <div className="font-bold mb-3">All Users ({profiles.length})</div>
+          {profiles.length === 0 ? (
+            <div className="text-sm text-slate-500 text-center py-4">
+              No users have signed in yet.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {profiles.map(p => (
+                <button
+                  key={p.uid}
+                  onClick={() => viewUser(p)}
+                  className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left transition"
+                >
+                  {p.photoURL ? (
+                    <img src={p.photoURL} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center font-black flex-shrink-0">
+                      {p.displayName?.[0] || '?'}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold truncate">{p.displayName || 'Unknown'}</span>
+                      {p.uid === currentUserUid && (
+                        <span className="text-xs font-bold bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded">You</span>
+                      )}
+                      {p.isAdmin && (
+                        <span className="text-xs">🛡️</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-400 truncate">{p.email}</div>
+                    <div className="text-xs text-slate-500">
+                      Last seen: {formatDate(p.lastSignIn)}
+                    </div>
+                  </div>
+                  <Eye className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        </div>
         )}
       </div>
 
@@ -2015,48 +2079,6 @@ service cloud.firestore {
         )}
       </div>
 
-      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
-        <div className="font-bold mb-3">All Users ({profiles.length})</div>
-        {profiles.length === 0 ? (
-          <div className="text-sm text-slate-500 text-center py-4">
-            No users have signed in yet.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {profiles.map(p => (
-              <button
-                key={p.uid}
-                onClick={() => viewUser(p)}
-                className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left transition"
-              >
-                {p.photoURL ? (
-                  <img src={p.photoURL} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center font-black flex-shrink-0">
-                    {p.displayName?.[0] || '?'}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold truncate">{p.displayName || 'Unknown'}</span>
-                    {p.uid === currentUserUid && (
-                      <span className="text-xs font-bold bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded">You</span>
-                    )}
-                    {p.isAdmin && (
-                      <span className="text-xs">🛡️</span>
-                    )}
-                  </div>
-                  <div className="text-xs text-slate-400 truncate">{p.email}</div>
-                  <div className="text-xs text-slate-500">
-                    Last seen: {formatDate(p.lastSignIn)}
-                  </div>
-                </div>
-                <Eye className="w-5 h-5 text-slate-500 flex-shrink-0" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
