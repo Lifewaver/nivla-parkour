@@ -536,7 +536,7 @@ export default function ParkourApp() {
 // =================================================================
 function MainApp({ user }) {
   const [activeTab, setActiveTab] = useState('home');
-  const [trainingSection, setTrainingSection] = useState('goals');
+  const [trainingSection, setTrainingSection] = useState('log');
   const [profileIsAdmin, setProfileIsAdmin] = useState(false);
   const userIsAdmin = isAdmin(user.email) || profileIsAdmin;
   const [tricks, setTricks] = useState([]);
