@@ -1001,6 +1001,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
     return true;
   });
   const grouped = filtered.reduce((acc, t) => { if (!acc[t.category]) acc[t.category] = []; acc[t.category].push(t); return acc; }, {});
+  Object.keys(grouped).forEach(cat => grouped[cat].sort((a, b) => a.name.localeCompare(b.name)));
   const GYMNASTICS_CATEGORIES = ['Gymnastics'];
   const sortedCategories = Object.keys(grouped).sort((a, b) => {
     const aIsGym = GYMNASTICS_CATEGORIES.includes(a), bIsGym = GYMNASTICS_CATEGORIES.includes(b);
