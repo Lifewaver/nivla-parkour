@@ -555,6 +555,7 @@ function MainApp({ user }) {
   const [filterDifficulty, setFilterDifficulty] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTracker, setFilterTracker] = useState('all');
+  const [filterVideo, setFilterVideo] = useState('all');
   const [celebrationTrick, setCelebrationTrick] = useState(null);
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -791,6 +792,7 @@ function MainApp({ user }) {
             filterDifficulty={filterDifficulty} setFilterDifficulty={setFilterDifficulty}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             filterTracker={filterTracker} setFilterTracker={setFilterTracker}
+            filterVideo={filterVideo} setFilterVideo={setFilterVideo}
             onOpenTrick={openTrick}
             onAddNew={() => setActiveTab('add')} />
         )}
@@ -968,7 +970,7 @@ function QuickLink({ label, icon, onClick, color }) {
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, onOpenTrick, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, onOpenTrick, onAddNew }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
@@ -990,6 +992,12 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
       if (filterStatus !== 'not_started' && !progressArr.includes(filterStatus)) return false;
     }
     if (filterTracker !== 'all' && t.status !== filterTracker) return false;
+    if (filterVideo !== 'all') {
+      const vids = Array.isArray(t.videos) ? t.videos : [];
+      if (filterVideo === 'none' && vids.length > 0) return false;
+      if (filterVideo === 'reference' && !vids.some(v => v.type !== 'tutorial')) return false;
+      if (filterVideo === 'tutorial' && !vids.some(v => v.type === 'tutorial')) return false;
+    }
     return true;
   });
   const grouped = filtered.reduce((acc, t) => { if (!acc[t.category]) acc[t.category] = []; acc[t.category].push(t); return acc; }, {});
@@ -1012,7 +1020,9 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
         <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tricks..." className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-purple-500" />
       </div>
       {(() => {
-        const activeFilterCount = [filterCategory, filterDifficulty, filterTracker, filterStatus].filter(v => v !== 'all').length;
+        const videoOptions = ['all', 'none', 'reference', 'tutorial'];
+        const videoLabel = (opt) => ({ all: 'All', none: 'No video', reference: '📹 Reference', tutorial: '🎓 Tutorial' }[opt] || opt);
+        const activeFilterCount = [filterCategory, filterDifficulty, filterTracker, filterStatus, filterVideo].filter(v => v !== 'all').length;
         return (
           <div className="space-y-2">
             <button onClick={() => setFiltersOpen(o => !o)}
@@ -1031,8 +1041,9 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
                 <FilterRow label="Difficulty" options={difficulties} selected={filterDifficulty} onChange={setFilterDifficulty} />
                 <FilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
                 <FilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
+                <FilterRow label="Video" options={videoOptions} selected={filterVideo} onChange={setFilterVideo} labelMap={videoLabel} />
                 {activeFilterCount > 0 && (
-                  <button onClick={() => { setFilterCategory('all'); setFilterDifficulty('all'); setFilterTracker('all'); setFilterStatus('all'); }}
+                  <button onClick={() => { setFilterCategory('all'); setFilterDifficulty('all'); setFilterTracker('all'); setFilterStatus('all'); setFilterVideo('all'); }}
                     className="text-xs text-slate-400 hover:text-white underline">
                     Clear all filters
                   </button>
