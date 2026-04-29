@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import {
    Home, Dumbbell, Calendar, Trophy, Plus, Flame, Search, X, ExternalLink,
   Check, Video, Target, Award, TrendingUp, ChevronRight, ChevronDown, Zap, Play, Pause,
-  RotateCcw, LogOut, Shield, Eye, ArrowLeft, ScrollText, GitBranch
+  RotateCcw, LogOut, Shield, Eye, ArrowLeft, ScrollText, GitBranch, Star
 } from 'lucide-react';
 import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from './firebase';
 import { GiAcrobatic, GiJumpAcross, GiHighKick, GiLeapfrog, GiMuscleUp, GiRunningNinja, GiContortionist, GiBodyBalance } from 'react-icons/gi';
@@ -999,8 +999,10 @@ function FilterRow({ label, options, selected, onChange, labelMap }) {
 function TrickCard({ trick, onClick, isGymnastics }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const status = STATUS_LEVELS.find(s => s.id === trick.status);
-  const tutorialVideo = trick.videos?.find(v => v.type === 'tutorial');
-  const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial');
+  const tutorialVideo = trick.videos?.find(v => v.type === 'tutorial' && v.primary)
+    || trick.videos?.find(v => v.type === 'tutorial');
+  const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary)
+    || trick.videos?.find(v => v.type !== 'tutorial');
   const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) window.open(video.url, '_blank', 'noopener,noreferrer'); };
   return (
     <div className={`w-full border rounded-xl p-3 flex items-center gap-2 text-left transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
@@ -1038,10 +1040,10 @@ function getVideoEmbed(url) {
   return null;
 }
 
-function VideoCard({ video, onRemove }) {
+function VideoCard({ video, onRemove, onTogglePrimary }) {
   const embed = getVideoEmbed(video.url);
   return (
-    <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg overflow-hidden">
+    <div className={`bg-purple-900/20 border rounded-lg overflow-hidden ${video.primary ? 'border-yellow-400/60' : 'border-purple-500/30'}`}>
       {embed && (
         <div className="aspect-video bg-black">
           <iframe
@@ -1054,6 +1056,13 @@ function VideoCard({ video, onRemove }) {
         </div>
       )}
       <div className="flex items-center gap-2 p-2">
+        <button
+          onClick={onTogglePrimary}
+          title={video.primary ? 'Plays from the trick card. Tap to unset.' : 'Set as the video that plays from the trick card'}
+          className="flex-shrink-0"
+        >
+          <Star className={`w-4 h-4 ${video.primary ? 'fill-yellow-400 text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`} />
+        </button>
         <a href={video.url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center gap-2 text-sm hover:text-purple-300 truncate">
           <Play className="w-4 h-4 flex-shrink-0 text-purple-400" />
           <span className="truncate">{video.label}</span>
@@ -1082,6 +1091,15 @@ function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUp
     onUpdateVideos(trick.id, videos); setNewVideoUrl(''); setNewVideoLabel('');
   };
   const removeVideo = (v) => onUpdateVideos(trick.id, allVideos.filter(x => x !== v));
+  const togglePrimary = (v) => {
+    const willBePrimary = !v.primary;
+    const next = allVideos.map(x => {
+      if (x === v) return { ...x, primary: willBePrimary };
+      if (willBePrimary && x.type === v.type) return { ...x, primary: false };
+      return x;
+    });
+    onUpdateVideos(trick.id, next);
+  };
   const saveNotes = () => onUpdateNotes(trick.id, notesInput);
   return (
     <div className="fixed inset-x-0 top-0 bottom-20 z-40 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
@@ -1113,7 +1131,7 @@ function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUp
             <div className="space-y-2">
               {referenceVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No reference videos yet. Add inspiration clips below.</div>}
               {referenceVideos.map((v, i) => (
-                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} />
+                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)} />
               ))}
             </div>
           </div>
@@ -1122,7 +1140,7 @@ function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUp
             <div className="space-y-2">
               {tutorialVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No tutorials yet. Add one below to learn how to do this trick.</div>}
               {tutorialVideos.map((v, i) => (
-                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} />
+                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)} />
               ))}
             </div>
           </div>
