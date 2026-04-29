@@ -2688,39 +2688,58 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
               </select>
             )}
 
-            {(() => {
-              const trainingHard = tricks.filter(t => t.status === 'training_hard' && !weeklyGoals.some(g => g.trickId === t.id));
-              const lookingInto = tricks.filter(t => t.status === 'looking_into' && !weeklyGoals.some(g => g.trickId === t.id));
-              const renderRow = (t, accent) => (
-                <div key={t.id} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-sm transition">
-                  <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
-                  <button onClick={() => onOpenTrick(t)} className="flex-1 truncate font-medium text-left">{t.name}</button>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text} flex-shrink-0`}>{t.difficulty}</span>
-                  <button onClick={() => addSuggestion(t.id)} className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition">+ Add</button>
-                </div>
-              );
-              return (
-                <>
-                  {trainingHard.length > 0 && (
-                    <div className="mt-3 mb-2">
-                      <div className="text-[10px] font-semibold text-yellow-300 uppercase mb-1">💪 Training hard ({trainingHard.length})</div>
-                      <div className="space-y-1">{trainingHard.map(t => renderRow(t, 'yellow'))}</div>
-                    </div>
-                  )}
-                  {lookingInto.length > 0 && (
-                    <div className="mt-3 mb-2">
-                      <div className="text-[10px] font-semibold text-purple-300 uppercase mb-1">👀 Looking into ({lookingInto.length})</div>
-                      <div className="space-y-1">{lookingInto.map(t => renderRow(t, 'purple'))}</div>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-
             {weeklyGoals.length === 0 && visibleSuggestions.length === 0 && addable.length === 0 && (
               <div className="text-xs text-slate-500 italic">No focus tricks yet. Mark tricks as Looking into / Training hard to get suggestions.</div>
             )}
           </div>
+        );
+      })()}
+
+      {isFocus && (() => {
+        const trainingHard = tricks.filter(t => t.status === 'training_hard' && !weeklyGoals.some(g => g.trickId === t.id));
+        const lookingInto = tricks.filter(t => t.status === 'looking_into' && !weeklyGoals.some(g => g.trickId === t.id));
+        const renderTierRow = (t) => {
+          const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+          return (
+            <div key={t.id} className="w-full flex items-center gap-2 bg-slate-900 border border-transparent hover:bg-slate-800 rounded-lg p-2.5 transition">
+              <button onClick={() => onOpenTrick(t)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
+                <span className="text-lg flex-shrink-0">{status.emoji}</span>
+                <CategoryIcon category={t.category} size={16} className="text-slate-300 flex-shrink-0" />
+                <span className="flex-1 truncate font-medium text-sm">{t.name}</span>
+                <span className="text-xs flex-shrink-0 text-slate-500">{t.difficulty}</span>
+              </button>
+              <button onClick={() => addSuggestion(t.id)}
+                className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition">
+                + Add
+              </button>
+            </div>
+          );
+        };
+        return (
+          <>
+            {trainingHard.length > 0 && (
+              <div className="bg-slate-800/50 border border-yellow-500/40 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-black px-2 py-1 rounded bg-yellow-500 text-white">TRAINING HARD</span>
+                  <span className="text-sm font-bold text-slate-200">{trainingHard.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {trainingHard.map(renderTierRow)}
+                </div>
+              </div>
+            )}
+            {lookingInto.length > 0 && (
+              <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-black px-2 py-1 rounded bg-purple-500 text-white">LOOKING INTO</span>
+                  <span className="text-sm font-bold text-slate-200">{lookingInto.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {lookingInto.map(renderTierRow)}
+                </div>
+              </div>
+            )}
+          </>
         );
       })()}
 
