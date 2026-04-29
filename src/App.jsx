@@ -2500,13 +2500,6 @@ service cloud.firestore {
   if (selectedUser && userData) {
     const mastered = userData.tricks.filter(t => t.status === 'yes_i_can').length;
     const inProgress = userData.tricks.filter(t => t.status !== 'not_started' && t.status !== 'yes_i_can').length;
-    const notStarted = userData.tricks.filter(t => t.status === 'not_started').length;
-
-    // Group tricks by status
-    const byStatus = STATUS_LEVELS.map(level => ({
-      ...level,
-      tricks: userData.tricks.filter(t => t.status === level.id),
-    }));
 
     return (
       <div className="max-w-2xl mx-auto space-y-4">
@@ -2556,31 +2549,66 @@ service cloud.firestore {
           </div>
         </div>
 
-        {/* Tricks by status */}
-        <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
-          <div className="font-bold mb-3">Tricks by Status</div>
-          <div className="space-y-3">
-            {byStatus.filter(s => s.tricks.length > 0).map(s => (
-              <div key={s.id}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">{s.emoji}</span>
-                  <span className="font-bold text-sm">{s.label}</span>
-                  <span className="text-xs text-slate-400">({s.tricks.length})</span>
+        {/* Progress — By Difficulty & By Category */}
+        {(() => {
+          const total = userData.tricks.length;
+          const difficultyData = ['Easy', 'Medium', 'Hard', 'Super'].map(label => {
+            const inDiff = userData.tricks.filter(t => t.difficulty === label);
+            const m = inDiff.filter(t => t.status === 'yes_i_can').length;
+            const color = ({ Easy: 'bg-green-500', Medium: 'bg-blue-500', Hard: 'bg-orange-500', Super: 'bg-purple-500' })[label];
+            return { label, count: m, total: inDiff.length, color };
+          });
+          const userCategories = [...new Set(userData.tricks.map(t => t.category))].sort();
+          const categoryData = userCategories.map(cat => {
+            const inCat = userData.tricks.filter(t => t.category === cat);
+            const m = inCat.filter(t => t.status === 'yes_i_can').length;
+            return { cat, mastered: m, total: inCat.length, pct: inCat.length > 0 ? (m / inCat.length) * 100 : 0 };
+          });
+          const overallPct = total > 0 ? Math.round((mastered / total) * 100) : 0;
+          return (
+            <>
+              <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="font-bold flex items-center gap-2"><TrendingUp className="w-5 h-5 text-purple-400" /> Overall progress</div>
+                  <span className="text-sm text-slate-400">{mastered}/{total} · {overallPct}%</span>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {s.tricks.map(t => (
-                    <span key={t.id} className="text-xs bg-slate-900 px-2 py-1 rounded border border-slate-700">
-                      <CategoryIcon category={t.category} size={13} className="inline-block mr-1" /> {t.name}
-                    </span>
+                <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-500" style={{ width: `${overallPct}%` }} />
+                </div>
+              </div>
+              <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+                <div className="font-bold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-purple-400" /> By Difficulty</div>
+                <div className="space-y-2">
+                  {difficultyData.map(d => (
+                    <div key={d.label}>
+                      <div className="flex items-center justify-between text-sm mb-1"><span className="font-semibold">{d.label}</span><span className="text-slate-400">{d.count}/{d.total}</span></div>
+                      <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className={`h-full ${d.color} transition-all duration-500`} style={{ width: `${d.total > 0 ? (d.count / d.total) * 100 : 0}%` }} /></div>
+                    </div>
                   ))}
                 </div>
               </div>
-            ))}
-            {notStarted > 0 && (
-              <div className="text-xs text-slate-500 italic">Not started: {notStarted} tricks</div>
-            )}
-          </div>
-        </div>
+              <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+                <div className="font-bold mb-3">By Category</div>
+                <div className="space-y-2">
+                  {categoryData.map(c => (
+                    <div key={c.cat}>
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="font-semibold flex items-center gap-1.5">
+                          <CategoryIcon category={c.cat} size={16} className="text-slate-300" />
+                          {c.cat}
+                        </span>
+                        <span className="text-slate-400">{c.mastered}/{c.total}</span>
+                      </div>
+                      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${c.pct}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          );
+        })()}
 
         {/* Weekly Goals */}
         {userData.weeklyGoals.length > 0 && (
