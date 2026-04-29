@@ -1048,10 +1048,29 @@ function TrickCard({ trick, onOpen, onUpdateStatus, isGymnastics }) {
     || trick.videos?.find(v => v.type !== 'tutorial');
   const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpen(normalizeUrl(video.url)); };
   const openCard = () => onOpen();
-  const trackerSteps = ['not_started', 'trampoline_landing', 'soft_landing', 'hard_landing']
+  const progressSteps = ['not_started', 'trampoline_landing', 'soft_landing', 'hard_landing']
     .map(id => STATUS_LEVELS.find(s => s.id === id))
     .filter(Boolean)
     .map(s => s.id === 'not_started' ? { ...s, label: 'No landing' } : s);
+  const statusSteps = ['not_started', 'looking_into', 'training_hard', 'yes_i_can']
+    .map(id => STATUS_LEVELS.find(s => s.id === id))
+    .filter(Boolean);
+  const renderTrackerRow = (label, steps) => (
+    <div className="mt-2 pt-2 border-t border-slate-700/60">
+      <div className="text-[10px] font-semibold uppercase text-slate-400 mb-1">{label}</div>
+      <div className="flex gap-1.5 flex-wrap">
+        {steps.map(s => {
+          const active = trick.status === s.id;
+          return (
+            <button key={s.id} onClick={(e) => setStatus(e, s.id)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition border ${active ? `${s.color} ${s.textColor} border-white/40` : 'bg-slate-900/60 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+              <span>{s.emoji}</span><span>{s.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
   const setStatus = (e, id) => { e.stopPropagation(); if (onUpdateStatus) onUpdateStatus(trick.id, id); };
   return (
     <div className={`w-full border rounded-xl p-3 transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
@@ -1079,20 +1098,8 @@ function TrickCard({ trick, onOpen, onUpdateStatus, isGymnastics }) {
         )}
         <button onClick={openCard} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
       </div>
-      <div className="mt-2 pt-2 border-t border-slate-700/60">
-        <div className="text-[10px] font-semibold uppercase text-slate-400 mb-1">Progress</div>
-        <div className="flex gap-1.5 flex-wrap">
-          {trackerSteps.map(s => {
-            const active = trick.status === s.id;
-            return (
-              <button key={s.id} onClick={(e) => setStatus(e, s.id)}
-                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition border ${active ? `${s.color} ${s.textColor} border-white/40` : 'bg-slate-900/60 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                <span>{s.emoji}</span><span>{s.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {renderTrackerRow('Progress', progressSteps)}
+      {renderTrackerRow('Status', statusSteps)}
     </div>
   );
 }
