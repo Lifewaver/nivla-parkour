@@ -1767,6 +1767,7 @@ function AdminTab({ currentUserUid }) {
   const [userData, setUserData] = useState(null);
   const [loadingUser, setLoadingUser] = useState(false);
   const [trickSearch, setTrickSearch] = useState('');
+  const [trickSort, setTrickSort] = useState('default');
   const [editingTrick, setEditingTrick] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', category: 'Flips', difficulty: 'Medium' });
   const [savingTrick, setSavingTrick] = useState(false);
@@ -2294,8 +2295,23 @@ service cloud.firestore {
           value={trickSearch}
           onChange={e => setTrickSearch(e.target.value)}
           placeholder="Search tricks..."
-          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-3"
+          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2"
         />
+        {!editingTrick && (
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs font-semibold text-slate-400 uppercase">Sort</span>
+            {[
+              { id: 'default', label: 'Default' },
+              { id: 'category', label: 'Category' },
+              { id: 'difficulty', label: 'Difficulty' },
+            ].map(opt => (
+              <button key={opt.id} onClick={() => setTrickSort(opt.id)}
+                className={`px-2.5 py-1 rounded-md text-xs font-bold transition ${trickSort === opt.id ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
         {editingTrick ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2 mb-1">
@@ -2363,9 +2379,23 @@ service cloud.firestore {
           </div>
         ) : (
           <div className="space-y-1 max-h-64 overflow-y-auto">
-            {INITIAL_TRICKS.filter(t => t.name.toLowerCase().includes(trickSearch.toLowerCase())).map(t => {
+            {(() => {
+              const DIFF_ORDER = { Easy: 0, Medium: 1, Hard: 2, Super: 3 };
+              const withEffective = INITIAL_TRICKS
+                .filter(t => t.name.toLowerCase().includes(trickSearch.toLowerCase()))
+                .map(t => ({ trick: t, effective: overrides[String(t.id)] ? { ...t, ...overrides[String(t.id)] } : t }));
+              if (trickSort === 'category') {
+                withEffective.sort((a, b) =>
+                  a.effective.category.localeCompare(b.effective.category)
+                  || a.effective.name.localeCompare(b.effective.name));
+              } else if (trickSort === 'difficulty') {
+                withEffective.sort((a, b) =>
+                  (DIFF_ORDER[a.effective.difficulty] ?? 99) - (DIFF_ORDER[b.effective.difficulty] ?? 99)
+                  || a.effective.name.localeCompare(b.effective.name));
+              }
+              return withEffective;
+            })().map(({ trick: t, effective }) => {
               const ov = overrides[String(t.id)];
-              const effective = ov ? { ...t, ...ov } : t;
               const col = DIFFICULTY_COLORS[effective.difficulty];
               return (
                 <button key={t.id} onClick={() => startEdit(t)}
