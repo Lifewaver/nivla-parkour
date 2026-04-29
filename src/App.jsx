@@ -1541,27 +1541,6 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
 
       {section === 'goals' && (
         <div className="space-y-3">
-          {weeklyFocus.length > 0 && (
-            <div className="bg-slate-800/50 backdrop-blur border border-purple-500/30 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-3"><Target className="w-5 h-5 text-purple-400" /><h2 className="font-bold text-lg">This Week's Focus</h2></div>
-              <div className="space-y-2">
-                {weeklyFocus.map((trick, idx) => (
-                  <button key={trick.id} onClick={() => onOpenTrick(trick)} className="w-full text-left bg-gradient-to-br from-purple-600/40 to-pink-600/40 border border-purple-400/50 rounded-xl p-4 hover:scale-[1.02] active:scale-95 transition">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-black text-lg">{idx + 1}</div>
-                        <div>
-                          <div className="flex items-center gap-2"><CategoryIcon category={trick.category} size={22} className="text-white/80 flex-shrink-0" /><span className="font-black text-lg">{trick.name}</span></div>
-                          <div className="flex items-center gap-2 mt-1"><span className={`text-xs font-bold px-2 py-0.5 rounded ${DIFFICULTY_COLORS[trick.difficulty].bg} ${DIFFICULTY_COLORS[trick.difficulty].text}`}>{trick.difficulty}</span><span className="text-xs text-slate-300">{trick.category}</span></div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-white/70 flex-shrink-0" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
           {suggestions.length > 0 && (
             <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-1"><Zap className="w-5 h-5 text-yellow-400" /><div className="font-bold">Suggested for this week</div></div>
