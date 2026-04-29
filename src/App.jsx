@@ -994,7 +994,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
       <div className="space-y-2">
         <FilterRow label="Category" options={categories} selected={filterCategory} onChange={setFilterCategory} />
         <FilterRow label="Difficulty" options={difficulties} selected={filterDifficulty} onChange={setFilterDifficulty} />
-        <FilterRow label="Status Tracker" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
+        <FilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
         <FilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
       </div>
       <div className="text-sm text-slate-400">{filtered.length} tricks</div>
@@ -1079,7 +1079,7 @@ function TrickCard({ trick, onOpen, onUpdateStatus, isGymnastics }) {
         <button onClick={openCard} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
       </div>
       <div className="mt-2 pt-2 border-t border-slate-700/60">
-        <div className="text-[10px] font-semibold uppercase text-slate-400 mb-1">Status Tracker</div>
+        <div className="text-[10px] font-semibold uppercase text-slate-400 mb-1">Status</div>
         <div className="flex gap-1.5 flex-wrap">
           {trackerSteps.map(s => {
             const active = trick.status === s.id;
