@@ -2682,11 +2682,40 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
 
             {addable.length > 0 && (
               <select value="" onChange={(e) => { if (e.target.value) addSuggestion(parseInt(e.target.value, 10)); }}
-                className="w-full bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5">
+                className="w-full bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5 mb-2">
                 <option value="">+ Add another trick…</option>
                 {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
               </select>
             )}
+
+            {(() => {
+              const trainingHard = tricks.filter(t => t.status === 'training_hard' && !weeklyGoals.some(g => g.trickId === t.id));
+              const lookingInto = tricks.filter(t => t.status === 'looking_into' && !weeklyGoals.some(g => g.trickId === t.id));
+              const renderRow = (t, accent) => (
+                <div key={t.id} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-sm transition">
+                  <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
+                  <button onClick={() => onOpenTrick(t)} className="flex-1 truncate font-medium text-left">{t.name}</button>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text} flex-shrink-0`}>{t.difficulty}</span>
+                  <button onClick={() => addSuggestion(t.id)} className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition">+ Add</button>
+                </div>
+              );
+              return (
+                <>
+                  {trainingHard.length > 0 && (
+                    <div className="mt-3 mb-2">
+                      <div className="text-[10px] font-semibold text-yellow-300 uppercase mb-1">💪 Training hard ({trainingHard.length})</div>
+                      <div className="space-y-1">{trainingHard.map(t => renderRow(t, 'yellow'))}</div>
+                    </div>
+                  )}
+                  {lookingInto.length > 0 && (
+                    <div className="mt-3 mb-2">
+                      <div className="text-[10px] font-semibold text-purple-300 uppercase mb-1">👀 Looking into ({lookingInto.length})</div>
+                      <div className="space-y-1">{lookingInto.map(t => renderRow(t, 'purple'))}</div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {weeklyGoals.length === 0 && visibleSuggestions.length === 0 && addable.length === 0 && (
               <div className="text-xs text-slate-500 italic">No focus tricks yet. Mark tricks as Looking into / Training hard to get suggestions.</div>
