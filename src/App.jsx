@@ -2170,6 +2170,8 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
   const [communityTricks, setCommunityTricks] = useState([]);
   const [deletedTricks, setDeletedTricks] = useState([]);
   const [deletingTrickId, setDeletingTrickId] = useState(null);
+  const [expandedUserDifficulty, setExpandedUserDifficulty] = useState(null);
+  const [expandedUserCategory, setExpandedUserCategory] = useState(null);
   const [suggestionError, setSuggestionError] = useState(null);
   const [processingSuggestion, setProcessingSuggestion] = useState(null);
   const [syncing, setSyncing] = useState(false);
@@ -2618,31 +2620,92 @@ service cloud.firestore {
               <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
                 <div className="font-bold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-purple-400" /> By Difficulty</div>
                 <div className="space-y-2">
-                  {difficultyData.map(d => (
-                    <div key={d.label}>
-                      <div className="flex items-center justify-between text-sm mb-1"><span className="font-semibold">{d.label}</span><span className="text-slate-400">{d.count}/{d.total}</span></div>
-                      <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className={`h-full ${d.color} transition-all duration-500`} style={{ width: `${d.total > 0 ? (d.count / d.total) * 100 : 0}%` }} /></div>
-                    </div>
-                  ))}
+                  {difficultyData.map(d => {
+                    const open = expandedUserDifficulty === d.label;
+                    const sortByStatus = (a, b) => {
+                      const order = (t) => t.status === 'yes_i_can' ? 0 : t.status && t.status !== 'not_started' ? 1 : 2;
+                      return order(a) - order(b) || a.name.localeCompare(b.name);
+                    };
+                    const rows = userData.tricks.filter(t => t.difficulty === d.label).slice().sort(sortByStatus);
+                    return (
+                      <div key={d.label}>
+                        <button onClick={() => setExpandedUserDifficulty(open ? null : d.label)}
+                          className="w-full text-left hover:bg-slate-800/50 rounded-lg p-1 -m-1 transition">
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span className="font-semibold flex items-center gap-1">
+                              <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${open ? 'rotate-180' : '-rotate-90'}`} />
+                              {d.label}
+                            </span>
+                            <span className="text-slate-400">{d.count}/{d.total}</span>
+                          </div>
+                          <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className={`h-full ${d.color} transition-all duration-500`} style={{ width: `${d.total > 0 ? (d.count / d.total) * 100 : 0}%` }} /></div>
+                        </button>
+                        {open && (
+                          <div className="space-y-1 mt-2 ml-4">
+                            {rows.length === 0 ? (
+                              <div className="text-xs text-slate-500 italic">No tricks at this difficulty.</div>
+                            ) : rows.map(t => {
+                              const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+                              return (
+                                <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
+                                  <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
+                                  <span className="flex-1 truncate">{t.name}</span>
+                                  <span className="text-base flex-shrink-0">{status.emoji}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
                 <div className="font-bold mb-3">By Category</div>
                 <div className="space-y-2">
-                  {categoryData.map(c => (
-                    <div key={c.cat}>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="font-semibold flex items-center gap-1.5">
-                          <CategoryIcon category={c.cat} size={16} className="text-slate-300" />
-                          {c.cat}
-                        </span>
-                        <span className="text-slate-400">{c.mastered}/{c.total}</span>
+                  {categoryData.map(c => {
+                    const open = expandedUserCategory === c.cat;
+                    const sortByStatus = (a, b) => {
+                      const order = (t) => t.status === 'yes_i_can' ? 0 : t.status && t.status !== 'not_started' ? 1 : 2;
+                      return order(a) - order(b) || a.name.localeCompare(b.name);
+                    };
+                    const rows = userData.tricks.filter(t => t.category === c.cat).slice().sort(sortByStatus);
+                    return (
+                      <div key={c.cat}>
+                        <button onClick={() => setExpandedUserCategory(open ? null : c.cat)}
+                          className="w-full text-left hover:bg-slate-800/50 rounded-lg p-1 -m-1 transition">
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span className="font-semibold flex items-center gap-1.5">
+                              <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${open ? 'rotate-180' : '-rotate-90'}`} />
+                              <CategoryIcon category={c.cat} size={16} className="text-slate-300" />
+                              {c.cat}
+                            </span>
+                            <span className="text-slate-400">{c.mastered}/{c.total}</span>
+                          </div>
+                          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${c.pct}%` }} />
+                          </div>
+                        </button>
+                        {open && (
+                          <div className="space-y-1 mt-2 ml-4">
+                            {rows.length === 0 ? (
+                              <div className="text-xs text-slate-500 italic">No tricks in this category.</div>
+                            ) : rows.map(t => {
+                              const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+                              return (
+                                <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
+                                  <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
+                                  <span className="flex-1 truncate">{t.name}</span>
+                                  <span className="text-base flex-shrink-0">{status.emoji}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${c.pct}%` }} />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </>
