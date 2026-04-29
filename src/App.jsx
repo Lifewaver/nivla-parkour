@@ -1882,9 +1882,6 @@ function AddTab({ onAddTrick, setActiveTab, isAdmin }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Flips');
   const [difficulty, setDifficulty] = useState('Medium');
-  const [coolness, setCoolness] = useState(0);
-  const [status, setStatus] = useState('not_started');
-  const [progress, setProgress] = useState([]);
   const [videos, setVideos] = useState([]);
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
@@ -1894,20 +1891,6 @@ function AddTab({ onAddTrick, setActiveTab, isAdmin }) {
   const [added, setAdded] = useState(false);
   const categories = ['Flips', 'Jump', 'Kicks', 'Leap', 'Swings', 'Vaults', 'Gymnastics'];
   const difficulties = ['Easy', 'Medium', 'Hard', 'Super'];
-  const statusIds = ['not_started', 'looking_into', 'training_hard', 'yes_i_can'];
-  const statusSteps = statusIds.map(id => STATUS_LEVELS.find(s => s.id === id)).filter(Boolean);
-  const REQUIRED_LANDINGS = ['trampoline_landing', 'soft_landing', 'hard_landing'];
-  const allLandingsDone = REQUIRED_LANDINGS.every(id => progress.includes(id));
-  const landingSteps = REQUIRED_LANDINGS.map(id => STATUS_LEVELS.find(s => s.id === id)).filter(Boolean);
-  const toggleLanding = (id) => {
-    const isAdding = !progress.includes(id);
-    if (id === 'hard_landing' && isAdding) {
-      setProgress([...REQUIRED_LANDINGS]);
-      setStatus('yes_i_can');
-      return;
-    }
-    setProgress(isAdding ? [...progress, id] : progress.filter(p => p !== id));
-  };
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
     const url = normalizeUrl(newVideoUrl.trim());
@@ -1918,8 +1901,8 @@ function AddTab({ onAddTrick, setActiveTab, isAdmin }) {
   };
   const removeVideo = (idx) => setVideos(videos.filter((_, i) => i !== idx));
   const reset = () => {
-    setName(''); setCategory('Flips'); setDifficulty('Medium'); setCoolness(0);
-    setStatus('not_started'); setProgress([]); setVideos([]); setNotes('');
+    setName(''); setCategory('Flips'); setDifficulty('Medium');
+    setVideos([]); setNotes('');
     setNewVideoUrl(''); setNewVideoLabel(''); setNewVideoType('reference'); setNewVideoGlobal(false);
   };
   const submit = () => {
@@ -1927,7 +1910,7 @@ function AddTab({ onAddTrick, setActiveTab, isAdmin }) {
     const stripFlag = ({ _global, ...rest }) => rest;
     const personalVideos = videos.filter(v => !v._global).map(stripFlag);
     const globalVideos = videos.filter(v => v._global).map(stripFlag);
-    onAddTrick({ name: name.trim(), category, difficulty, coolness, status, progress, videos: personalVideos, notes }, globalVideos);
+    onAddTrick({ name: name.trim(), category, difficulty, videos: personalVideos, notes }, globalVideos);
     reset();
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
@@ -1948,62 +1931,6 @@ function AddTab({ onAddTrick, setActiveTab, isAdmin }) {
             <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Difficulty</div>
             <div className="flex gap-2">
               {difficulties.map(d => { const col = DIFFICULTY_COLORS[d]; return <button key={d} onClick={() => setDifficulty(d)} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${difficulty === d ? `${col.strip} text-white` : 'bg-slate-800 text-slate-300'}`}>{d}</button>; })}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase mb-1 flex items-center gap-1">😎 Cool factor</div>
-            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-2 flex items-center gap-2">
-              {[1, 2, 3, 4, 5].map(n => {
-                const filled = coolness >= n;
-                return (
-                  <button key={n} onClick={() => setCoolness(coolness === n ? 0 : n)} className="transition hover:scale-110 p-0.5">
-                    <Star className={`w-6 h-6 ${filled ? 'fill-yellow-400 text-yellow-400' : 'text-slate-600 hover:text-yellow-300'}`} />
-                  </button>
-                );
-              })}
-              <span className="ml-auto text-xs text-slate-400">{coolness ? `${coolness} / 5` : 'Not rated'}</span>
-            </div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Status</div>
-            <div className="space-y-2">
-              {statusSteps.map(s => {
-                const locked = s.id === 'yes_i_can' && !allLandingsDone;
-                const active = status === s.id;
-                return (
-                  <React.Fragment key={s.id}>
-                    <button onClick={() => {
-                      if (locked) return;
-                      if (s.id === 'yes_i_can' && status === 'yes_i_can') setStatus('training_hard');
-                      else setStatus(s.id);
-                    }} disabled={locked}
-                      className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${active ? `${s.color} border-white/40` : locked ? 'bg-slate-900/40 border-slate-800 cursor-not-allowed opacity-60' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
-                      <span className="text-2xl">{locked ? '🔒' : s.emoji}</span>
-                      <span className={`font-bold ${active ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
-                      {active && <Check className="ml-auto w-5 h-5" />}
-                    </button>
-                    {s.id === 'training_hard' && (status === 'training_hard' || status === 'yes_i_can') && (
-                      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 ml-4">
-                        <div className="text-xs font-semibold text-yellow-300 uppercase mb-2">Progress · landings</div>
-                        <div className="space-y-2">
-                          {landingSteps.map(ls => {
-                            const checked = progress.includes(ls.id);
-                            return (
-                              <button key={ls.id} onClick={() => toggleLanding(ls.id)}
-                                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${checked ? 'bg-green-500 border-white/40' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
-                                <span className="text-2xl">{checked ? '☑' : '☐'}</span>
-                                <span className="text-xl">{ls.emoji}</span>
-                                <span className={`font-bold ${checked ? 'text-white' : 'text-slate-300'}`}>{ls.label}</span>
-                                {checked && <Check className="ml-auto w-5 h-5" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </React.Fragment>
-                );
-              })}
             </div>
           </div>
           <div>
