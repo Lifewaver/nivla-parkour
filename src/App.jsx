@@ -79,7 +79,7 @@ const STATUS_LEVELS = [
   { id: 'trampoline_landing', label: 'Trampoline landing', color: 'bg-cyan-500', textColor: 'text-cyan-100', emoji: '🤾' },
   { id: 'soft_landing', label: 'Soft landing', color: 'bg-blue-500', textColor: 'text-blue-100', emoji: '🛬' },
   { id: 'training_like_hell', label: 'Training like hell', color: 'bg-orange-500', textColor: 'text-orange-100', emoji: '🔥' },
-  { id: 'hard_landing', label: 'Hard landing', color: 'bg-red-500', textColor: 'text-red-100', emoji: '🪨' },
+  { id: 'hard_landing', label: 'Hard landing', color: 'bg-stone-500', textColor: 'text-stone-100', emoji: '🪨' },
   { id: 'yes_i_can', label: 'Complete Master', color: 'bg-green-500', textColor: 'text-green-100', emoji: '✅' },
 ];
 
