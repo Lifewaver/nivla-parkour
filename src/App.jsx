@@ -333,6 +333,11 @@ function LoginScreen({ error, requestStatus }) {
           <div className="text-7xl mb-6">📬</div>
           <h1 className="text-3xl font-black text-white mb-3">Request submitted!</h1>
           <p className="text-slate-400 mb-8">An admin will review your request. Sign in again once you've been approved.</p>
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 mb-6 text-sm text-red-300 text-left">
+              {error}
+            </div>
+          )}
           <button onClick={handleSignIn} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-3 transition shadow-xl">
             <GoogleIcon /> Check if approved
           </button>
@@ -348,6 +353,11 @@ function LoginScreen({ error, requestStatus }) {
           <div className="text-7xl mb-6">⏳</div>
           <h1 className="text-3xl font-black text-white mb-3">Request pending</h1>
           <p className="text-slate-400 mb-8">Your request is waiting for admin approval. Check back soon!</p>
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 mb-6 text-sm text-red-300 text-left">
+              {error}
+            </div>
+          )}
           <button onClick={handleSignIn} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-3 transition shadow-xl">
             <GoogleIcon /> Check if approved
           </button>
@@ -436,6 +446,7 @@ export default function ParkourApp() {
         }
 
         // Check if dynamically approved by admin
+        let approvedReadError = null;
         try {
           const approvedDoc = await getDoc(doc(db, 'approvedUsers', firebaseUser.uid));
           if (approvedDoc.exists()) {
@@ -457,6 +468,7 @@ export default function ParkourApp() {
           }
         } catch (e) {
           console.error('Approved check error', e);
+          approvedReadError = e;
         }
 
         // Not approved — check or create an access request
@@ -464,7 +476,20 @@ export default function ParkourApp() {
           const requestRef = doc(db, 'accessRequests', firebaseUser.uid);
           const requestDoc = await getDoc(requestRef);
           if (requestDoc.exists()) {
-            setRequestStatus(requestDoc.data().status === 'rejected' ? 'rejected' : 'pending');
+            const status = requestDoc.data().status;
+            if (status === 'rejected') {
+              setRequestStatus('rejected');
+            } else if (status === 'approved') {
+              // Admin approved but we couldn't verify approvedUsers — surface the rule issue.
+              setRequestStatus('pending');
+              setAuthError(
+                approvedReadError
+                  ? `You were approved, but reading approvedUsers failed (${approvedReadError.code || approvedReadError.message}). Firestore rules need to allow users to read their own approvedUsers/{uid} doc.`
+                  : 'You were approved, but the approval record is missing. Ask the admin to re-approve.'
+              );
+            } else {
+              setRequestStatus('pending');
+            }
           } else {
             await setDoc(requestRef, {
               uid: firebaseUser.uid,
