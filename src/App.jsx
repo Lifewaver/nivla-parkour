@@ -969,6 +969,7 @@ function QuickLink({ label, icon, onClick, color }) {
 }
 
 function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, onOpenTrick, onAddNew }) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
   const trackerStatusIds = ['not_started', 'looking_into', 'training_hard', 'yes_i_can'];
@@ -1010,12 +1011,37 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
         <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tricks..." className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-purple-500" />
       </div>
-      <div className="space-y-2">
-        <FilterRow label="Category" options={categories} selected={filterCategory} onChange={setFilterCategory} />
-        <FilterRow label="Difficulty" options={difficulties} selected={filterDifficulty} onChange={setFilterDifficulty} />
-        <FilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
-        <FilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
-      </div>
+      {(() => {
+        const activeFilterCount = [filterCategory, filterDifficulty, filterTracker, filterStatus].filter(v => v !== 'all').length;
+        return (
+          <div className="space-y-2">
+            <button onClick={() => setFiltersOpen(o => !o)}
+              className="w-full flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 transition">
+              <span className="font-semibold text-sm flex items-center gap-2">
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="text-xs font-bold bg-purple-500/30 text-purple-200 border border-purple-500/40 px-2 py-0.5 rounded-full">{activeFilterCount} active</span>
+                )}
+              </span>
+              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {filtersOpen && (
+              <div className="space-y-2 pt-1">
+                <FilterRow label="Category" options={categories} selected={filterCategory} onChange={setFilterCategory} />
+                <FilterRow label="Difficulty" options={difficulties} selected={filterDifficulty} onChange={setFilterDifficulty} />
+                <FilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
+                <FilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
+                {activeFilterCount > 0 && (
+                  <button onClick={() => { setFilterCategory('all'); setFilterDifficulty('all'); setFilterTracker('all'); setFilterStatus('all'); }}
+                    className="text-xs text-slate-400 hover:text-white underline">
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
       <div className="text-sm text-slate-400">{filtered.length} tricks</div>
       {sortedCategories.map(cat => {
         const isGymnastics = GYMNASTICS_CATEGORIES.includes(cat);
