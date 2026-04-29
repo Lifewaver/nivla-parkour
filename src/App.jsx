@@ -1486,6 +1486,7 @@ function AdminTab({ currentUserUid }) {
   const [savingTrick, setSavingTrick] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [saveOk, setSaveOk] = useState(false);
+  const [requestError, setRequestError] = useState(null);
 
   useEffect(() => {
     const loadAll = async () => {
@@ -1524,31 +1525,31 @@ function AdminTab({ currentUserUid }) {
   }, []);
 
   const approveRequest = async (req) => {
+    setRequestError(null);
     try {
-      await Promise.all([
-        setDoc(doc(db, 'approvedUsers', req.uid), {
-          uid: req.uid,
-          email: req.email,
-          displayName: req.displayName,
-          photoURL: req.photoURL,
-          approvedAt: Date.now(),
-        }),
-        setDoc(doc(db, 'accessRequests', req.uid), { ...req, status: 'approved' }),
-      ]);
-      setRequests(r => r.filter(x => x.uid !== req.uid));
+      await setDoc(doc(db, 'approvedUsers', req.uid), {
+        uid: req.uid,
+        email: req.email,
+        displayName: req.displayName,
+        photoURL: req.photoURL,
+        approvedAt: Date.now(),
+      });
+      await setDoc(doc(db, 'accessRequests', req.uid), { ...req, status: 'approved' });
+      setRequests(r => r.map(x => x.uid === req.uid ? { ...x, status: 'approved' } : x));
     } catch (e) {
       console.error('Approve error', e);
-      alert('Could not approve. Try again.');
+      setRequestError(`Approve failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
     }
   };
 
   const denyRequest = async (req) => {
+    setRequestError(null);
     try {
       await setDoc(doc(db, 'accessRequests', req.uid), { ...req, status: 'rejected' });
-      setRequests(r => r.filter(x => x.uid !== req.uid));
+      setRequests(r => r.map(x => x.uid === req.uid ? { ...x, status: 'rejected' } : x));
     } catch (e) {
       console.error('Deny error', e);
-      alert('Could not deny. Try again.');
+      setRequestError(`Deny failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
     }
   };
 
@@ -1822,6 +1823,14 @@ service cloud.firestore {
             </span>
           )}
         </div>
+        {requestError && (
+          <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 mb-3 text-xs text-red-200 leading-relaxed">
+            {requestError}
+            <div className="text-slate-300 mt-2">
+              If this is a permissions error, your Firestore rules need to allow admin writes to <code className="text-purple-300">approvedUsers/&#123;uid&#125;</code> and <code className="text-purple-300">accessRequests/&#123;uid&#125;</code>.
+            </div>
+          </div>
+        )}
         {requests.length === 0 ? (
           <div className="text-sm text-slate-500 text-center py-3">No access requests yet.</div>
         ) : (
