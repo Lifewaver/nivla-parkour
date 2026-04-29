@@ -3,7 +3,7 @@
 //
 // Requires: src/firebase.js, .env.local with Firebase keys, `firebase` package installed.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
    Home, Dumbbell, Calendar, Trophy, Plus, Flame, Search, X, ExternalLink,
   Check, Video, Target, Award, TrendingUp, ChevronRight, ChevronDown, Zap, Play, Pause,
@@ -543,6 +543,7 @@ function MainApp({ user }) {
   const [weeklyGoals, setWeeklyGoals] = useState([]);
   const [completedWarmups, setCompletedWarmups] = useState({});
   const [completedConditioning, setCompletedConditioning] = useState({});
+  const [globalVideos, setGlobalVideos] = useState({});
   const [selectedTrick, setSelectedTrick] = useState(null);
   const [autoplayVideoUrl, setAutoplayVideoUrl] = useState(null);
   const openTrick = (trick, videoUrl = null) => { setSelectedTrick(trick); setAutoplayVideoUrl(videoUrl); };
@@ -572,7 +573,11 @@ function MainApp({ user }) {
         let globalOverrides = {};
         try {
           const overridesSnap = await getDoc(doc(db, 'globalConfig', 'tricks'));
-          if (overridesSnap.exists()) globalOverrides = overridesSnap.data().overrides || {};
+          if (overridesSnap.exists()) {
+            const data = overridesSnap.data();
+            globalOverrides = data.overrides || {};
+            setGlobalVideos(data.globalVideos || {});
+          }
         } catch (e) { console.error('Global overrides load error', e); }
 
         // Load own profile to pick up any dynamic admin grant
@@ -630,6 +635,20 @@ function MainApp({ user }) {
 
   const updateTrickVideos = (id, videos) => saveTricks(tricks.map(t => t.id === id ? { ...t, videos } : t));
   const updateTrickNotes = (id, notes) => saveTricks(tricks.map(t => t.id === id ? { ...t, notes } : t));
+  const updateGlobalVideos = async (id, videos) => {
+    const next = { ...globalVideos, [String(id)]: videos };
+    setGlobalVideos(next);
+    try {
+      await setDoc(doc(db, 'globalConfig', 'tricks'), { globalVideos: next, updatedAt: Date.now() }, { merge: true });
+    } catch (e) {
+      console.error('Save global videos error', e);
+    }
+  };
+  const displayTricks = useMemo(() => tricks.map(t => {
+    const personals = (t.videos || []).map(v => ({ ...v, _global: false }));
+    const globals = (globalVideos[String(t.id)] || []).map(v => ({ ...v, _global: true }));
+    return { ...t, videos: [...personals, ...globals] };
+  }), [tricks, globalVideos]);
 
   const addTrick = (trick) => {
     const newTrick = { ...trick, id: Date.now(), status: 'not_started', videos: [], notes: '' };
@@ -750,7 +769,7 @@ function MainApp({ user }) {
             goToStrength={() => { setTrainingSection('conditioning'); setActiveTab('training'); }} />
         )}
         {activeTab === 'tricks' && (
-          <TricksTab tricks={tricks} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+          <TricksTab tricks={displayTricks} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             filterCategory={filterCategory} setFilterCategory={setFilterCategory}
             filterDifficulty={filterDifficulty} setFilterDifficulty={setFilterDifficulty}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
@@ -781,10 +800,12 @@ function MainApp({ user }) {
       {showReleaseNotes && <ReleaseNotesModal onClose={() => setShowReleaseNotes(false)} />}
 
       {selectedTrick && (
-        <TrickDetailModal trick={tricks.find(t => t.id === selectedTrick.id) || selectedTrick}
+        <TrickDetailModal trick={displayTricks.find(t => t.id === selectedTrick.id) || selectedTrick}
           autoplayUrl={autoplayVideoUrl}
+          isAdmin={userIsAdmin}
           onClose={closeTrick} onUpdateStatus={updateTrickStatus}
-          onUpdateVideos={updateTrickVideos} onUpdateNotes={updateTrickNotes} />
+          onUpdateVideos={updateTrickVideos} onUpdateGlobalVideos={updateGlobalVideos}
+          onUpdateNotes={updateTrickNotes} />
       )}
 
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-lg border-t border-purple-500/20 z-50">
@@ -1050,14 +1071,14 @@ function getVideoEmbed(url) {
   return null;
 }
 
-function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef }) {
+function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef, isGlobal, canEdit = true }) {
   const safeUrl = normalizeUrl(video.url);
   const embed = getVideoEmbed(safeUrl);
   const embedSrc = embed && autoplay
     ? `${embed.src}${embed.src.includes('?') ? '&' : '?'}autoplay=1`
     : embed?.src;
   return (
-    <div ref={scrollRef} className={`bg-purple-900/20 border rounded-lg overflow-hidden ${autoplay ? 'border-purple-400/80 ring-2 ring-purple-400/40' : video.primary ? 'border-yellow-400/60' : 'border-purple-500/30'}`}>
+    <div ref={scrollRef} className={`bg-purple-900/20 border rounded-lg overflow-hidden ${autoplay ? 'border-purple-400/80 ring-2 ring-purple-400/40' : video.primary ? 'border-yellow-400/60' : isGlobal ? 'border-cyan-500/40' : 'border-purple-500/30'}`}>
       {embed && (
         <div className="aspect-video bg-black">
           <iframe
@@ -1070,34 +1091,47 @@ function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef }) {
         </div>
       )}
       <div className="flex items-center gap-2 p-2">
-        <button
-          onClick={onTogglePrimary}
-          title={video.primary ? 'Plays from the trick card. Tap to unset.' : 'Set as the video that plays from the trick card'}
-          className="flex-shrink-0"
-        >
-          <Star className={`w-4 h-4 ${video.primary ? 'fill-yellow-400 text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`} />
-        </button>
+        {canEdit ? (
+          <button
+            onClick={onTogglePrimary}
+            title={video.primary ? 'Plays from the trick card. Tap to unset.' : 'Set as the video that plays from the trick card'}
+            className="flex-shrink-0"
+          >
+            <Star className={`w-4 h-4 ${video.primary ? 'fill-yellow-400 text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`} />
+          </button>
+        ) : (
+          <Star className={`w-4 h-4 flex-shrink-0 ${video.primary ? 'fill-yellow-400 text-yellow-400' : 'text-slate-700'}`} />
+        )}
         <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center gap-2 text-sm hover:text-purple-300 truncate">
           <Play className="w-4 h-4 flex-shrink-0 text-purple-400" />
           <span className="truncate">{video.label}</span>
           <ExternalLink className="w-3 h-3 flex-shrink-0 text-slate-500" />
         </a>
-        <button onClick={onRemove} className="text-slate-500 hover:text-red-400 flex-shrink-0">
-          <X className="w-4 h-4" />
-        </button>
+        {isGlobal && (
+          <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40" title="Visible to everyone">🌐</span>
+        )}
+        {canEdit && (
+          <button onClick={onRemove} className="text-slate-500 hover:text-red-400 flex-shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-function TrickDetailModal({ trick, autoplayUrl, onClose, onUpdateStatus, onUpdateVideos, onUpdateNotes }) {
+function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
   const [newVideoType, setNewVideoType] = useState('reference');
+  const [newVideoGlobal, setNewVideoGlobal] = useState(false);
   const [notesInput, setNotesInput] = useState(trick.notes || '');
   const autoplayRef = React.useRef(null);
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const allVideos = trick.videos || [];
+  const personalVideos = allVideos.filter(v => !v._global);
+  const globalList = allVideos.filter(v => v._global).map(({ _global, ...rest }) => rest);
+  const stripFlag = ({ _global, ...rest }) => rest;
   const tutorialVideos = allVideos.filter(v => v.type === 'tutorial');
   const referenceVideos = allVideos.filter(v => v.type !== 'tutorial');
   const isAutoplayVideo = (v) => autoplayUrl && normalizeUrl(v.url) === autoplayUrl;
@@ -1109,18 +1143,38 @@ function TrickDetailModal({ trick, autoplayUrl, onClose, onUpdateStatus, onUpdat
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
     const url = normalizeUrl(newVideoUrl.trim());
-    const videos = [...allVideos, { url, label: newVideoLabel.trim() || (newVideoType === 'tutorial' ? 'Tutorial' : 'Video'), type: newVideoType }];
-    onUpdateVideos(trick.id, videos); setNewVideoUrl(''); setNewVideoLabel('');
+    const newEntry = { url, label: newVideoLabel.trim() || (newVideoType === 'tutorial' ? 'Tutorial' : 'Video'), type: newVideoType };
+    if (isAdmin && newVideoGlobal) {
+      onUpdateGlobalVideos(trick.id, [...globalList, newEntry]);
+    } else {
+      onUpdateVideos(trick.id, [...personalVideos.map(stripFlag), newEntry]);
+    }
+    setNewVideoUrl(''); setNewVideoLabel('');
   };
-  const removeVideo = (v) => onUpdateVideos(trick.id, allVideos.filter(x => x !== v));
+  const removeVideo = (v) => {
+    if (v._global) {
+      onUpdateGlobalVideos(trick.id, globalList.filter(x => !(x.url === v.url && x.label === v.label && x.type === v.type)));
+    } else {
+      onUpdateVideos(trick.id, personalVideos.filter(x => x !== v).map(stripFlag));
+    }
+  };
   const togglePrimary = (v) => {
     const willBePrimary = !v.primary;
-    const next = allVideos.map(x => {
-      if (x === v) return { ...x, primary: willBePrimary };
-      if (willBePrimary && x.type === v.type) return { ...x, primary: false };
-      return x;
-    });
-    onUpdateVideos(trick.id, next);
+    if (v._global) {
+      const next = globalList.map(x => {
+        if (x.url === v.url && x.label === v.label && x.type === v.type) return { ...x, primary: willBePrimary };
+        if (willBePrimary && x.type === v.type) return { ...x, primary: false };
+        return x;
+      });
+      onUpdateGlobalVideos(trick.id, next);
+    } else {
+      const next = personalVideos.map(stripFlag).map(x => {
+        if (x.url === v.url && x.label === v.label && x.type === v.type) return { ...x, primary: willBePrimary };
+        if (willBePrimary && x.type === v.type) return { ...x, primary: false };
+        return x;
+      });
+      onUpdateVideos(trick.id, next);
+    }
   };
   const saveNotes = () => onUpdateNotes(trick.id, notesInput);
   return (
@@ -1154,7 +1208,8 @@ function TrickDetailModal({ trick, autoplayUrl, onClose, onUpdateStatus, onUpdat
               {referenceVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No reference videos yet. Add inspiration clips below.</div>}
               {referenceVideos.map((v, i) => (
                 <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
-                  autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null} />
+                  autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null}
+                  isGlobal={!!v._global} canEdit={!v._global || isAdmin} />
               ))}
             </div>
           </div>
@@ -1164,7 +1219,8 @@ function TrickDetailModal({ trick, autoplayUrl, onClose, onUpdateStatus, onUpdat
               {tutorialVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No tutorials yet. Add one below to learn how to do this trick.</div>}
               {tutorialVideos.map((v, i) => (
                 <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
-                  autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null} />
+                  autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null}
+                  isGlobal={!!v._global} canEdit={!v._global || isAdmin} />
               ))}
             </div>
           </div>
@@ -1179,6 +1235,12 @@ function TrickDetailModal({ trick, autoplayUrl, onClose, onUpdateStatus, onUpdat
               <input type="url" value={newVideoUrl} onChange={(e) => setNewVideoUrl(e.target.value)} placeholder="YouTube or Instagram URL" className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
               <button onClick={addVideo} className="px-4 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold text-sm">Add</button>
             </div>
+            {isAdmin && (
+              <label className="flex items-center gap-2 mt-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" checked={newVideoGlobal} onChange={(e) => setNewVideoGlobal(e.target.checked)} className="accent-purple-500" />
+                <span>🌐 Share with everyone (global)</span>
+              </label>
+            )}
           </div>
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Notes</div>
