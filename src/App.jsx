@@ -1600,7 +1600,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex gap-2 mb-4 overflow-x-auto">
-        {[{id:'goals',label:'Weekly Goals',icon:'🎯'},{id:'log',label:'Training Log',icon:'📊'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Strength',icon:'💪'},{id:'journal',label:'Journal',icon:'📝'},{id:'history',label:'History',icon:'📅'}].map(s => (
+        {[{id:'goals',label:'Weekly Goals',icon:'🎯'},{id:'log',label:'Training Log',icon:'📊'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Strength',icon:'💪'}].map(s => (
           <button key={s.id} onClick={() => setSection(s.id)} className={`flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm transition ${section === s.id ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}>
             <span className="mr-1">{s.icon}</span>{s.label}
           </button>
@@ -1718,69 +1718,6 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
         </div>
       )}
 
-      {section === 'journal' && (
-        <div className="space-y-3">
-          <div className="bg-slate-800/50 border border-green-500/30 rounded-2xl p-4">
-            <div className="font-bold mb-2">Training journal</div>
-            <textarea value={newJournalEntry} onChange={(e) => setNewJournalEntry(e.target.value)} placeholder="How did today's session go? What did you work on?" rows={3} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm resize-none mb-2" />
-            <button onClick={addJournalEntry} className="w-full py-2 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-sm">Save entry</button>
-          </div>
-          <div className="space-y-2">
-            {safeJournal.length === 0 && <div className="text-center text-slate-500 py-8">No entries yet.</div>}
-            {safeJournal.map(j => (
-              <div key={j.timestamp} className="bg-slate-800 rounded-xl p-3">
-                <div className="flex items-center justify-between mb-1"><div className="text-xs font-semibold text-slate-400">{j.date}</div><button onClick={() => deleteJournalEntry(j.timestamp)} className="text-slate-500 hover:text-red-400"><X className="w-4 h-4" /></button></div>
-                <div className="text-sm whitespace-pre-wrap">{j.text}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {section === 'history' && (
-        <div className="space-y-3">
-          {history.length === 0 && <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 text-center"><div className="text-5xl mb-3">📅</div><div className="font-bold mb-1">No training history yet</div><div className="text-sm text-slate-400">Complete warm-ups, strength exercises, or journal entries.</div></div>}
-          {history.map(week => {
-            const isExpanded = expandedWeek === week.weekStart;
-            const totalW = Object.values(week.warmups).reduce((s, a) => s + a.length, 0);
-            const totalC = Object.values(week.conditioning).reduce((s, a) => s + a.length, 0);
-            return (
-              <div key={week.weekStart} className="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
-                <button onClick={() => setExpandedWeek(isExpanded ? null : week.weekStart)} className="w-full p-4 text-left hover:bg-slate-800 transition">
-                  <div className="flex items-center justify-between">
-                    <div><div className="font-bold">{week.range}</div><div className="text-xs text-slate-400 mt-1">{week.days.length} training {week.days.length === 1 ? 'day' : 'days'}</div></div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1 text-xs">
-                        {totalW > 0 && <span className="bg-orange-500/20 text-orange-300 px-2 py-1 rounded font-semibold">🔥 {totalW}</span>}
-                        {totalC > 0 && <span className="bg-blue-500/20 text-blue-300 px-2 py-1 rounded font-semibold">💪 {totalC}</span>}
-                        {week.journal.length > 0 && <span className="bg-green-500/20 text-green-300 px-2 py-1 rounded font-semibold">📝 {week.journal.length}</span>}
-                      </div>
-                      <ChevronRight className={`w-5 h-5 text-slate-400 transition ${isExpanded ? 'rotate-90' : ''}`} />
-                    </div>
-                  </div>
-                </button>
-                {isExpanded && (
-                  <div className="px-4 pb-4 space-y-3 border-t border-slate-700">
-                    {week.days.map(date => {
-                      const wIds = week.warmups[date] || [], cIds = week.conditioning[date] || [];
-                      const dj = week.journal.filter(j => j.date === date);
-                      const label = new Date(date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-                      return (
-                        <div key={date} className="bg-slate-900/50 rounded-xl p-3 mt-3">
-                          <div className="font-bold text-sm text-purple-300 mb-2">{label}</div>
-                          {wIds.length > 0 && <div className="mb-2"><div className="text-xs font-bold text-orange-400 mb-1">🔥 Warm-ups ({wIds.length})</div><div className="flex flex-wrap gap-1">{wIds.map(id => { const w = WARMUPS.find(x => x.id === id); return w ? <span key={id} className="text-xs bg-orange-500/10 text-orange-200 px-2 py-1 rounded">{w.name}</span> : null; })}</div></div>}
-                          {cIds.length > 0 && <div className="mb-2"><div className="text-xs font-bold text-blue-400 mb-1">💪 Strength ({cIds.length})</div><div className="flex flex-wrap gap-1">{cIds.map(id => { const c = CONDITIONING.find(x => x.id === id); return c ? <span key={id} className="text-xs bg-blue-500/10 text-blue-200 px-2 py-1 rounded">{c.name} · {c.reps}</span> : null; })}</div></div>}
-                          {dj.length > 0 && <div><div className="text-xs font-bold text-green-400 mb-1">📝 Journal</div>{dj.map(j => <div key={j.timestamp} className="text-xs bg-green-500/10 text-green-100 p-2 rounded whitespace-pre-wrap">{j.text}</div>)}</div>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
