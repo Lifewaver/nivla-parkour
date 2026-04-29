@@ -829,7 +829,7 @@ function MainApp({ user }) {
           <AddTab user={user} setActiveTab={setActiveTab} />
         )}
         {activeTab === 'admin' && userIsAdmin && (
-         <AdminTab currentUserUid={user.uid} />
+         <AdminTab currentUserUid={user.uid} myTricks={tricks} />
         )}
       </div>
 
@@ -2029,7 +2029,7 @@ function ExerciseTimer({ totalSeconds, color = 'orange' }) {
   );
 }
 
-function AdminTab({ currentUserUid }) {
+function AdminTab({ currentUserUid, myTricks = [] }) {
   const [profiles, setProfiles] = useState([]);
   const [requests, setRequests] = useState([]);
   const [overrides, setOverrides] = useState({});
@@ -2053,6 +2053,9 @@ function AdminTab({ currentUserUid }) {
   const [communityTricks, setCommunityTricks] = useState([]);
   const [suggestionError, setSuggestionError] = useState(null);
   const [processingSuggestion, setProcessingSuggestion] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+  const [syncError, setSyncError] = useState(null);
 
   useEffect(() => {
     const loadAll = async () => {
@@ -2189,6 +2192,69 @@ function AdminTab({ currentUserUid }) {
       setSuggestionError(`Deny failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
     }
     setProcessingSuggestion(null);
+  };
+
+  const syncMyTricksToCommunity = async () => {
+    if (syncing) return;
+    if (!window.confirm(`Push your full trick library to the community list?\n\nNew tricks (not in the seed list) will be added to communityTricks. All your personal videos will be made global.\n\nProceed?`)) return;
+    setSyncing(true);
+    setSyncError(null);
+    setSyncResult(null);
+    try {
+      const seedIds = new Set(INITIAL_TRICKS.map(t => t.id));
+      const overridesSnap = await getDoc(doc(db, 'globalConfig', 'tricks'));
+      const data = overridesSnap.exists() ? overridesSnap.data() : {};
+      const existingCommunity = Array.isArray(data.communityTricks) ? data.communityTricks : [];
+      const existingCommunityIds = new Set(existingCommunity.map(t => t.id));
+      const existingGV = data.globalVideos || {};
+
+      const newCommunity = [...existingCommunity];
+      const newGV = { ...existingGV };
+      let addedTricks = 0;
+      let addedVideoTricks = 0;
+
+      for (const t of myTricks) {
+        const isSeed = seedIds.has(t.id);
+        if (!isSeed && !existingCommunityIds.has(t.id)) {
+          newCommunity.push({
+            id: t.id,
+            name: t.name,
+            category: t.category,
+            difficulty: t.difficulty,
+            notes: t.notes || '',
+          });
+          existingCommunityIds.add(t.id);
+          addedTricks++;
+        }
+        const personalVideos = Array.isArray(t.videos) ? t.videos.filter(v => !v._global) : [];
+        if (personalVideos.length > 0) {
+          const key = String(t.id);
+          const existingForTrick = Array.isArray(newGV[key]) ? newGV[key] : [];
+          const existingUrls = new Set(existingForTrick.map(v => v.url));
+          const additions = personalVideos
+            .filter(v => v.url && !existingUrls.has(v.url))
+            .map(({ _global, ...rest }) => rest);
+          if (additions.length > 0) {
+            newGV[key] = [...existingForTrick, ...additions];
+            addedVideoTricks++;
+          }
+        }
+      }
+
+      await setDoc(doc(db, 'globalConfig', 'tricks'), {
+        communityTricks: newCommunity,
+        globalVideos: newGV,
+        updatedAt: Date.now(),
+      }, { merge: true });
+
+      setCommunityTricks(newCommunity);
+      setSyncResult(`✅ Synced. Added ${addedTricks} new community trick${addedTricks === 1 ? '' : 's'}, promoted videos for ${addedVideoTricks} trick${addedVideoTricks === 1 ? '' : 's'}.`);
+      setTimeout(() => setSyncResult(null), 6000);
+    } catch (e) {
+      console.error('Sync error', e);
+      setSyncError(`Sync failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
+    }
+    setSyncing(false);
   };
 
   const deleteSuggestion = async (s) => {
@@ -2633,6 +2699,16 @@ service cloud.firestore {
         <div className="font-bold mb-3 flex items-center gap-2">
           <span className="text-lg">💡</span> Trick Suggestions
           <span className="ml-auto text-xs text-slate-400 font-normal">{suggestions.filter(s => s.status === 'pending').length} pending · {suggestions.length} total</span>
+        </div>
+        <div className="bg-slate-900/60 border border-slate-700 rounded-lg p-3 mb-3">
+          <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Bulk sync</div>
+          <button onClick={syncMyTricksToCommunity} disabled={syncing}
+            className="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:opacity-50 rounded-lg text-sm font-bold transition">
+            {syncing ? 'Syncing…' : '📤 Push my entire trick library to community'}
+          </button>
+          <div className="text-[11px] text-slate-500 mt-1">Adds any tricks you've created (beyond the seed list) and promotes all your personal videos to global.</div>
+          {syncResult && <div className="mt-2 text-xs text-green-300 bg-green-500/10 border border-green-500/30 rounded p-2">{syncResult}</div>}
+          {syncError && <div className="mt-2 text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded p-2">{syncError}</div>}
         </div>
         {suggestionError && (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-2 text-xs text-red-200 mb-2 break-words">{suggestionError}</div>
