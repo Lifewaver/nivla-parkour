@@ -544,6 +544,9 @@ function MainApp({ user }) {
   const [completedWarmups, setCompletedWarmups] = useState({});
   const [completedConditioning, setCompletedConditioning] = useState({});
   const [selectedTrick, setSelectedTrick] = useState(null);
+  const [autoplayVideoUrl, setAutoplayVideoUrl] = useState(null);
+  const openTrick = (trick, videoUrl = null) => { setSelectedTrick(trick); setAutoplayVideoUrl(videoUrl); };
+  const closeTrick = () => { setSelectedTrick(null); setAutoplayVideoUrl(null); };
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterDifficulty, setFilterDifficulty] = useState('all');
@@ -739,7 +742,7 @@ function MainApp({ user }) {
       <div className="px-4 py-4">
         {activeTab === 'home' && (
           <HomeTab stats={stats} streak={streak} mastered={mastered} inProgress={inProgress}
-            total={tricks.length} tricksOfTheDay={weeklyFocus} onOpenTrick={setSelectedTrick}
+            total={tricks.length} tricksOfTheDay={weeklyFocus} onOpenTrick={openTrick}
             earnedBadges={earnedBadges} onLogTraining={logTrainingDay}
             hasTrainedToday={trainingDays.includes(new Date().toISOString().split('T')[0])}
             setActiveTab={setActiveTab}
@@ -751,21 +754,21 @@ function MainApp({ user }) {
             filterCategory={filterCategory} setFilterCategory={setFilterCategory}
             filterDifficulty={filterDifficulty} setFilterDifficulty={setFilterDifficulty}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
-            onOpenTrick={setSelectedTrick}
+            onOpenTrick={openTrick}
             onAddNew={() => setActiveTab('add')} />
         )}
         {activeTab === 'training' && (
           <TrainingTab weeklyGoals={weeklyGoals} saveGoals={saveGoals} tricks={tricks}
             completedWarmups={completedWarmups} saveWarmups={saveWarmups}
             completedConditioning={completedConditioning} saveConditioning={saveConditioning}
-            journal={journal} saveJournal={saveJournal} onOpenTrick={setSelectedTrick}
+            journal={journal} saveJournal={saveJournal} onOpenTrick={openTrick}
             section={trainingSection} setSection={setTrainingSection} />
         )}
         {activeTab === 'progress' && (
           <ProgressTab stats={stats} tricks={tricks} earnedBadges={earnedBadges} trainingDays={trainingDays} />
         )}
         {activeTab === 'skilltree' && (
-          <SkillTreeTab tricks={tricks} onOpenTrick={setSelectedTrick} />
+          <SkillTreeTab tricks={tricks} onOpenTrick={openTrick} />
         )}
         {activeTab === 'add' && (
           <AddTab onAddTrick={addTrick} setActiveTab={setActiveTab} />
@@ -779,19 +782,20 @@ function MainApp({ user }) {
 
       {selectedTrick && (
         <TrickDetailModal trick={tricks.find(t => t.id === selectedTrick.id) || selectedTrick}
-          onClose={() => setSelectedTrick(null)} onUpdateStatus={updateTrickStatus}
+          autoplayUrl={autoplayVideoUrl}
+          onClose={closeTrick} onUpdateStatus={updateTrickStatus}
           onUpdateVideos={updateTrickVideos} onUpdateNotes={updateTrickNotes} />
       )}
 
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-lg border-t border-purple-500/20 z-50">
         <div className="flex justify-around items-center py-2 px-2 max-w-2xl mx-auto">
-          <NavButton icon={Home} label="Home" active={activeTab === 'home'} onClick={() => { setSelectedTrick(null); setActiveTab('home'); }} />
-          <NavButton icon={Dumbbell} label="Tricks" active={activeTab === 'tricks'} onClick={() => { setSelectedTrick(null); setActiveTab('tricks'); }} />
-         <NavButton icon={GitBranch} label="Tree" active={activeTab === 'skilltree'} onClick={() => { setSelectedTrick(null); setActiveTab('skilltree'); }} />
-         <NavButton icon={Calendar} label="Training" active={activeTab === 'training'} onClick={() => { setSelectedTrick(null); setActiveTab('training'); }} />
-          <NavButton icon={Trophy} label="Progress" active={activeTab === 'progress'} onClick={() => { setSelectedTrick(null); setActiveTab('progress'); }} />
+          <NavButton icon={Home} label="Home" active={activeTab === 'home'} onClick={() => { closeTrick(); setActiveTab('home'); }} />
+          <NavButton icon={Dumbbell} label="Tricks" active={activeTab === 'tricks'} onClick={() => { closeTrick(); setActiveTab('tricks'); }} />
+         <NavButton icon={GitBranch} label="Tree" active={activeTab === 'skilltree'} onClick={() => { closeTrick(); setActiveTab('skilltree'); }} />
+         <NavButton icon={Calendar} label="Training" active={activeTab === 'training'} onClick={() => { closeTrick(); setActiveTab('training'); }} />
+          <NavButton icon={Trophy} label="Progress" active={activeTab === 'progress'} onClick={() => { closeTrick(); setActiveTab('progress'); }} />
          {userIsAdmin && (
-         <NavButton icon={Shield} label="Admin" active={activeTab === 'admin'} onClick={() => { setSelectedTrick(null); setActiveTab('admin'); }} />
+         <NavButton icon={Shield} label="Admin" active={activeTab === 'admin'} onClick={() => { closeTrick(); setActiveTab('admin'); }} />
          )}
         </div>
       </div>
@@ -971,7 +975,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
               {isGymnastics && <span className="text-xs font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Gymnastics</span>}
             </div>
             <div className={`space-y-2 ${isGymnastics ? 'bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-2' : ''}`}>
-              {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onClick={() => onOpenTrick(t)} isGymnastics={isGymnastics} />)}
+              {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} isGymnastics={isGymnastics} />)}
             </div>
           </div>
         );
@@ -1001,17 +1005,18 @@ function normalizeUrl(url) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
-function TrickCard({ trick, onClick, isGymnastics }) {
+function TrickCard({ trick, onOpen, isGymnastics }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const status = STATUS_LEVELS.find(s => s.id === trick.status);
   const tutorialVideo = trick.videos?.find(v => v.type === 'tutorial' && v.primary)
     || trick.videos?.find(v => v.type === 'tutorial');
   const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary)
     || trick.videos?.find(v => v.type !== 'tutorial');
-  const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) window.open(normalizeUrl(video.url), '_blank', 'noopener,noreferrer'); };
+  const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpen(normalizeUrl(video.url)); };
+  const openCard = () => onOpen();
   return (
     <div className={`w-full border rounded-xl p-3 flex items-center gap-2 text-left transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
-      <button onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+      <button onClick={openCard} className="flex items-center gap-3 flex-1 min-w-0 text-left">
         <div className={`w-1 h-12 ${diff.strip} rounded-full flex-shrink-0`} />
         <div className="flex-1 min-w-0">
           <div className="font-bold truncate">{trick.name}</div>
@@ -1031,7 +1036,7 @@ function TrickCard({ trick, onClick, isGymnastics }) {
           <span className="text-base">🎓</span>
         </button>
       )}
-      <button onClick={onClick} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
+      <button onClick={openCard} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
     </div>
   );
 }
@@ -1045,15 +1050,18 @@ function getVideoEmbed(url) {
   return null;
 }
 
-function VideoCard({ video, onRemove, onTogglePrimary }) {
+function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef }) {
   const safeUrl = normalizeUrl(video.url);
   const embed = getVideoEmbed(safeUrl);
+  const embedSrc = embed && autoplay
+    ? `${embed.src}${embed.src.includes('?') ? '&' : '?'}autoplay=1`
+    : embed?.src;
   return (
-    <div className={`bg-purple-900/20 border rounded-lg overflow-hidden ${video.primary ? 'border-yellow-400/60' : 'border-purple-500/30'}`}>
+    <div ref={scrollRef} className={`bg-purple-900/20 border rounded-lg overflow-hidden ${autoplay ? 'border-purple-400/80 ring-2 ring-purple-400/40' : video.primary ? 'border-yellow-400/60' : 'border-purple-500/30'}`}>
       {embed && (
         <div className="aspect-video bg-black">
           <iframe
-            src={embed.src}
+            src={embedSrc}
             title={video.label}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
@@ -1082,15 +1090,22 @@ function VideoCard({ video, onRemove, onTogglePrimary }) {
   );
 }
 
-function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUpdateNotes }) {
+function TrickDetailModal({ trick, autoplayUrl, onClose, onUpdateStatus, onUpdateVideos, onUpdateNotes }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
   const [newVideoType, setNewVideoType] = useState('reference');
   const [notesInput, setNotesInput] = useState(trick.notes || '');
+  const autoplayRef = React.useRef(null);
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const allVideos = trick.videos || [];
   const tutorialVideos = allVideos.filter(v => v.type === 'tutorial');
   const referenceVideos = allVideos.filter(v => v.type !== 'tutorial');
+  const isAutoplayVideo = (v) => autoplayUrl && normalizeUrl(v.url) === autoplayUrl;
+  useEffect(() => {
+    if (autoplayUrl && autoplayRef.current) {
+      autoplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [autoplayUrl]);
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
     const url = normalizeUrl(newVideoUrl.trim());
@@ -1138,7 +1153,8 @@ function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUp
             <div className="space-y-2">
               {referenceVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No reference videos yet. Add inspiration clips below.</div>}
               {referenceVideos.map((v, i) => (
-                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)} />
+                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
+                  autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null} />
               ))}
             </div>
           </div>
@@ -1147,7 +1163,8 @@ function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUp
             <div className="space-y-2">
               {tutorialVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No tutorials yet. Add one below to learn how to do this trick.</div>}
               {tutorialVideos.map((v, i) => (
-                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)} />
+                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
+                  autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null} />
               ))}
             </div>
           </div>
