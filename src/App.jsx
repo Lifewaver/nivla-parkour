@@ -1762,6 +1762,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const [duration, setDuration] = useState('');
   const [notes, setNotes] = useState('');
   const [savedToast, setSavedToast] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
 
   const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
   const sortedSessions = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -2014,56 +2015,64 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
         </div>
       </div>
 
-      <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4 space-y-3">
-        <div>
-          <div className="font-bold flex items-center gap-2 mb-1"><Calendar className="w-5 h-5 text-purple-400" /> Plan your training</div>
-          <div className="text-xs text-slate-400">Pick months, weeks and weekdays you plan to train. Empty = all. Future planned days get a purple ring on the heatmap.</div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Months</div>
-          <div className="flex flex-wrap gap-1.5">
-            {MONTHS.map(m => {
-              const on = plannedMonths.includes(m.num);
-              return (
-                <button key={m.num} onClick={() => togglePlannedMonth(m.num)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                  {m.label}
-                </button>
-              );
-            })}
+      <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
+        <button onClick={() => setPlanOpen(o => !o)} className="w-full flex items-start gap-2 text-left">
+          <Calendar className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="font-bold mb-1">Plan your training</div>
+            <div className="text-xs text-slate-400">Pick months, weeks and weekdays you plan to train. Empty = all. Future planned days get a purple ring on the heatmap.</div>
           </div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Weeks of the month</div>
-          <div className="flex flex-wrap gap-1.5">
-            {WEEKS.map(w => {
-              const on = plannedWeeks.includes(w);
-              return (
-                <button key={w} onClick={() => togglePlannedWeek(w)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                  Week {w}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Weekdays</div>
-          <div className="flex flex-wrap gap-1.5">
-            {WEEKDAYS.map(d => {
-              const on = plannedDays.includes(d.num);
-              return (
-                <button key={d.num} onClick={() => togglePlannedDay(d.num)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                  {d.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        {(plannedDays.length + plannedMonths.length + plannedWeeks.length) > 0 && (
-          <div className="text-xs text-slate-300">
-            <span className="text-purple-300 font-bold">{plannedSessionsThisMonth}</span> planned training day{plannedSessionsThisMonth === 1 ? '' : 's'} in {monthName}.
+          <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform mt-1 ${planOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {planOpen && (
+          <div className="space-y-3 mt-3">
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Months</div>
+              <div className="flex flex-wrap gap-1.5">
+                {MONTHS.map(m => {
+                  const on = plannedMonths.includes(m.num);
+                  return (
+                    <button key={m.num} onClick={() => togglePlannedMonth(m.num)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Weeks of the month</div>
+              <div className="flex flex-wrap gap-1.5">
+                {WEEKS.map(w => {
+                  const on = plannedWeeks.includes(w);
+                  return (
+                    <button key={w} onClick={() => togglePlannedWeek(w)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                      Week {w}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Weekdays</div>
+              <div className="flex flex-wrap gap-1.5">
+                {WEEKDAYS.map(d => {
+                  const on = plannedDays.includes(d.num);
+                  return (
+                    <button key={d.num} onClick={() => togglePlannedDay(d.num)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {(plannedDays.length + plannedMonths.length + plannedWeeks.length) > 0 && (
+              <div className="text-xs text-slate-300">
+                <span className="text-purple-300 font-bold">{plannedSessionsThisMonth}</span> planned training day{plannedSessionsThisMonth === 1 ? '' : 's'} in {monthName}.
+              </div>
+            )}
           </div>
         )}
       </div>
