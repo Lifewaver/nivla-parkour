@@ -1771,6 +1771,29 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
     const m = ct.filter(t => t.status === 'yes_i_can').length;
     return { cat, mastered: m, total: ct.length, pct: ct.length > 0 ? (m / ct.length) * 100 : 0 };
   });
+  const difficultyStats = [
+    { label: 'Easy', count: stats.easyMastered, total: tricks.filter(t => t.difficulty === 'Easy').length, color: 'bg-green-500' },
+    { label: 'Medium', count: stats.mediumMastered, total: tricks.filter(t => t.difficulty === 'Medium').length, color: 'bg-blue-500' },
+    { label: 'Hard', count: stats.hardMastered, total: tricks.filter(t => t.difficulty === 'Hard').length, color: 'bg-orange-500' },
+    { label: 'Super', count: stats.superMastered, total: tricks.filter(t => t.difficulty === 'Super').length, color: 'bg-purple-500' },
+  ];
+  const [expandedDifficulty, setExpandedDifficulty] = useState(null);
+  const [expandedCategory, setExpandedCategory] = useState(null);
+  const [achievementsOpen, setAchievementsOpen] = useState(true);
+  const sortByStatus = (a, b) => {
+    const order = (t) => t.status === 'yes_i_can' ? 0 : t.status && t.status !== 'not_started' ? 1 : 2;
+    return order(a) - order(b) || a.name.localeCompare(b.name);
+  };
+  const TrickRow = ({ t }) => {
+    const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+    return (
+      <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
+        <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
+        <span className="flex-1 truncate">{t.name}</span>
+        <span className="text-base flex-shrink-0">{status.emoji}</span>
+      </div>
+    );
+  };
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <div className="grid grid-cols-2 gap-3">
@@ -1780,39 +1803,90 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
       <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
         <div className="font-bold mb-3 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-purple-400" /> By Difficulty</div>
         <div className="space-y-2">
-          {[{label:'Easy',count:stats.easyMastered,total:tricks.filter(t=>t.difficulty==='Easy').length,color:'bg-green-500'},{label:'Medium',count:stats.mediumMastered,total:tricks.filter(t=>t.difficulty==='Medium').length,color:'bg-blue-500'},{label:'Hard',count:stats.hardMastered,total:tricks.filter(t=>t.difficulty==='Hard').length,color:'bg-orange-500'},{label:'Super',count:stats.superMastered,total:tricks.filter(t=>t.difficulty==='Super').length,color:'bg-purple-500'}].map(d => (
-            <div key={d.label}>
-              <div className="flex items-center justify-between text-sm mb-1"><span className="font-semibold">{d.label}</span><span className="text-slate-400">{d.count}/{d.total}</span></div>
-              <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className={`h-full ${d.color} transition-all duration-500`} style={{ width: `${d.total > 0 ? (d.count / d.total) * 100 : 0}%` }} /></div>
-            </div>
-          ))}
+          {difficultyStats.map(d => {
+            const open = expandedDifficulty === d.label;
+            const rows = tricks.filter(t => t.difficulty === d.label).slice().sort(sortByStatus);
+            return (
+              <div key={d.label}>
+                <button onClick={() => setExpandedDifficulty(open ? null : d.label)}
+                  className="w-full text-left hover:bg-slate-800/50 rounded-lg p-1 -m-1 transition">
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="font-semibold flex items-center gap-1">
+                      <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${open ? 'rotate-180' : '-rotate-90'}`} />
+                      {d.label}
+                    </span>
+                    <span className="text-slate-400">{d.count}/{d.total}</span>
+                  </div>
+                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className={`h-full ${d.color} transition-all duration-500`} style={{ width: `${d.total > 0 ? (d.count / d.total) * 100 : 0}%` }} />
+                  </div>
+                </button>
+                {open && (
+                  <div className="space-y-1 mt-2 ml-4">
+                    {rows.length === 0 ? (
+                      <div className="text-xs text-slate-500 italic">No tricks at this difficulty.</div>
+                    ) : rows.map(t => <TrickRow key={t.id} t={t} />)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
       <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
         <div className="font-bold mb-3">By Category</div>
         <div className="space-y-2">
-          {categoryStats.map(c => (
-            <div key={c.cat}>
-              <div className="flex items-center justify-between text-sm mb-1"><span className="font-semibold flex items-center gap-1.5"><CategoryIcon category={c.cat} size={16} className="text-slate-300" />{c.cat}</span><span className="text-slate-400">{c.mastered}/{c.total}</span></div>
-              <div className="h-2 bg-slate-700 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${c.pct}%` }} /></div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="bg-slate-800/50 border border-yellow-500/30 rounded-2xl p-4">
-        <div className="font-bold mb-3 flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-400" /> Achievements ({earnedBadges.length}/{BADGES.length})</div>
-        <div className="grid grid-cols-2 gap-2">
-          {BADGES.map(b => {
-            const earned = earnedBadges.some(e => e.id === b.id);
+          {categoryStats.map(c => {
+            const open = expandedCategory === c.cat;
+            const rows = tricks.filter(t => t.category === c.cat).slice().sort(sortByStatus);
             return (
-              <div key={b.id} className={`rounded-xl p-3 border transition ${earned ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-500/50' : 'bg-slate-900 border-slate-700 opacity-50'}`}>
-                <div className="text-3xl mb-1">{earned ? b.icon : '🔒'}</div>
-                <div className={`text-sm font-bold ${earned ? 'text-yellow-300' : 'text-slate-500'}`}>{b.name}</div>
-                <div className="text-xs text-slate-400 mt-1">{b.desc}</div>
+              <div key={c.cat}>
+                <button onClick={() => setExpandedCategory(open ? null : c.cat)}
+                  className="w-full text-left hover:bg-slate-800/50 rounded-lg p-1 -m-1 transition">
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${open ? 'rotate-180' : '-rotate-90'}`} />
+                      <CategoryIcon category={c.cat} size={16} className="text-slate-300" />
+                      {c.cat}
+                    </span>
+                    <span className="text-slate-400">{c.mastered}/{c.total}</span>
+                  </div>
+                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${c.pct}%` }} />
+                  </div>
+                </button>
+                {open && (
+                  <div className="space-y-1 mt-2 ml-4">
+                    {rows.length === 0 ? (
+                      <div className="text-xs text-slate-500 italic">No tricks in this category.</div>
+                    ) : rows.map(t => <TrickRow key={t.id} t={t} />)}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
+      </div>
+      <div className="bg-slate-800/50 border border-yellow-500/30 rounded-2xl p-4">
+        <button onClick={() => setAchievementsOpen(o => !o)} className="w-full flex items-center gap-2 mb-3">
+          <Trophy className="w-5 h-5 text-yellow-400" />
+          <span className="font-bold">Achievements ({earnedBadges.length}/{BADGES.length})</span>
+          <ChevronDown className={`ml-auto w-4 h-4 text-slate-400 transition-transform ${achievementsOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {achievementsOpen && (
+          <div className="grid grid-cols-2 gap-2">
+            {BADGES.map(b => {
+              const earned = earnedBadges.some(e => e.id === b.id);
+              return (
+                <div key={b.id} className={`rounded-xl p-3 border transition ${earned ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-500/50' : 'bg-slate-900 border-slate-700 opacity-50'}`}>
+                  <div className="text-3xl mb-1">{earned ? b.icon : '🔒'}</div>
+                  <div className={`text-sm font-bold ${earned ? 'text-yellow-300' : 'text-slate-500'}`}>{b.name}</div>
+                  <div className="text-xs text-slate-400 mt-1">{b.desc}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
