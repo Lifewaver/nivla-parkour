@@ -2324,16 +2324,40 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
           <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Tricks practiced</div>
           {practicedTricks.length === 0 && <div className="text-xs text-slate-500 italic mb-1">No tricks added — pick from the dropdown below.</div>}
           {practicedTricks.length > 0 && (
-            <div className="space-y-1 mb-2">
+            <div className="space-y-2 mb-2">
               {practicedTricks.map(id => {
                 const t = tricks.find(x => x.id === id);
                 if (!t) return null;
+                const diff = DIFFICULTY_COLORS[t.difficulty];
+                const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+                const tutorialVideo = t.videos?.find(v => v.type === 'tutorial' && v.primary) || t.videos?.find(v => v.type === 'tutorial');
+                const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
+                const playVideo = (e, video) => { e.stopPropagation(); if (video?.url && onOpenTrick) onOpenTrick(t, normalizeUrl(video.url)); };
                 return (
-                  <div key={id} className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded p-2 text-sm">
-                    <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
-                    <span className="flex-1 truncate font-medium">{t.name}</span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text} flex-shrink-0`}>{t.difficulty}</span>
-                    <button onClick={() => setPracticedTricks(arr => arr.filter(x => x !== id))} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove"><X className="w-3.5 h-3.5" /></button>
+                  <div key={id} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
+                    <button onClick={() => onOpenTrick && onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                      <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
+                      <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold truncate">{t.name}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
+                          {t.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {t.videos.length}</span>}
+                        </div>
+                      </div>
+                    </button>
+                    {referenceVideo && (
+                      <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
+                        <Play className="w-4 h-4 fill-current" />
+                      </button>
+                    )}
+                    {tutorialVideo && (
+                      <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
+                        <span className="text-base">🎓</span>
+                      </button>
+                    )}
+                    <button onClick={() => onOpenTrick && onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
+                    <button onClick={() => setPracticedTricks(arr => arr.filter(x => x !== id))} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove"><X className="w-4 h-4" /></button>
                   </div>
                 );
               })}
