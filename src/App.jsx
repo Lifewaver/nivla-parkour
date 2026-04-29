@@ -554,6 +554,7 @@ function MainApp({ user }) {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterDifficulty, setFilterDifficulty] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterTracker, setFilterTracker] = useState('all');
   const [celebrationTrick, setCelebrationTrick] = useState(null);
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -775,6 +776,7 @@ function MainApp({ user }) {
             filterCategory={filterCategory} setFilterCategory={setFilterCategory}
             filterDifficulty={filterDifficulty} setFilterDifficulty={setFilterDifficulty}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
+            filterTracker={filterTracker} setFilterTracker={setFilterTracker}
             onOpenTrick={openTrick} onUpdateStatus={updateTrickStatus}
             onAddNew={() => setActiveTab('add')} />
         )}
@@ -951,15 +953,18 @@ function QuickLink({ label, icon, onClick, color }) {
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, onOpenTrick, onUpdateStatus, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, onOpenTrick, onUpdateStatus, onAddNew }) {
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
   const statuses = ['all', ...STATUS_LEVELS.map(s => s.id)];
+  const trackerStatusIds = ['not_started', 'looking_into', 'training_hard', 'yes_i_can'];
+  const trackerOptions = ['all', ...trackerStatusIds];
   const filtered = tricks.filter(t => {
     if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterCategory !== 'all' && t.category !== filterCategory) return false;
     if (filterDifficulty !== 'all' && t.difficulty !== filterDifficulty) return false;
     if (filterStatus !== 'all' && t.status !== filterStatus) return false;
+    if (filterTracker !== 'all' && t.status !== filterTracker) return false;
     return true;
   });
   const grouped = filtered.reduce((acc, t) => { if (!acc[t.category]) acc[t.category] = []; acc[t.category].push(t); return acc; }, {});
@@ -984,6 +989,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
       <div className="space-y-2">
         <FilterRow label="Category" options={categories} selected={filterCategory} onChange={setFilterCategory} />
         <FilterRow label="Difficulty" options={difficulties} selected={filterDifficulty} onChange={setFilterDifficulty} />
+        <FilterRow label="Status Tracker" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
         <FilterRow label="Status" options={statuses} selected={filterStatus} onChange={setFilterStatus} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
       </div>
       <div className="text-sm text-slate-400">{filtered.length} tricks</div>
