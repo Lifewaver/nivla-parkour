@@ -2137,21 +2137,25 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                     </div>
                   )}
 
-                  {remainingSuggestions.length > 0 && (
-                    <div className="mb-2">
-                      <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Suggested focus</div>
-                      <div className="space-y-1">
-                        {remainingSuggestions.slice(0, 5).map(s => (
-                          <div key={s.trick.id} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-sm transition">
-                            <CategoryIcon category={s.trick.category} size={14} className="text-slate-400 flex-shrink-0" />
-                            <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className="flex-1 truncate font-medium text-left">{s.trick.name}</button>
-                            <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
-                            <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="text-purple-300 hover:text-purple-100 flex-shrink-0 font-bold text-base leading-none" title="Lock in for this session">+</button>
-                          </div>
-                        ))}
+                  {remainingSuggestions.length > 0 && (() => {
+                    const suggestionLimit = Math.max(1, 5 - lockedTricks.length);
+                    const visible = remainingSuggestions.slice(0, suggestionLimit);
+                    return (
+                      <div className="mb-2">
+                        <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Suggested focus</div>
+                        <div className="space-y-1">
+                          {visible.map(s => (
+                            <div key={s.trick.id} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-sm transition">
+                              <CategoryIcon category={s.trick.category} size={14} className="text-slate-400 flex-shrink-0" />
+                              <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className="flex-1 truncate font-medium text-left">{s.trick.name}</button>
+                              <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
+                              <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="text-purple-300 hover:text-purple-100 flex-shrink-0 font-bold text-base leading-none" title="Lock in for this session">+</button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {!logged && addable.length > 0 && (
                     <div className="mb-2">
