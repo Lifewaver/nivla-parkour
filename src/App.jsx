@@ -1259,12 +1259,17 @@ function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [],
               const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary) || trick.videos?.find(v => v.type !== 'tutorial');
               const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(trick, normalizeUrl(video.url)); };
               return (
-                <div key={ct.id} className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
-                  <button onClick={() => onOpenTrick(trick)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                <div key={ct.id} className="relative w-full bg-gradient-to-r from-slate-800 via-cyan-950/60 to-slate-800 hover:from-slate-700 hover:via-cyan-900/50 hover:to-slate-700 border border-cyan-400/40 shadow-lg shadow-cyan-500/20 rounded-xl p-3 flex items-center gap-2 transition overflow-hidden">
+                  <span className="pointer-events-none absolute -top-1 -left-1 text-base animate-pulse">✨</span>
+                  <span className="pointer-events-none absolute -bottom-1 -right-1 text-sm animate-pulse" style={{ animationDelay: '0.6s' }}>✨</span>
+                  <button onClick={() => onOpenTrick(trick)} className="relative flex items-center gap-3 flex-1 min-w-0 text-left">
                     <div className={`w-1 h-12 ${diff.strip} rounded-full flex-shrink-0`} />
                     <CategoryIcon category={trick.category} size={20} className="text-slate-300 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="font-bold truncate">{trick.name}</div>
+                      <div className="font-bold truncate flex items-center gap-1">
+                        <span className="animate-pulse" style={{ animationDelay: '0.3s' }}>✨</span>
+                        {trick.name}
+                      </div>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff.bg} ${diff.text}`}>{trick.difficulty}</span>
                         {trick.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {trick.videos.length}</span>}
