@@ -2711,14 +2711,21 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
         const lookingInto = tricks.filter(t => t.status === 'looking_into' && !weeklyGoals.some(g => g.trickId === t.id));
         const renderTierRow = (t) => {
           const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+          const diff = DIFFICULTY_COLORS[t.difficulty];
           return (
-            <div key={t.id} className="w-full flex items-center gap-2 bg-slate-900 border border-transparent hover:bg-slate-800 rounded-lg p-2.5 transition">
-              <button onClick={() => onOpenTrick(t)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
-                <span className="text-lg flex-shrink-0">{status.emoji}</span>
-                <CategoryIcon category={t.category} size={16} className="text-slate-300 flex-shrink-0" />
-                <span className="flex-1 truncate font-medium text-sm">{t.name}</span>
-                <span className="text-xs flex-shrink-0 text-slate-500">{t.difficulty}</span>
+            <div key={t.id} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
+              <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
+                <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold truncate">{t.name}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
+                    {t.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {t.videos.length}</span>}
+                  </div>
+                </div>
               </button>
+              <button onClick={() => onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
               <button onClick={() => addSuggestion(t.id)}
                 className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition">
                 + Add
