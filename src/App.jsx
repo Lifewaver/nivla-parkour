@@ -2352,8 +2352,11 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
 function SessionJournalSection({ trainingSessions = [], saveTrainingSessions, tricks = [] }) {
   const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
   const sortedSessions = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  const removeSession = async (id) => {
+  const [openId, setOpenId] = useState(null);
+  const removeSession = async (e, id) => {
+    e.stopPropagation();
     if (!window.confirm('Delete this training session?')) return;
+    if (openId === id) setOpenId(null);
     await saveTrainingSessions(safeSessions.filter(s => s.id !== id));
   };
   return (
@@ -2363,33 +2366,69 @@ function SessionJournalSection({ trainingSessions = [], saveTrainingSessions, tr
         <div className="text-sm text-slate-500 text-center py-6">No sessions logged yet.</div>
       ) : (
         <div className="space-y-2">
-          {sortedSessions.map(s => (
-            <div key={s.id} className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
+          {sortedSessions.map(s => {
+            const isOpen = openId === s.id;
+            const tagsCount = Array.isArray(s.focusTags) ? s.focusTags.length : 0;
+            const tricksCount = Array.isArray(s.practicedTricks) ? s.practicedTricks.length : 0;
+            return (
+              <div key={s.id} className={`bg-slate-900 border rounded-lg text-sm ${isOpen ? 'border-purple-500/40' : 'border-slate-700'}`}>
+                <button onClick={() => setOpenId(isOpen ? null : s.id)} className="w-full flex items-center gap-2 p-3 text-left">
+                  <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                   <span className="font-bold">{s.date}</span>
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">RPE {s.rpe}</span>
-                  {s.durationMinutes > 0 && <span className="text-xs text-slate-400">{s.durationMinutes} min</span>}
-                </div>
-                <button onClick={() => removeSession(s.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 flex-shrink-0">RPE {s.rpe}</span>
+                  {s.durationMinutes > 0 && <span className="text-xs text-slate-400 flex-shrink-0">{s.durationMinutes} min</span>}
+                  {!isOpen && (tricksCount > 0 || tagsCount > 0) && (
+                    <span className="text-[10px] text-slate-500 flex-shrink-0 ml-auto">
+                      {tricksCount > 0 && `${tricksCount} ${tricksCount === 1 ? 'trick' : 'tricks'}`}
+                      {tricksCount > 0 && tagsCount > 0 && ' · '}
+                      {tagsCount > 0 && `${tagsCount} tag${tagsCount === 1 ? '' : 's'}`}
+                    </span>
+                  )}
+                  {isOpen && <span className="ml-auto" />}
+                  <button onClick={(e) => removeSession(e, s.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
+                </button>
+                {isOpen && (
+                  <div className="px-3 pb-3 pt-0 space-y-2 border-t border-slate-700/60">
+                    {tagsCount > 0 && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-slate-400 uppercase mt-2 mb-1">Focus tags</div>
+                        <div className="flex flex-wrap gap-1">
+                          {s.focusTags.map(t => <span key={t} className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">#{t}</span>)}
+                        </div>
+                      </div>
+                    )}
+                    {tricksCount > 0 && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Tricks practiced</div>
+                        <div className="space-y-1">
+                          {s.practicedTricks.map(id => {
+                            const t = tricks.find(x => x.id === id);
+                            if (!t) return null;
+                            return (
+                              <div key={id} className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded p-2 text-xs">
+                                <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
+                                <span className="flex-1 truncate font-medium">{t.name}</span>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text} flex-shrink-0`}>{t.difficulty}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {s.notes ? (
+                      <div>
+                        <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Notes</div>
+                        <div className="text-xs text-slate-300 whitespace-pre-wrap bg-slate-800 border border-slate-700 rounded p-2">{s.notes}</div>
+                      </div>
+                    ) : null}
+                    {tagsCount === 0 && tricksCount === 0 && !s.notes && (
+                      <div className="text-xs text-slate-500 italic mt-2">No details logged for this session.</div>
+                    )}
+                  </div>
+                )}
               </div>
-              {Array.isArray(s.focusTags) && s.focusTags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {s.focusTags.map(t => <span key={t} className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">#{t}</span>)}
-                </div>
-              )}
-              {Array.isArray(s.practicedTricks) && s.practicedTricks.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {s.practicedTricks.map(id => {
-                    const t = tricks.find(x => x.id === id);
-                    if (!t) return null;
-                    return <span key={id} className="text-[10px] bg-purple-500/20 text-purple-200 px-1.5 py-0.5 rounded border border-purple-500/40">{t.name}</span>;
-                  })}
-                </div>
-              )}
-              {s.notes && <div className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{s.notes}</div>}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
