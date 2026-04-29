@@ -2167,15 +2167,20 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                       <div className="mb-2">
                         <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Suggested focus</div>
                         <div className="space-y-1">
-                          {visible.map(s => (
-                            <div key={s.trick.id} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-sm transition">
-                              <CategoryIcon category={s.trick.category} size={14} className="text-slate-400 flex-shrink-0" />
-                              <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className="flex-1 truncate font-medium text-left">{s.trick.name}</button>
-                              <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
-                              <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="text-purple-300 hover:text-purple-100 flex-shrink-0 font-bold text-base leading-none" title="Lock in for this session">+</button>
-                              <button onClick={() => dismissSuggestion(us.date, s.trick.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Dismiss this suggestion"><X className="w-3.5 h-3.5" /></button>
-                            </div>
-                          ))}
+                          {visible.map(s => {
+                            const canDismiss = remainingSuggestions.length > 1;
+                            return (
+                              <div key={s.trick.id} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-sm transition">
+                                <CategoryIcon category={s.trick.category} size={14} className="text-slate-400 flex-shrink-0" />
+                                <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className="flex-1 truncate font-medium text-left">{s.trick.name}</button>
+                                <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
+                                <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="text-purple-300 hover:text-purple-100 flex-shrink-0 font-bold text-base leading-none" title="Lock in for this session">+</button>
+                                {canDismiss && (
+                                  <button onClick={() => dismissSuggestion(us.date, s.trick.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Dismiss this suggestion"><X className="w-3.5 h-3.5" /></button>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                         {dismissedIds.length > 0 && (
                           <button onClick={() => restoreDismissed(us.date)} className="text-[10px] text-slate-500 hover:text-slate-300 mt-2">
