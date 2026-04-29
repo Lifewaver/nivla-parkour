@@ -1768,6 +1768,8 @@ function AdminTab({ currentUserUid }) {
   const [loadingUser, setLoadingUser] = useState(false);
   const [trickSearch, setTrickSearch] = useState('');
   const [trickSort, setTrickSort] = useState('default');
+  const [trickFilterCategory, setTrickFilterCategory] = useState('all');
+  const [trickFilterDifficulty, setTrickFilterDifficulty] = useState('all');
   const [editingTrick, setEditingTrick] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', category: 'Flips', difficulty: 'Medium' });
   const [savingTrick, setSavingTrick] = useState(false);
@@ -2298,18 +2300,26 @@ service cloud.firestore {
           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2"
         />
         {!editingTrick && (
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-semibold text-slate-400 uppercase">Sort</span>
-            {[
-              { id: 'default', label: 'Default' },
-              { id: 'category', label: 'Category' },
-              { id: 'difficulty', label: 'Difficulty' },
-            ].map(opt => (
-              <button key={opt.id} onClick={() => setTrickSort(opt.id)}
-                className={`px-2.5 py-1 rounded-md text-xs font-bold transition ${trickSort === opt.id ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
-                {opt.label}
-              </button>
-            ))}
+          <div className="space-y-2 mb-3">
+            <FilterRow label="Category"
+              options={['all', ...Array.from(new Set(INITIAL_TRICKS.map(t => (overrides[String(t.id)]?.category) || t.category))).sort()]}
+              selected={trickFilterCategory} onChange={setTrickFilterCategory} />
+            <FilterRow label="Difficulty"
+              options={['all', 'Easy', 'Medium', 'Hard', 'Super']}
+              selected={trickFilterDifficulty} onChange={setTrickFilterDifficulty} />
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-400 uppercase">Sort</span>
+              {[
+                { id: 'default', label: 'Default' },
+                { id: 'category', label: 'Category' },
+                { id: 'difficulty', label: 'Difficulty' },
+              ].map(opt => (
+                <button key={opt.id} onClick={() => setTrickSort(opt.id)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition ${trickSort === opt.id ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {editingTrick ? (
@@ -2382,8 +2392,13 @@ service cloud.firestore {
             {(() => {
               const DIFF_ORDER = { Easy: 0, Medium: 1, Hard: 2, Super: 3 };
               const withEffective = INITIAL_TRICKS
-                .filter(t => t.name.toLowerCase().includes(trickSearch.toLowerCase()))
-                .map(t => ({ trick: t, effective: overrides[String(t.id)] ? { ...t, ...overrides[String(t.id)] } : t }));
+                .map(t => ({ trick: t, effective: overrides[String(t.id)] ? { ...t, ...overrides[String(t.id)] } : t }))
+                .filter(({ effective }) => {
+                  if (trickSearch && !effective.name.toLowerCase().includes(trickSearch.toLowerCase())) return false;
+                  if (trickFilterCategory !== 'all' && effective.category !== trickFilterCategory) return false;
+                  if (trickFilterDifficulty !== 'all' && effective.difficulty !== trickFilterDifficulty) return false;
+                  return true;
+                });
               if (trickSort === 'category') {
                 withEffective.sort((a, b) =>
                   a.effective.category.localeCompare(b.effective.category)
