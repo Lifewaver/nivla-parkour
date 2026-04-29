@@ -626,9 +626,18 @@ function MainApp({ user }) {
   const [plannedSessionDismissed, setPlannedSessionDismissed] = useState({});
   const [globalVideos, setGlobalVideos] = useState({});
   const [communityTricks, setCommunityTricks] = useState([]);
+  const [viewedTricks, setViewedTricks] = useState([]);
   const [selectedTrick, setSelectedTrick] = useState(null);
   const [autoplayVideoUrl, setAutoplayVideoUrl] = useState(null);
-  const openTrick = (trick, videoUrl = null) => { setSelectedTrick(trick); setAutoplayVideoUrl(videoUrl); };
+  const openTrick = (trick, videoUrl = null) => {
+    setSelectedTrick(trick);
+    setAutoplayVideoUrl(videoUrl);
+    if (trick && trick.id != null && !viewedTricks.includes(trick.id)) {
+      const next = [...viewedTricks, trick.id];
+      setViewedTricks(next);
+      saveUserData(user.uid, 'viewedTricks', next).catch(e => console.error('Save viewed error', e));
+    }
+  };
   const closeTrick = () => { setSelectedTrick(null); setAutoplayVideoUrl(null); };
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -645,7 +654,7 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData] =
+        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData, viewedData] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
@@ -659,6 +668,7 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'plannedWeeks'),
             loadUserData(user.uid, 'plannedSessionFocus'),
             loadUserData(user.uid, 'plannedSessionDismissed'),
+            loadUserData(user.uid, 'viewedTricks'),
           ]);
 
         // Load global trick overrides set by admin
@@ -726,6 +736,7 @@ function MainApp({ user }) {
         if (plannedWeeksData) setPlannedWeeks(plannedWeeksData);
         if (plannedFocusData) setPlannedSessionFocus(plannedFocusData);
         if (plannedDismissedData) setPlannedSessionDismissed(plannedDismissedData);
+        if (viewedData) setViewedTricks(viewedData);
       } catch (e) {
         console.error('Load error', e);
       }
@@ -779,15 +790,18 @@ function MainApp({ user }) {
       console.error('Save global videos error', e);
     }
   };
-  const displayTricks = useMemo(() => tricks.map(t => {
-    const personals = (t.videos || []).map(v => ({ ...v, _global: false }));
-    const globals = (globalVideos[String(t.id)] || []).map(v => ({ ...v, _global: true }));
-    let progress;
-    if (Array.isArray(t.progress)) progress = t.progress;
-    else if (typeof t.progress === 'string' && t.progress !== 'not_started') progress = [t.progress];
-    else progress = [];
-    return { ...t, videos: [...personals, ...globals], progress };
-  }), [tricks, globalVideos]);
+  const displayTricks = useMemo(() => {
+    const viewedSet = new Set(viewedTricks);
+    return tricks.map(t => {
+      const personals = (t.videos || []).map(v => ({ ...v, _global: false }));
+      const globals = (globalVideos[String(t.id)] || []).map(v => ({ ...v, _global: true }));
+      let progress;
+      if (Array.isArray(t.progress)) progress = t.progress;
+      else if (typeof t.progress === 'string' && t.progress !== 'not_started') progress = [t.progress];
+      else progress = [];
+      return { ...t, videos: [...personals, ...globals], progress, _unread: !viewedSet.has(t.id) };
+    });
+  }, [tricks, globalVideos, viewedTricks]);
 
   const addTrick = (trick, globalVideoList = []) => {
     const newTrick = { status: 'not_started', videos: [], notes: '', progress: [], coolness: 0, ...trick, id: Date.now() };
@@ -901,7 +915,7 @@ function MainApp({ user }) {
       <div className="px-4 py-4">
         {activeTab === 'home' && (
           <HomeTab stats={stats} streak={streak} mastered={mastered} inProgress={inProgress}
-            total={tricks.length} weeklyGoals={weeklyGoals} tricks={tricks} onOpenTrick={openTrick}
+            total={tricks.length} weeklyGoals={weeklyGoals} tricks={displayTricks} onOpenTrick={openTrick}
             earnedBadges={earnedBadges} onLogTraining={() => { logTrainingDay(); setTrainingSection('log'); setActiveTab('training'); }}
             communityTricks={communityTricks}
             hasTrainedToday={trainingDays.includes(new Date().toISOString().split('T')[0])}
@@ -940,7 +954,7 @@ function MainApp({ user }) {
           <ProgressTab stats={stats} tricks={tricks} earnedBadges={earnedBadges} trainingDays={trainingDays} />
         )}
         {activeTab === 'skilltree' && (
-          <SkillTreeTab tricks={tricks} onOpenTrick={openTrick} weeklyGoals={weeklyGoals} saveGoals={saveGoals} />
+          <SkillTreeTab tricks={displayTricks} onOpenTrick={openTrick} weeklyGoals={weeklyGoals} saveGoals={saveGoals} />
         )}
         {activeTab === 'add' && (
           <AddTab user={user} setActiveTab={setActiveTab} />
@@ -1454,6 +1468,7 @@ function normalizeUrl(url) {
 function TrickCard({ trick, onOpen, isGymnastics }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const status = STATUS_LEVELS.find(s => s.id === trick.status);
+  const unread = !!trick._unread;
   const tutorialVideo = trick.videos?.find(v => v.type === 'tutorial' && v.primary)
     || trick.videos?.find(v => v.type === 'tutorial');
   const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary)
@@ -1461,7 +1476,8 @@ function TrickCard({ trick, onOpen, isGymnastics }) {
   const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpen(normalizeUrl(video.url)); };
   const openCard = () => onOpen();
   return (
-    <div className={`w-full border rounded-xl p-3 transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
+    <div className={`relative w-full border rounded-xl p-3 transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
+      {unread && <span className="pointer-events-none absolute -top-1 -left-1 text-base animate-pulse">✨</span>}
       <div className="flex items-center gap-2 text-left">
         <button onClick={openCard} className="flex items-center gap-3 flex-1 min-w-0 text-left">
           <div className={`w-1 h-12 ${diff.strip} rounded-full flex-shrink-0`} />
@@ -3145,10 +3161,11 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                         const mastered = t.status === 'yes_i_can';
                         const inProgress = t.status && t.status !== 'not_started' && !mastered;
                         const inFocus = weeklyGoals.some(g => g.trickId === t.id);
+                        const unread = !!t._unread;
                         return (
                           <div
                             key={t.id}
-                            className={`w-full flex items-center gap-2 rounded-lg p-2.5 transition border ${
+                            className={`relative w-full flex items-center gap-2 rounded-lg p-2.5 transition border ${
                               mastered
                                 ? 'bg-green-500/10 border-green-500/40 hover:bg-green-500/20'
                                 : inProgress
@@ -3156,6 +3173,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                                   : 'bg-slate-900 border-transparent hover:bg-slate-800'
                             }`}
                           >
+                            {unread && <span className="pointer-events-none absolute -top-1 -left-1 text-sm animate-pulse">✨</span>}
                             <button onClick={() => onOpenTrick(t)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
                               <span className="text-lg flex-shrink-0">{status.emoji}</span>
                               <CategoryIcon category={t.category} size={16} className="text-slate-300 flex-shrink-0" />
