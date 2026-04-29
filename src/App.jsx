@@ -637,6 +637,15 @@ function MainApp({ user }) {
   };
 
   const updateTrickProgress = (id, progress) => saveTricks(tricks.map(t => t.id === id ? { ...t, progress } : t));
+  const updateTrickStatusAndProgress = (id, status, progress) => {
+    const oldTrick = tricks.find(t => t.id === id);
+    const newTricks = tricks.map(t => t.id === id ? { ...t, status, progress } : t);
+    saveTricks(newTricks);
+    if (status === 'yes_i_can' && oldTrick?.status !== 'yes_i_can') {
+      setCelebrationTrick(oldTrick);
+      setTimeout(() => setCelebrationTrick(null), 2500);
+    }
+  };
   const updateTrickVideos = (id, videos) => saveTricks(tricks.map(t => t.id === id ? { ...t, videos } : t));
   const updateTrickNotes = (id, notes) => saveTricks(tricks.map(t => t.id === id ? { ...t, notes } : t));
   const updateGlobalVideos = async (id, videos) => {
@@ -813,6 +822,7 @@ function MainApp({ user }) {
           autoplayUrl={autoplayVideoUrl}
           isAdmin={userIsAdmin}
           onClose={closeTrick} onUpdateStatus={updateTrickStatus} onUpdateProgress={updateTrickProgress}
+          onUpdateStatusAndProgress={updateTrickStatusAndProgress}
           onUpdateVideos={updateTrickVideos} onUpdateGlobalVideos={updateGlobalVideos}
           onUpdateNotes={updateTrickNotes} />
       )}
@@ -1145,7 +1155,7 @@ function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef, isGl
   );
 }
 
-function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus, onUpdateProgress, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
+function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus, onUpdateProgress, onUpdateStatusAndProgress, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
   const [newVideoType, setNewVideoType] = useState('reference');
@@ -1223,18 +1233,20 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
             const allLandingsDone = REQUIRED_LANDINGS.every(id => progressArr.includes(id));
             const landingSteps = REQUIRED_LANDINGS.map(id => STATUS_LEVELS.find(s => s.id === id)).filter(Boolean);
             const toggleLanding = (id) => {
-              if (!onUpdateProgress) return;
               const isAdding = !progressArr.includes(id);
-              let next;
               if (id === 'hard_landing' && isAdding) {
-                next = [...REQUIRED_LANDINGS];
-              } else {
-                next = isAdding ? [...progressArr, id] : progressArr.filter(p => p !== id);
+                const next = [...REQUIRED_LANDINGS];
+                if (onUpdateStatusAndProgress) {
+                  onUpdateStatusAndProgress(trick.id, 'yes_i_can', next);
+                } else if (onUpdateProgress) {
+                  onUpdateProgress(trick.id, next);
+                  if (onUpdateStatus) onUpdateStatus(trick.id, 'yes_i_can');
+                }
+                return;
               }
+              if (!onUpdateProgress) return;
+              const next = isAdding ? [...progressArr, id] : progressArr.filter(p => p !== id);
               onUpdateProgress(trick.id, next);
-              if (id === 'hard_landing' && isAdding && onUpdateStatus) {
-                onUpdateStatus(trick.id, 'yes_i_can');
-              }
             };
             return (
               <div>
