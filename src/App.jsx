@@ -13,7 +13,7 @@ import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from 
 import { GiAcrobatic, GiJumpAcross, GiHighKick, GiLeapfrog, GiMuscleUp, GiRunningNinja, GiContortionist, GiBodyBalance } from 'react-icons/gi';
 import { MdSportsGymnastics } from 'react-icons/md';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 const RELEASE_NOTES = [
   {
@@ -1578,6 +1578,23 @@ function AdminTab({ currentUserUid }) {
     }
   };
 
+  const removeUser = async (req) => {
+    if (!window.confirm(`Remove access for ${req.displayName || req.email}?\n\nThey'll need to request access again next time they sign in.`)) return;
+    setRequestError(null);
+    try {
+      await Promise.all([
+        deleteDoc(doc(db, 'approvedUsers', req.uid)),
+        deleteDoc(doc(db, 'accessRequests', req.uid)),
+        deleteDoc(doc(db, 'userProfiles', req.uid)),
+      ]);
+      setRequests(r => r.filter(x => x.uid !== req.uid));
+      setProfiles(p => p.filter(x => x.uid !== req.uid));
+    } catch (e) {
+      console.error('Remove user error', e);
+      setRequestError(`Remove failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
+    }
+  };
+
   const viewUser = async (profile) => {
     setSelectedUser(profile);
     setLoadingUser(true);
@@ -1886,6 +1903,11 @@ service cloud.firestore {
                         ✕ Deny
                       </button>
                     </div>
+                  )}
+                  {(req.status === 'approved' || req.status === 'rejected') && (
+                    <button onClick={() => removeUser(req)} className="px-3 py-1.5 bg-slate-700 hover:bg-red-600 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition flex-shrink-0">
+                      🗑️ Remove
+                    </button>
                   )}
                 </div>
               );
