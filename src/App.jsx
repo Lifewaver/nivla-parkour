@@ -828,7 +828,7 @@ function MainApp({ user }) {
         {activeTab === 'home' && (
           <HomeTab stats={stats} streak={streak} mastered={mastered} inProgress={inProgress}
             total={tricks.length} weeklyGoals={weeklyGoals} tricks={tricks} onOpenTrick={openTrick}
-            earnedBadges={earnedBadges} onLogTraining={logTrainingDay}
+            earnedBadges={earnedBadges} onLogTraining={() => { logTrainingDay(); setTrainingSection('log'); setActiveTab('training'); }}
             communityTricks={communityTricks}
             hasTrainedToday={trainingDays.includes(new Date().toISOString().split('T')[0])}
             setActiveTab={setActiveTab}
@@ -958,8 +958,8 @@ function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [],
           </div>
           <div className="text-7xl">🔥</div>
         </div>
-        <button onClick={onLogTraining} disabled={hasTrainedToday} className={`mt-4 w-full py-3 rounded-xl font-bold transition ${hasTrainedToday ? 'bg-white/20 text-white/70 cursor-not-allowed' : 'bg-white text-orange-600 hover:scale-[1.02] active:scale-95 shadow-lg'}`}>
-          {hasTrainedToday ? '✅ Trained today!' : '💪 Log training today'}
+        <button onClick={onLogTraining} className={`mt-4 w-full py-3 rounded-xl font-bold transition hover:scale-[1.02] active:scale-95 shadow-lg ${hasTrainedToday ? 'bg-white/20 text-white' : 'bg-white text-orange-600'}`}>
+          {hasTrainedToday ? '✅ Trained today! Open today\'s session →' : '💪 Log training today'}
         </button>
       </div>
       <div className="grid grid-cols-3 gap-3">
