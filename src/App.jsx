@@ -996,6 +996,11 @@ function FilterRow({ label, options, selected, onChange, labelMap }) {
   );
 }
 
+function normalizeUrl(url) {
+  if (!url) return url;
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
 function TrickCard({ trick, onClick, isGymnastics }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const status = STATUS_LEVELS.find(s => s.id === trick.status);
@@ -1003,7 +1008,7 @@ function TrickCard({ trick, onClick, isGymnastics }) {
     || trick.videos?.find(v => v.type === 'tutorial');
   const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary)
     || trick.videos?.find(v => v.type !== 'tutorial');
-  const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) window.open(video.url, '_blank', 'noopener,noreferrer'); };
+  const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) window.open(normalizeUrl(video.url), '_blank', 'noopener,noreferrer'); };
   return (
     <div className={`w-full border rounded-xl p-3 flex items-center gap-2 text-left transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
       <button onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0 text-left">
@@ -1041,7 +1046,8 @@ function getVideoEmbed(url) {
 }
 
 function VideoCard({ video, onRemove, onTogglePrimary }) {
-  const embed = getVideoEmbed(video.url);
+  const safeUrl = normalizeUrl(video.url);
+  const embed = getVideoEmbed(safeUrl);
   return (
     <div className={`bg-purple-900/20 border rounded-lg overflow-hidden ${video.primary ? 'border-yellow-400/60' : 'border-purple-500/30'}`}>
       {embed && (
@@ -1063,7 +1069,7 @@ function VideoCard({ video, onRemove, onTogglePrimary }) {
         >
           <Star className={`w-4 h-4 ${video.primary ? 'fill-yellow-400 text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`} />
         </button>
-        <a href={video.url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center gap-2 text-sm hover:text-purple-300 truncate">
+        <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center gap-2 text-sm hover:text-purple-300 truncate">
           <Play className="w-4 h-4 flex-shrink-0 text-purple-400" />
           <span className="truncate">{video.label}</span>
           <ExternalLink className="w-3 h-3 flex-shrink-0 text-slate-500" />
@@ -1087,7 +1093,8 @@ function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUp
   const referenceVideos = allVideos.filter(v => v.type !== 'tutorial');
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
-    const videos = [...allVideos, { url: newVideoUrl.trim(), label: newVideoLabel.trim() || (newVideoType === 'tutorial' ? 'Tutorial' : 'Video'), type: newVideoType }];
+    const url = normalizeUrl(newVideoUrl.trim());
+    const videos = [...allVideos, { url, label: newVideoLabel.trim() || (newVideoType === 'tutorial' ? 'Tutorial' : 'Video'), type: newVideoType }];
     onUpdateVideos(trick.id, videos); setNewVideoUrl(''); setNewVideoLabel('');
   };
   const removeVideo = (v) => onUpdateVideos(trick.id, allVideos.filter(x => x !== v));
