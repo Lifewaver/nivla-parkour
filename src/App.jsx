@@ -1615,7 +1615,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex gap-2 mb-4 overflow-x-auto">
-        {[{id:'goals',label:'Tricks in focus',icon:'🎯'},{id:'log',label:'Planing and Log',icon:'📊'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Strength',icon:'💪'}].map(s => (
+        {[{id:'goals',label:'Tricks in focus',icon:'🎯'},{id:'log',label:'Planing and Log',icon:'📊'}].map(s => (
           <button key={s.id} onClick={() => setSection(s.id)} className={`flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm transition ${section === s.id ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}>
             <span className="mr-1">{s.icon}</span>{s.label}
           </button>
@@ -1692,6 +1692,9 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
 
       {section === 'warmup' && (
         <div className="space-y-3">
+          <button onClick={() => setSection('log')} className="text-sm text-purple-300 hover:text-purple-200 font-semibold flex items-center gap-1">
+            <ArrowLeft className="w-4 h-4" /> Back to Planing and Log
+          </button>
           <div className="bg-slate-800/50 border border-orange-500/30 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div><div className="font-bold">Warm-up routine</div><div className="text-sm text-slate-400">{todayWarmups.length}/{WARMUPS.length} completed today</div></div>
@@ -1717,6 +1720,9 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
 
       {section === 'conditioning' && (
         <div className="space-y-3">
+          <button onClick={() => setSection('log')} className="text-sm text-purple-300 hover:text-purple-200 font-semibold flex items-center gap-1">
+            <ArrowLeft className="w-4 h-4" /> Back to Planing and Log
+          </button>
           <div className="bg-slate-800/50 border border-blue-500/30 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div><div className="font-bold">Strength</div><div className="text-sm text-slate-400">{todayConditioning.length}/{CONDITIONING.length} completed today</div></div>
