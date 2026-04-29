@@ -566,6 +566,7 @@ function MainApp({ user }) {
   const [filterStars, setFilterStars] = useState('all');
   const [celebrationTrick, setCelebrationTrick] = useState(null);
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
+  const [showImprovementModal, setShowImprovementModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -876,7 +877,8 @@ function MainApp({ user }) {
         )}
       </div>
 
-      {showReleaseNotes && <ReleaseNotesModal onClose={() => setShowReleaseNotes(false)} />}
+      {showReleaseNotes && <ReleaseNotesModal onClose={() => setShowReleaseNotes(false)} onOpenImprovement={() => { setShowReleaseNotes(false); setShowImprovementModal(true); }} />}
+      {showImprovementModal && <ImprovementSuggestionsModal user={user} onClose={() => setShowImprovementModal(false)} />}
 
       {selectedTrick && (
         <TrickDetailModal trick={displayTricks.find(t => t.id === selectedTrick.id) || selectedTrick}
@@ -904,7 +906,7 @@ function MainApp({ user }) {
   );
 }
 
-function ReleaseNotesModal({ onClose }) {
+function ReleaseNotesModal({ onClose, onOpenImprovement }) {
   return (
     <div className="fixed inset-x-0 top-0 bottom-20 z-40 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-t sm:border border-purple-500/30 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-full sm:max-h-[85vh] overflow-y-auto">
@@ -915,6 +917,14 @@ function ReleaseNotesModal({ onClose }) {
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700"><X className="w-5 h-5" /></button>
         </div>
+        {onOpenImprovement && (
+          <div className="px-5 pt-4">
+            <button onClick={onOpenImprovement}
+              className="w-full py-2.5 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 hover:from-yellow-500/30 hover:to-orange-500/30 border border-yellow-500/40 rounded-xl text-sm font-bold text-yellow-200 transition flex items-center justify-center gap-2">
+              <span className="text-base">💡</span> Suggest an improvement
+            </button>
+          </div>
+        )}
         <div className="p-5 space-y-5">
           {RELEASE_NOTES.map((r) => (
             <div key={r.version} className="border-l-2 border-purple-500/50 pl-4">
@@ -930,6 +940,133 @@ function ReleaseNotesModal({ onClose }) {
               </ul>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImprovementSuggestionsModal({ user, onClose }) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [sent, setSent] = useState(false);
+  const [mySuggestions, setMySuggestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const reload = async () => {
+    try {
+      const q = query(collection(db, 'improvementSuggestions'), where('requestedByUid', '==', user.uid));
+      const snap = await getDocs(q);
+      const items = snap.docs.map(d => ({ _id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setMySuggestions(items);
+    } catch (e) {
+      console.error('Load suggestions error', e);
+    }
+    setLoading(false);
+  };
+  useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user.uid]);
+
+  const submit = async () => {
+    if (!title.trim() || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await addDoc(collection(db, 'improvementSuggestions'), {
+        title: title.trim(),
+        description: description.trim(),
+        status: 'pending',
+        requestedByUid: user.uid,
+        requestedByEmail: user.email || '',
+        requestedByName: user.displayName || user.email || 'Unknown',
+        createdAt: Date.now(),
+      });
+      setTitle('');
+      setDescription('');
+      setSent(true);
+      setTimeout(() => setSent(false), 2500);
+      reload();
+    } catch (e) {
+      console.error('Submit improvement error', e);
+      setError(`${e.code || 'error'}: ${e.message || 'Could not send'}`);
+    }
+    setSubmitting(false);
+  };
+
+  const statusBadge = (s) => {
+    if (s === 'approved') return { className: 'bg-green-500/20 text-green-300 border-green-500/40', label: '✓ Approved' };
+    if (s === 'denied') return { className: 'bg-red-500/20 text-red-300 border-red-500/40', label: '✕ Denied' };
+    return { className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40', label: 'Pending' };
+  };
+
+  return (
+    <div className="fixed inset-x-0 top-0 bottom-20 z-40 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-t sm:border border-yellow-500/30 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-full sm:max-h-[85vh] overflow-y-auto">
+        <div className="sticky top-0 bg-slate-900 border-b border-slate-700 px-6 py-4 flex items-center justify-between rounded-t-3xl">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">💡</span>
+            <h2 className="font-black text-lg">Suggest an improvement</h2>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4 space-y-3">
+            <div className="text-xs text-slate-400">Submit ideas for new features or improvements. An admin will review and respond.</div>
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Title</div>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                placeholder="Short summary of your idea"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Description</div>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                placeholder="Explain what you'd like and why"
+                rows={4}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm resize-none" />
+            </div>
+            {error && (
+              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-xs text-red-200 break-words">
+                <div className="font-bold mb-1">Could not send</div>
+                <div className="font-mono">{error}</div>
+              </div>
+            )}
+            <button onClick={submit} disabled={!title.trim() || submitting}
+              className="w-full py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 rounded-xl font-bold text-slate-900 transition">
+              {sent ? '✅ Sent for review!' : submitting ? 'Sending…' : 'Send suggestion'}
+            </button>
+          </div>
+
+          <div>
+            <div className="font-bold mb-2 text-sm">Your suggestions ({mySuggestions.length})</div>
+            {loading ? (
+              <div className="text-sm text-slate-500 text-center py-4">Loading…</div>
+            ) : mySuggestions.length === 0 ? (
+              <div className="text-sm text-slate-500 text-center py-4">No suggestions yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {mySuggestions.map(s => {
+                  const badge = statusBadge(s.status);
+                  return (
+                    <div key={s._id} className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold">{s.title}</div>
+                          {s.description && <div className="text-xs text-slate-300 mt-1 whitespace-pre-wrap">{s.description}</div>}
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border flex-shrink-0 ${badge.className}`}>{badge.label}</span>
+                      </div>
+                      {s.adminNote && (
+                        <div className="mt-2 text-xs text-slate-400 italic border-l-2 border-slate-600 pl-2">Admin: {s.adminNote}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -3146,6 +3283,9 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
   const [expandedUserDifficulty, setExpandedUserDifficulty] = useState(null);
   const [expandedUserCategory, setExpandedUserCategory] = useState(null);
   const [expandedUserLanding, setExpandedUserLanding] = useState(null);
+  const [improvements, setImprovements] = useState([]);
+  const [improvementError, setImprovementError] = useState(null);
+  const [processingImprovement, setProcessingImprovement] = useState(null);
   const [suggestionError, setSuggestionError] = useState(null);
   const [processingSuggestion, setProcessingSuggestion] = useState(null);
   const [syncing, setSyncing] = useState(false);
@@ -3195,6 +3335,14 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
         items.sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) || (b.createdAt || 0) - (a.createdAt || 0));
         setSuggestions(items);
       } catch (e) { console.error('Suggestions load error', e); }
+
+      try {
+        const snap = await getDocs(collection(db, 'improvementSuggestions'));
+        const items = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+        const statusOrder = { pending: 0, approved: 1, denied: 2 };
+        items.sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) || (b.createdAt || 0) - (a.createdAt || 0));
+        setImprovements(items);
+      } catch (e) { console.error('Improvements load error', e); }
 
       setLoading(false);
     };
@@ -3381,6 +3529,30 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
       setSaveError(`Remove failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
     }
     setDeletingTrickId(null);
+  };
+
+  const respondImprovement = async (s, status) => {
+    setImprovementError(null);
+    setProcessingImprovement(s._id);
+    try {
+      await setDoc(doc(db, 'improvementSuggestions', s._id), { ...s, status, resolvedAt: Date.now() }, { merge: true });
+      setImprovements(arr => arr.map(x => x._id === s._id ? { ...x, status, resolvedAt: Date.now() } : x));
+    } catch (e) {
+      console.error('Improvement update error', e);
+      setImprovementError(`${e.code || 'error'}: ${e.message || 'unknown'}`);
+    }
+    setProcessingImprovement(null);
+  };
+  const deleteImprovement = async (s) => {
+    if (!window.confirm('Delete this improvement suggestion permanently?')) return;
+    setImprovementError(null);
+    try {
+      await deleteDoc(doc(db, 'improvementSuggestions', s._id));
+      setImprovements(arr => arr.filter(x => x._id !== s._id));
+    } catch (e) {
+      console.error('Delete improvement error', e);
+      setImprovementError(`${e.code || 'error'}: ${e.message || 'unknown'}`);
+    }
   };
 
   const deleteSuggestion = async (s) => {
@@ -3961,6 +4133,64 @@ service cloud.firestore {
           )}
         </div>
         </div>
+        )}
+      </div>
+
+      <div className="bg-slate-800/50 border border-yellow-500/40 rounded-2xl p-4">
+        <div className="font-bold mb-3 flex items-center gap-2">
+          <span className="text-lg">💡</span> Suggested Improvements
+          <span className="ml-auto text-xs text-slate-400 font-normal">{improvements.filter(s => s.status === 'pending').length} pending · {improvements.length} total</span>
+        </div>
+        {improvementError && (
+          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-2 text-xs text-red-200 mb-2 break-words">{improvementError}</div>
+        )}
+        {improvements.length === 0 ? (
+          <div className="text-sm text-slate-500">No improvement suggestions yet.</div>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {improvements.map(s => {
+              const busy = processingImprovement === s._id;
+              const statusBadge = s.status === 'approved' ? 'bg-green-500/20 text-green-300 border-green-500/40' : s.status === 'denied' ? 'bg-red-500/20 text-red-300 border-red-500/40' : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40';
+              return (
+                <div key={s._id} className="bg-slate-900 border border-slate-700 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold">{s.title}</span>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ml-auto ${statusBadge}`}>{s.status || 'pending'}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">By {s.requestedByName || s.requestedByEmail || 'Unknown'}</div>
+                      {s.description && <div className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{s.description}</div>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    {s.status === 'pending' && (
+                      <>
+                        <button onClick={() => respondImprovement(s, 'approved')} disabled={busy}
+                          className="flex-1 py-2 bg-green-500 hover:bg-green-400 disabled:opacity-50 rounded-lg text-sm font-bold transition">
+                          {busy ? '…' : '✓ Yes'}
+                        </button>
+                        <button onClick={() => respondImprovement(s, 'denied')} disabled={busy}
+                          className="flex-1 py-2 bg-red-500/30 hover:bg-red-500/50 text-red-200 disabled:opacity-50 rounded-lg text-sm font-bold transition">
+                          ✕ No
+                        </button>
+                      </>
+                    )}
+                    {s.status !== 'pending' && (
+                      <button onClick={() => respondImprovement(s, 'pending')} disabled={busy}
+                        className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-50 rounded-lg text-sm font-bold transition">
+                        Reset to pending
+                      </button>
+                    )}
+                    <button onClick={() => deleteImprovement(s)}
+                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg text-sm transition">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
