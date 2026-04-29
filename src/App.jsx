@@ -545,6 +545,7 @@ function MainApp({ user }) {
   const [weeklyGoals, setWeeklyGoals] = useState([]);
   const [completedWarmups, setCompletedWarmups] = useState({});
   const [completedConditioning, setCompletedConditioning] = useState({});
+  const [trainingSessions, setTrainingSessions] = useState([]);
   const [globalVideos, setGlobalVideos] = useState({});
   const [communityTricks, setCommunityTricks] = useState([]);
   const [selectedTrick, setSelectedTrick] = useState(null);
@@ -565,7 +566,7 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData] =
+        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
@@ -573,6 +574,7 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'weeklyGoals'),
             loadUserData(user.uid, 'completedWarmups'),
             loadUserData(user.uid, 'completedConditioning'),
+            loadUserData(user.uid, 'trainingSessions'),
           ]);
 
         // Load global trick overrides set by admin
@@ -634,6 +636,7 @@ function MainApp({ user }) {
         if (goalsData) setWeeklyGoals(goalsData);
         if (warmupsData) setCompletedWarmups(warmupsData);
         if (conditioningData) setCompletedConditioning(conditioningData);
+        if (sessionsData) setTrainingSessions(sessionsData);
       } catch (e) {
         console.error('Load error', e);
       }
@@ -648,6 +651,7 @@ function MainApp({ user }) {
   const saveGoals = async (g) => { setWeeklyGoals(g); await saveUserData(user.uid, 'weeklyGoals', g); };
   const saveWarmups = async (w) => { setCompletedWarmups(w); await saveUserData(user.uid, 'completedWarmups', w); };
   const saveConditioning = async (c) => { setCompletedConditioning(c); await saveUserData(user.uid, 'completedConditioning', c); };
+  const saveTrainingSessions = async (s) => { setTrainingSessions(s); await saveUserData(user.uid, 'trainingSessions', s); };
 
   const updateTrickStatus = (id, status) => {
     const oldTrick = tricks.find(t => t.id === id);
@@ -829,6 +833,8 @@ function MainApp({ user }) {
             completedConditioning={completedConditioning} saveConditioning={saveConditioning}
             journal={journal} saveJournal={saveJournal} onOpenTrick={openTrick}
             weeklyFocus={weeklyFocus}
+            trainingDays={trainingDays} trainingSessions={trainingSessions} saveTrainingSessions={saveTrainingSessions}
+            streak={streak}
             section={trainingSection} setSection={setTrainingSection} />
         )}
         {activeTab === 'progress' && (
@@ -1490,7 +1496,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], section, setSection }) {
+function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, streak = 0, section, setSection }) {
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const [newJournalEntry, setNewJournalEntry] = useState('');
   const [expandedWeek, setExpandedWeek] = useState(null);
@@ -1594,7 +1600,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex gap-2 mb-4 overflow-x-auto">
-        {[{id:'goals',label:'Weekly Goals',icon:'🎯'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Strength',icon:'💪'},{id:'journal',label:'Journal',icon:'📝'},{id:'history',label:'History',icon:'📅'}].map(s => (
+        {[{id:'goals',label:'Weekly Goals',icon:'🎯'},{id:'log',label:'Training Log',icon:'📊'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Strength',icon:'💪'},{id:'journal',label:'Journal',icon:'📝'},{id:'history',label:'History',icon:'📅'}].map(s => (
           <button key={s.id} onClick={() => setSection(s.id)} className={`flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm transition ${section === s.id ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}>
             <span className="mr-1">{s.icon}</span>{s.label}
           </button>
@@ -1648,6 +1654,15 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
             </div>
           </div>
         </div>
+      )}
+
+      {section === 'log' && (
+        <TrainingLogSection
+          trainingDays={trainingDays}
+          trainingSessions={trainingSessions}
+          saveTrainingSessions={saveTrainingSessions}
+          streak={streak}
+        />
       )}
 
       {section === 'warmup' && (
@@ -1764,6 +1779,234 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, streak }) {
+  const FOCUS_TAGS = ['landningar', 'flow', 'vips', 'styrka', 'precision', 'cat-leap', 'wallrun', 'flips', 'vault', 'kong'];
+  const today = new Date().toISOString().split('T')[0];
+  const [date, setDate] = useState(today);
+  const [tags, setTags] = useState([]);
+  const [rpe, setRpe] = useState(6);
+  const [duration, setDuration] = useState('');
+  const [notes, setNotes] = useState('');
+  const [savedToast, setSavedToast] = useState(false);
+
+  const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
+  const sortedSessions = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  const totalSessions = safeSessions.length;
+  const totalMinutes = safeSessions.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0);
+  const avgRpe = totalSessions > 0
+    ? Math.round((safeSessions.reduce((sum, s) => sum + (Number(s.rpe) || 0), 0) / totalSessions) * 10) / 10
+    : 0;
+  const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+
+  const milestones = [
+    { count: 10, label: '10 sessions logged' },
+    { count: 25, label: '25 sessions logged' },
+    { count: 50, label: '50 sessions logged' },
+    { count: 100, label: '100 sessions logged' },
+  ];
+  const reachedMilestones = milestones.filter(m => totalSessions >= m.count);
+  const nextMilestone = milestones.find(m => totalSessions < m.count);
+
+  const dayActivity = useMemo(() => {
+    const map = {};
+    (Array.isArray(trainingDays) ? trainingDays : []).forEach(d => { map[d] = { logged: true, sessions: 0, totalRpe: 0 }; });
+    safeSessions.forEach(s => {
+      if (!s.date) return;
+      if (!map[s.date]) map[s.date] = { logged: false, sessions: 0, totalRpe: 0 };
+      map[s.date].sessions += 1;
+      map[s.date].totalRpe += Number(s.rpe) || 0;
+    });
+    return map;
+  }, [trainingDays, safeSessions]);
+
+  const heatmapDays = useMemo(() => {
+    const days = [];
+    const todayD = new Date();
+    todayD.setHours(0, 0, 0, 0);
+    const totalDays = 16 * 7;
+    const start = new Date(todayD);
+    start.setDate(todayD.getDate() - (totalDays - 1));
+    while (start.getDay() !== 1) start.setDate(start.getDate() - 1);
+    const cursor = new Date(start);
+    while (cursor <= todayD) {
+      days.push(cursor.toISOString().split('T')[0]);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return days;
+  }, []);
+
+  const cellColor = (dateStr) => {
+    const a = dayActivity[dateStr];
+    if (!a) return 'bg-slate-800/60';
+    if (a.sessions === 0) return 'bg-orange-500/30';
+    const avg = a.totalRpe / a.sessions;
+    if (avg >= 8) return 'bg-orange-600';
+    if (avg >= 6) return 'bg-orange-500';
+    if (avg >= 4) return 'bg-orange-400';
+    return 'bg-orange-300';
+  };
+
+  const toggleTag = (tag) => {
+    setTags(t => t.includes(tag) ? t.filter(x => x !== tag) : [...t, tag]);
+  };
+
+  const submit = async () => {
+    if (!date) return;
+    const entry = {
+      id: Date.now(),
+      date,
+      focusTags: tags,
+      rpe: Number(rpe),
+      durationMinutes: duration ? Math.max(0, parseInt(duration, 10) || 0) : 0,
+      notes: notes.trim(),
+      createdAt: Date.now(),
+    };
+    await saveTrainingSessions([entry, ...safeSessions]);
+    setTags([]); setDuration(''); setNotes(''); setRpe(6); setDate(today);
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 2000);
+  };
+
+  const removeSession = async (id) => {
+    if (!window.confirm('Delete this training session?')) return;
+    await saveTrainingSessions(safeSessions.filter(s => s.id !== id));
+  };
+
+  const weeks = [];
+  for (let i = 0; i < heatmapDays.length; i += 7) weeks.push(heatmapDays.slice(i, i + 7));
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs font-semibold text-orange-300 uppercase">Streak</div>
+            <div className="flex items-baseline gap-2"><span className="text-4xl font-black">{streak}</span><span className="text-sm font-bold text-orange-200">days</span></div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs font-semibold text-orange-300 uppercase">Total</div>
+            <div className="text-2xl font-black">{totalSessions} <span className="text-sm font-bold text-orange-200">sessions</span></div>
+            <div className="text-xs text-slate-300">{totalHours} h logged · avg RPE {avgRpe || '—'}</div>
+          </div>
+        </div>
+        {nextMilestone && (
+          <div className="mt-3 text-xs text-orange-200">
+            Next milestone: <span className="font-bold">{nextMilestone.label}</span> ({nextMilestone.count - totalSessions} to go)
+          </div>
+        )}
+      </div>
+
+      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+        <div className="font-bold mb-3 flex items-center gap-2"><Calendar className="w-5 h-5 text-purple-400" /> Last 16 weeks</div>
+        <div className="overflow-x-auto">
+          <div className="flex gap-1 min-w-fit">
+            {weeks.map((week, wi) => (
+              <div key={wi} className="flex flex-col gap-1">
+                {week.map(d => (
+                  <div key={d} title={`${d}${dayActivity[d] ? ` · ${dayActivity[d].sessions} session${dayActivity[d].sessions === 1 ? '' : 's'}` : ''}`}
+                    className={`w-3 h-3 rounded-sm ${cellColor(d)}`} />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 mt-3 text-[10px] text-slate-500">
+            <span>Less</span>
+            <div className="w-3 h-3 rounded-sm bg-slate-800/60" />
+            <div className="w-3 h-3 rounded-sm bg-orange-500/30" />
+            <div className="w-3 h-3 rounded-sm bg-orange-300" />
+            <div className="w-3 h-3 rounded-sm bg-orange-400" />
+            <div className="w-3 h-3 rounded-sm bg-orange-500" />
+            <div className="w-3 h-3 rounded-sm bg-orange-600" />
+            <span>More</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4 space-y-3">
+        <div className="font-bold flex items-center gap-2"><Plus className="w-5 h-5 text-purple-400" /> Log a session</div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Date</div>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Duration (min)</div>
+            <input type="number" min="0" value={duration} onChange={e => setDuration(e.target.value)} placeholder="e.g. 90" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs font-semibold text-slate-400 uppercase">RPE (intensity)</div>
+            <span className="text-xs font-bold text-purple-300">{rpe} / 10</span>
+          </div>
+          <input type="range" min="1" max="10" value={rpe} onChange={e => setRpe(e.target.value)} className="w-full accent-purple-500" />
+        </div>
+        <div>
+          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Focus</div>
+          <div className="flex flex-wrap gap-1.5">
+            {FOCUS_TAGS.map(tag => {
+              const on = tags.includes(tag);
+              return (
+                <button key={tag} onClick={() => toggleTag(tag)}
+                  className={`px-2 py-1 rounded-md text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                  #{tag}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Notes</div>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="What worked? What's next?" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm resize-none" />
+        </div>
+        <button onClick={submit} className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold transition hover:scale-[1.02] active:scale-95">
+          {savedToast ? '✅ Saved!' : 'Log session'}
+        </button>
+      </div>
+
+      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+        <div className="font-bold mb-3">Recent sessions ({totalSessions})</div>
+        {sortedSessions.length === 0 ? (
+          <div className="text-sm text-slate-500 text-center py-4">No sessions logged yet.</div>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {sortedSessions.slice(0, 20).map(s => (
+              <div key={s.id} className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold">{s.date}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">RPE {s.rpe}</span>
+                    {s.durationMinutes > 0 && <span className="text-xs text-slate-400">{s.durationMinutes} min</span>}
+                  </div>
+                  <button onClick={() => removeSession(s.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
+                </div>
+                {Array.isArray(s.focusTags) && s.focusTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {s.focusTags.map(t => <span key={t} className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">#{t}</span>)}
+                  </div>
+                )}
+                {s.notes && <div className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{s.notes}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {reachedMilestones.length > 0 && (
+        <div className="bg-slate-800/50 border border-yellow-500/30 rounded-2xl p-4">
+          <div className="font-bold mb-3 flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-400" /> Milestones</div>
+          <div className="flex flex-wrap gap-2">
+            {reachedMilestones.map(m => (
+              <span key={m.count} className="text-xs font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-2 py-1 rounded">🏅 {m.label}</span>
+            ))}
+          </div>
         </div>
       )}
     </div>
