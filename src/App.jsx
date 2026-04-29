@@ -1224,51 +1224,61 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
             const landingSteps = REQUIRED_LANDINGS.map(id => STATUS_LEVELS.find(s => s.id === id)).filter(Boolean);
             const toggleLanding = (id) => {
               if (!onUpdateProgress) return;
-              const next = progressArr.includes(id) ? progressArr.filter(p => p !== id) : [...progressArr, id];
+              const isAdding = !progressArr.includes(id);
+              let next;
+              if (id === 'hard_landing' && isAdding) {
+                next = [...REQUIRED_LANDINGS];
+              } else {
+                next = isAdding ? [...progressArr, id] : progressArr.filter(p => p !== id);
+              }
               onUpdateProgress(trick.id, next);
+              if (id === 'hard_landing' && isAdding && onUpdateStatus) {
+                onUpdateStatus(trick.id, 'yes_i_can');
+              }
             };
             return (
-              <>
-                <div>
-                  <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Status</div>
-                  <div className="space-y-2">
-                    {statusSteps.map(s => {
-                      const locked = s.id === 'yes_i_can' && !allLandingsDone;
-                      return (
-                        <button key={s.id} onClick={() => { if (!locked) onUpdateStatus(trick.id, s.id); }} disabled={locked}
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Status</div>
+                <div className="space-y-2">
+                  {statusSteps.map(s => {
+                    const locked = s.id === 'yes_i_can' && !allLandingsDone;
+                    const isTrainingHard = s.id === 'training_hard';
+                    return (
+                      <React.Fragment key={s.id}>
+                        <button onClick={() => { if (!locked) onUpdateStatus(trick.id, s.id); }} disabled={locked}
                           title={locked ? 'Complete all landings first' : undefined}
                           className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${trick.status === s.id ? `${s.color} border-white/40` : locked ? 'bg-slate-900/40 border-slate-800 cursor-not-allowed opacity-60' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
                           <span className="text-2xl">{locked ? '🔒' : s.emoji}</span>
                           <span className={`font-bold ${trick.status === s.id ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
                           {trick.status === s.id && <Check className="ml-auto w-5 h-5" />}
                         </button>
-                      );
-                    })}
-                  </div>
+                        {isTrainingHard && trick.status === 'training_hard' && (
+                          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 ml-4">
+                            <div className="text-xs font-semibold text-yellow-300 uppercase mb-2">Progress · landings</div>
+                            <div className="space-y-2">
+                              {landingSteps.map(ls => {
+                                const checked = progressArr.includes(ls.id);
+                                return (
+                                  <button key={ls.id} onClick={() => toggleLanding(ls.id)}
+                                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${checked ? `${ls.color} border-white/40` : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
+                                    <span className="text-2xl">{checked ? '☑' : '☐'}</span>
+                                    <span className="text-xl">{ls.emoji}</span>
+                                    <span className={`font-bold ${checked ? 'text-white' : 'text-slate-300'}`}>{ls.label}</span>
+                                    {checked && <Check className="ml-auto w-5 h-5" />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {allLandingsDone && (
+                              <div className="text-xs text-green-300 mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> All landings done — Complete Master unlocked.</div>
+                            )}
+                          </div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
-                {trick.status === 'training_hard' && (
-                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
-                    <div className="text-xs font-semibold text-yellow-300 uppercase mb-2">Progress · landings</div>
-                    <div className="space-y-2">
-                      {landingSteps.map(s => {
-                        const checked = progressArr.includes(s.id);
-                        return (
-                          <button key={s.id} onClick={() => toggleLanding(s.id)}
-                            className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${checked ? `${s.color} border-white/40` : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
-                            <span className="text-2xl">{checked ? '☑' : '☐'}</span>
-                            <span className="text-xl">{s.emoji}</span>
-                            <span className={`font-bold ${checked ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
-                            {checked && <Check className="ml-auto w-5 h-5" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {allLandingsDone && (
-                      <div className="text-xs text-green-300 mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> All landings done — Complete Master is unlocked.</div>
-                    )}
-                  </div>
-                )}
-              </>
+              </div>
             );
           })()}
           <div>
