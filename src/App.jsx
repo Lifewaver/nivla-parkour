@@ -17,6 +17,79 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.14',
+    date: '2026-04-30',
+    title: 'Planing and Log',
+    notes: [
+      'New Planing and Log section under Training with a 16-week heatmap colored by session intensity.',
+      'Plan which months, weeks-of-month and weekdays you train; future planned days get a purple ring on the heatmap.',
+      'Up to 4 upcoming sessions show smart trick suggestions based on your focus, Training hard / Looking into status and mastered difficulty.',
+      'Lock suggestions, dismiss those you don\'t want, or pick any trick from the dropdown — focus is saved per date.',
+      'Copy last session shortcut pulls practiced tricks from your previous logged session.',
+      'Log a session with date, duration, RPE slider, focus tag chips and practiced tricks (auto-prefilled from locked focus).',
+      'Journal of every logged session embedded as a collapsible block at the bottom — each entry expands to show full details.',
+      'Streak counter, total hours and milestone badges (10/25/50/100 sessions).',
+    ],
+  },
+  {
+    version: '1.13',
+    date: '2026-04-30',
+    title: 'Skill Tree expanded',
+    notes: [
+      'In Focus moved into the Skill Tree page as the first selectable category.',
+      'Suggested for this week, locked focus and pools for Training hard / Looking into all live in one place.',
+      'Every trick row in Flips, Tricks, Jump, Leap, Swings, Vaults and Gymnastics has a + Add button to push it into focus directly.',
+      'Trick rows across Home, Skill Tree and Planing and Log share the same card layout: difficulty strip, category icon, name, badges, play buttons and status pill.',
+    ],
+  },
+  {
+    version: '1.12',
+    date: '2026-04-30',
+    title: 'Tricks tab filters',
+    notes: [
+      'All filters are now collapsed behind a Filters button with a badge that shows how many are active.',
+      'New Video filter: All / No video / 📹 Reference / 🎓 Tutorial.',
+      'New Stars filter: All / Unrated / 1+ / 2+ / 3+ / 4+ / 5★.',
+      'Progress filter renamed and trimmed to landing-only options: No landing / Trampoline landing / Soft landing / Hard landing.',
+      'Tricks are sorted alphabetically within each category.',
+    ],
+  },
+  {
+    version: '1.11',
+    date: '2026-04-30',
+    title: 'Status & Cool factor overhaul',
+    notes: [
+      'New Looking into status (👀) for tricks you\'re researching.',
+      'Yes I can! is now Complete Master, with a celebration overlay when reached.',
+      'Progress becomes a multi-select landing checklist (Trampoline / Soft / Hard) inside the trick modal — Complete Master unlocks once all three are checked.',
+      'Clicking Hard landing auto-checks the others and triggers Complete Master.',
+      'Cool factor: rate every trick 1–5 stars from the modal header.',
+      'Kicks category renamed to Tricks — existing data migrates automatically.',
+    ],
+  },
+  {
+    version: '1.10',
+    date: '2026-04-29',
+    title: 'Global trick library',
+    notes: [
+      'Admins can promote videos to global so every family member sees them on a trick.',
+      'Approved trick suggestions land in a shared community list available to everyone on next load.',
+      'Bulk sync button in the Admin panel pushes the admin\'s entire trick library and personal videos to the community.',
+      'Admins can remove tricks from the global list with one click — gone for everyone next sign-in.',
+    ],
+  },
+  {
+    version: '1.9',
+    date: '2026-04-29',
+    title: 'Videos & suggestions',
+    notes: [
+      'Trick modal now embeds YouTube / Vimeo videos inline with autoplay when launched from the trick card.',
+      'Pick which video plays from the card by tapping the star next to a video — separate primary for reference and tutorial.',
+      'Family members can submit trick suggestions from the Add tab; admins approve, deny or delete from a new section in the Admin panel.',
+      'Improvement suggestions: a Suggest an improvement button in Release Notes opens a form. Admins respond Yes / No and the status updates on the user\'s submission.',
+    ],
+  },
+  {
     version: '1.8',
     date: '2026-04-28',
     title: 'Trick management for admins',
