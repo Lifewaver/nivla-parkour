@@ -1929,7 +1929,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     todayD.setHours(0, 0, 0, 0);
     const sessionsByDate = {};
     safeSessions.forEach(s => { if (s.date) sessionsByDate[s.date] = s; });
-    for (let i = 0; i < 28 && result.length < 6; i++) {
+    for (let i = 0; i < 28 && result.length < 4; i++) {
       const d = new Date(todayD);
       d.setDate(todayD.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
