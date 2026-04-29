@@ -1625,7 +1625,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex gap-2 mb-4 overflow-x-auto">
-        {[{id:'goals',label:'Tricks in focus',icon:'🎯'},{id:'log',label:'Planing and Log',icon:'📊'}].map(s => (
+        {[{id:'goals',label:'Tricks in focus',icon:'🎯'},{id:'log',label:'Planing and Log',icon:'📊'},{id:'journal',label:'Journal',icon:'📖'}].map(s => (
           <button key={s.id} onClick={() => setSection(s.id)} className={`flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm transition ${section === s.id ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}>
             <span className="mr-1">{s.icon}</span>{s.label}
           </button>
@@ -1701,6 +1701,14 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           weeklyGoals={weeklyGoals}
           setSection={setSection}
           onOpenTrick={onOpenTrick}
+        />
+      )}
+
+      {section === 'journal' && (
+        <SessionJournalSection
+          trainingSessions={trainingSessions}
+          saveTrainingSessions={saveTrainingSessions}
+          tricks={tricks}
         />
       )}
 
@@ -2301,43 +2309,6 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
         </button>
       </div>
 
-      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
-        <div className="font-bold mb-3">Recent sessions ({totalSessions})</div>
-        {sortedSessions.length === 0 ? (
-          <div className="text-sm text-slate-500 text-center py-4">No sessions logged yet.</div>
-        ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {sortedSessions.slice(0, 20).map(s => (
-              <div key={s.id} className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold">{s.date}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">RPE {s.rpe}</span>
-                    {s.durationMinutes > 0 && <span className="text-xs text-slate-400">{s.durationMinutes} min</span>}
-                  </div>
-                  <button onClick={() => removeSession(s.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
-                </div>
-                {Array.isArray(s.focusTags) && s.focusTags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {s.focusTags.map(t => <span key={t} className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">#{t}</span>)}
-                  </div>
-                )}
-                {Array.isArray(s.practicedTricks) && s.practicedTricks.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {s.practicedTricks.map(id => {
-                      const t = tricks.find(x => x.id === id);
-                      if (!t) return null;
-                      return <span key={id} className="text-[10px] bg-purple-500/20 text-purple-200 px-1.5 py-0.5 rounded border border-purple-500/40">{t.name}</span>;
-                    })}
-                  </div>
-                )}
-                {s.notes && <div className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{s.notes}</div>}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {reachedMilestones.length > 0 && (
         <div className="bg-slate-800/50 border border-yellow-500/30 rounded-2xl p-4">
           <div className="font-bold mb-3 flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-400" /> Milestones</div>
@@ -2346,6 +2317,53 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
               <span key={m.count} className="text-xs font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-2 py-1 rounded">🏅 {m.label}</span>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SessionJournalSection({ trainingSessions = [], saveTrainingSessions, tricks = [] }) {
+  const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
+  const sortedSessions = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const removeSession = async (id) => {
+    if (!window.confirm('Delete this training session?')) return;
+    await saveTrainingSessions(safeSessions.filter(s => s.id !== id));
+  };
+  return (
+    <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+      <div className="font-bold mb-3 flex items-center gap-2"><ScrollText className="w-5 h-5 text-purple-400" /> Logged sessions ({safeSessions.length})</div>
+      {sortedSessions.length === 0 ? (
+        <div className="text-sm text-slate-500 text-center py-6">No sessions logged yet.</div>
+      ) : (
+        <div className="space-y-2">
+          {sortedSessions.map(s => (
+            <div key={s.id} className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold">{s.date}</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">RPE {s.rpe}</span>
+                  {s.durationMinutes > 0 && <span className="text-xs text-slate-400">{s.durationMinutes} min</span>}
+                </div>
+                <button onClick={() => removeSession(s.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
+              </div>
+              {Array.isArray(s.focusTags) && s.focusTags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {s.focusTags.map(t => <span key={t} className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">#{t}</span>)}
+                </div>
+              )}
+              {Array.isArray(s.practicedTricks) && s.practicedTricks.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {s.practicedTricks.map(id => {
+                    const t = tricks.find(x => x.id === id);
+                    if (!t) return null;
+                    return <span key={id} className="text-[10px] bg-purple-500/20 text-purple-200 px-1.5 py-0.5 rounded border border-purple-500/40">{t.name}</span>;
+                  })}
+                </div>
+              )}
+              {s.notes && <div className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{s.notes}</div>}
+            </div>
+          ))}
         </div>
       )}
     </div>
