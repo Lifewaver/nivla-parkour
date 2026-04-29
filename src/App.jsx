@@ -13,7 +13,7 @@ import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from 
 import { GiAcrobatic, GiJumpAcross, GiHighKick, GiLeapfrog, GiMuscleUp, GiRunningNinja, GiContortionist, GiBodyBalance } from 'react-icons/gi';
 import { MdSportsGymnastics } from 'react-icons/md';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 const RELEASE_NOTES = [
   {
@@ -576,12 +576,14 @@ function MainApp({ user }) {
 
         // Load global trick overrides set by admin
         let globalOverrides = {};
+        let communityTricks = [];
         try {
           const overridesSnap = await getDoc(doc(db, 'globalConfig', 'tricks'));
           if (overridesSnap.exists()) {
             const data = overridesSnap.data();
             globalOverrides = data.overrides || {};
             setGlobalVideos(data.globalVideos || {});
+            communityTricks = Array.isArray(data.communityTricks) ? data.communityTricks : [];
           }
         } catch (e) { console.error('Global overrides load error', e); }
 
@@ -598,13 +600,23 @@ function MainApp({ user }) {
           return override ? { ...base, ...override } : base;
         };
 
+        const mergeCommunity = (existing) => {
+          const existingIds = new Set(existing.map(t => t.id));
+          const additions = communityTricks
+            .filter(ct => ct && ct.id != null && !existingIds.has(ct.id))
+            .map(ct => applyOverrides({ ...ct, status: 'not_started', videos: [], notes: '', progress: [], coolness: 0 }));
+          return additions.length > 0 ? [...existing, ...additions] : existing;
+        };
+
         if (tricksData) {
           const migrated = tricksData.map(applyOverrides);
-          const changed = migrated.some((t, i) => t.category !== tricksData[i].category);
-          setTricks(migrated);
-          if (changed) await saveUserData(user.uid, 'tricks', migrated);
+          const merged = mergeCommunity(migrated);
+          const changed = merged.length !== tricksData.length || merged.some((t, i) => i < tricksData.length && t.category !== tricksData[i].category);
+          setTricks(merged);
+          if (changed) await saveUserData(user.uid, 'tricks', merged);
         } else {
-          const initial = INITIAL_TRICKS.map(t => applyOverrides({ ...t, status: 'not_started', videos: [], notes: '' }));
+          const seed = INITIAL_TRICKS.map(t => applyOverrides({ ...t, status: 'not_started', videos: [], notes: '' }));
+          const initial = mergeCommunity(seed);
           setTricks(initial);
           await saveUserData(user.uid, 'tricks', initial);
         }
@@ -814,7 +826,7 @@ function MainApp({ user }) {
           <SkillTreeTab tricks={tricks} onOpenTrick={openTrick} />
         )}
         {activeTab === 'add' && (
-          <AddTab onAddTrick={addTrick} setActiveTab={setActiveTab} isAdmin={userIsAdmin} />
+          <AddTab user={user} setActiveTab={setActiveTab} />
         )}
         {activeTab === 'admin' && userIsAdmin && (
          <AdminTab currentUserUid={user.uid} />
@@ -1878,7 +1890,7 @@ function SkillTreeTab({ tricks, onOpenTrick }) {
   );
 }
 
-function AddTab({ onAddTrick, setActiveTab, isAdmin }) {
+function AddTab({ user, setActiveTab }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Flips');
   const [difficulty, setDifficulty] = useState('Medium');
@@ -1886,39 +1898,52 @@ function AddTab({ onAddTrick, setActiveTab, isAdmin }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
   const [newVideoType, setNewVideoType] = useState('reference');
-  const [newVideoGlobal, setNewVideoGlobal] = useState(false);
   const [notes, setNotes] = useState('');
-  const [added, setAdded] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [sent, setSent] = useState(false);
   const categories = ['Flips', 'Jump', 'Kicks', 'Leap', 'Swings', 'Vaults', 'Gymnastics'];
   const difficulties = ['Easy', 'Medium', 'Hard', 'Super'];
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
     const url = normalizeUrl(newVideoUrl.trim());
-    const entry = { url, label: newVideoLabel.trim() || (newVideoType === 'tutorial' ? 'Tutorial' : 'Video'), type: newVideoType };
-    if (isAdmin && newVideoGlobal) entry._global = true;
-    setVideos([...videos, entry]);
-    setNewVideoUrl(''); setNewVideoLabel(''); setNewVideoGlobal(false);
+    setVideos([...videos, { url, label: newVideoLabel.trim() || (newVideoType === 'tutorial' ? 'Tutorial' : 'Video'), type: newVideoType }]);
+    setNewVideoUrl(''); setNewVideoLabel('');
   };
   const removeVideo = (idx) => setVideos(videos.filter((_, i) => i !== idx));
   const reset = () => {
     setName(''); setCategory('Flips'); setDifficulty('Medium');
     setVideos([]); setNotes('');
-    setNewVideoUrl(''); setNewVideoLabel(''); setNewVideoType('reference'); setNewVideoGlobal(false);
+    setNewVideoUrl(''); setNewVideoLabel(''); setNewVideoType('reference');
   };
-  const submit = () => {
-    if (!name.trim()) return;
-    const stripFlag = ({ _global, ...rest }) => rest;
-    const personalVideos = videos.filter(v => !v._global).map(stripFlag);
-    const globalVideos = videos.filter(v => v._global).map(stripFlag);
-    onAddTrick({ name: name.trim(), category, difficulty, videos: personalVideos, notes }, globalVideos);
-    reset();
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
+  const submit = async () => {
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await addDoc(collection(db, 'trickSuggestions'), {
+        trick: { name: name.trim(), category, difficulty, notes },
+        videos,
+        requestedByUid: user.uid,
+        requestedByEmail: user.email || '',
+        requestedByName: user.displayName || user.email || 'Unknown',
+        status: 'pending',
+        createdAt: Date.now(),
+      });
+      reset();
+      setSent(true);
+      setTimeout(() => setSent(false), 2500);
+    } catch (e) {
+      console.error('Submit suggestion error', e);
+      setSubmitError(`${e.code || 'error'}: ${e.message || 'Could not send'}`);
+    }
+    setSubmitting(false);
   };
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-5">
-        <div className="flex items-center gap-2 mb-3"><Plus className="w-5 h-5 text-purple-400" /><h2 className="font-bold text-lg">Add a new trick</h2></div>
+        <div className="flex items-center gap-2 mb-1"><Plus className="w-5 h-5 text-purple-400" /><h2 className="font-bold text-lg">Add a new trick suggestion</h2></div>
+        <div className="text-xs text-slate-400 mb-3">Submitted suggestions are reviewed by an admin before being published to everyone.</div>
         <div className="space-y-4">
           <div><div className="text-xs font-semibold text-slate-400 uppercase mb-1">Trick name</div><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Triple Backflip" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" /></div>
           <div>
@@ -1941,7 +1966,6 @@ function AddTab({ onAddTrick, setActiveTab, isAdmin }) {
                   <div key={i} className="flex items-center gap-2 bg-slate-900/50 border border-slate-700 rounded-lg p-2 text-sm">
                     <span className="text-base">{v.type === 'tutorial' ? '🎓' : '📹'}</span>
                     <span className="truncate flex-1">{v.label}</span>
-                    {v._global && <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40" title="Visible to everyone">🌐</span>}
                     <span className="text-xs text-slate-500 truncate flex-shrink-0 max-w-[120px]">{v.url}</span>
                     <button onClick={() => removeVideo(i)} className="text-slate-500 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
                   </div>
@@ -1958,19 +1982,19 @@ function AddTab({ onAddTrick, setActiveTab, isAdmin }) {
                 <input type="url" value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} placeholder="YouTube or Vimeo URL" className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
                 <button onClick={addVideo} disabled={!newVideoUrl.trim()} className="px-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg font-bold text-sm">Add</button>
               </div>
-              {isAdmin && (
-                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                  <input type="checkbox" checked={newVideoGlobal} onChange={e => setNewVideoGlobal(e.target.checked)} className="accent-purple-500" />
-                  <span>🌐 Share with everyone (global)</span>
-                </label>
-              )}
             </div>
           </div>
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Notes</div>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Tips, things to remember, safety notes..." rows={3} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm resize-none" />
           </div>
-          <button onClick={submit} disabled={!name.trim()} className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold disabled:opacity-50 hover:scale-[1.02] active:scale-95 transition">{added ? '✅ Added!' : 'Add trick'}</button>
+          {submitError && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-xs text-red-200 break-words">
+              <div className="font-bold mb-1">Could not send</div>
+              <div className="font-mono">{submitError}</div>
+            </div>
+          )}
+          <button onClick={submit} disabled={!name.trim() || submitting} className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold disabled:opacity-50 hover:scale-[1.02] active:scale-95 transition">{sent ? '✅ Sent for review!' : submitting ? 'Sending…' : 'Send in request'}</button>
         </div>
       </div>
     </div>
@@ -2025,6 +2049,10 @@ function AdminTab({ currentUserUid }) {
   const [saveOk, setSaveOk] = useState(false);
   const [requestError, setRequestError] = useState(null);
   const [usersExpanded, setUsersExpanded] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [communityTricks, setCommunityTricks] = useState([]);
+  const [suggestionError, setSuggestionError] = useState(null);
+  const [processingSuggestion, setProcessingSuggestion] = useState(null);
 
   useEffect(() => {
     const loadAll = async () => {
@@ -2054,8 +2082,20 @@ function AdminTab({ currentUserUid }) {
 
       try {
         const snap = await getDoc(doc(db, 'globalConfig', 'tricks'));
-        if (snap.exists()) setOverrides(snap.data().overrides || {});
+        if (snap.exists()) {
+          const data = snap.data();
+          setOverrides(data.overrides || {});
+          setCommunityTricks(Array.isArray(data.communityTricks) ? data.communityTricks : []);
+        }
       } catch (e) { console.error('Global overrides load error', e); }
+
+      try {
+        const snap = await getDocs(collection(db, 'trickSuggestions'));
+        const items = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+        const statusOrder = { pending: 0, approved: 1, denied: 2 };
+        items.sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) || (b.createdAt || 0) - (a.createdAt || 0));
+        setSuggestions(items);
+      } catch (e) { console.error('Suggestions load error', e); }
 
       setLoading(false);
     };
@@ -2105,6 +2145,61 @@ function AdminTab({ currentUserUid }) {
     } catch (e) {
       console.error('Remove user error', e);
       setRequestError(`Remove failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
+    }
+  };
+
+  const approveSuggestion = async (s) => {
+    setSuggestionError(null);
+    setProcessingSuggestion(s._id);
+    try {
+      const newId = Date.now() + Math.floor(Math.random() * 1000);
+      const newCommunity = [...communityTricks, {
+        id: newId,
+        name: s.trick.name,
+        category: s.trick.category,
+        difficulty: s.trick.difficulty,
+        notes: s.trick.notes || '',
+        suggestedBy: s.requestedByName || s.requestedByEmail || 'Unknown',
+      }];
+      const updates = { communityTricks: newCommunity, updatedAt: Date.now() };
+      if (Array.isArray(s.videos) && s.videos.length > 0) {
+        const overridesSnap = await getDoc(doc(db, 'globalConfig', 'tricks'));
+        const existingGV = overridesSnap.exists() ? (overridesSnap.data().globalVideos || {}) : {};
+        updates.globalVideos = { ...existingGV, [String(newId)]: s.videos };
+      }
+      await setDoc(doc(db, 'globalConfig', 'tricks'), updates, { merge: true });
+      await setDoc(doc(db, 'trickSuggestions', s._id), { ...s, status: 'approved', approvedAt: Date.now(), approvedTrickId: newId }, { merge: true });
+      setCommunityTricks(newCommunity);
+      setSuggestions(arr => arr.map(x => x._id === s._id ? { ...x, status: 'approved', approvedTrickId: newId } : x));
+    } catch (e) {
+      console.error('Approve suggestion error', e);
+      setSuggestionError(`Approve failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
+    }
+    setProcessingSuggestion(null);
+  };
+
+  const denySuggestion = async (s) => {
+    setSuggestionError(null);
+    setProcessingSuggestion(s._id);
+    try {
+      await setDoc(doc(db, 'trickSuggestions', s._id), { ...s, status: 'denied', deniedAt: Date.now() }, { merge: true });
+      setSuggestions(arr => arr.map(x => x._id === s._id ? { ...x, status: 'denied' } : x));
+    } catch (e) {
+      console.error('Deny suggestion error', e);
+      setSuggestionError(`Deny failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
+    }
+    setProcessingSuggestion(null);
+  };
+
+  const deleteSuggestion = async (s) => {
+    if (!window.confirm('Delete this suggestion permanently?')) return;
+    setSuggestionError(null);
+    try {
+      await deleteDoc(doc(db, 'trickSuggestions', s._id));
+      setSuggestions(arr => arr.filter(x => x._id !== s._id));
+    } catch (e) {
+      console.error('Delete suggestion error', e);
+      setSuggestionError(`Delete failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
     }
   };
 
@@ -2531,6 +2626,73 @@ service cloud.firestore {
           )}
         </div>
         </div>
+        )}
+      </div>
+
+      <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl p-4">
+        <div className="font-bold mb-3 flex items-center gap-2">
+          <span className="text-lg">💡</span> Trick Suggestions
+          <span className="ml-auto text-xs text-slate-400 font-normal">{suggestions.filter(s => s.status === 'pending').length} pending · {suggestions.length} total</span>
+        </div>
+        {suggestionError && (
+          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-2 text-xs text-red-200 mb-2 break-words">{suggestionError}</div>
+        )}
+        {suggestions.length === 0 ? (
+          <div className="text-sm text-slate-500">No suggestions yet.</div>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {suggestions.map(s => {
+              const t = s.trick || {};
+              const col = DIFFICULTY_COLORS[t.difficulty] || DIFFICULTY_COLORS.Medium;
+              const busy = processingSuggestion === s._id;
+              const statusBadge = s.status === 'approved' ? 'bg-green-500/20 text-green-300 border-green-500/40' : s.status === 'denied' ? 'bg-red-500/20 text-red-300 border-red-500/40' : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40';
+              return (
+                <div key={s._id} className="bg-slate-900 border border-slate-700 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <CategoryIcon category={t.category} size={18} className="text-slate-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold">{t.name}</span>
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${col.bg} ${col.text}`}>{t.difficulty}</span>
+                        <span className="text-xs text-slate-500">{t.category}</span>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ml-auto ${statusBadge}`}>{s.status || 'pending'}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">By {s.requestedByName || s.requestedByEmail || 'Unknown'}</div>
+                      {t.notes && <div className="text-xs text-slate-400 mt-1 whitespace-pre-wrap">{t.notes}</div>}
+                      {Array.isArray(s.videos) && s.videos.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {s.videos.map((v, i) => (
+                            <a key={i} href={normalizeUrl(v.url)} target="_blank" rel="noopener noreferrer"
+                              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 truncate max-w-[200px]">
+                              {v.type === 'tutorial' ? '🎓' : '📹'} {v.label}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    {s.status === 'pending' && (
+                      <>
+                        <button onClick={() => approveSuggestion(s)} disabled={busy}
+                          className="flex-1 py-2 bg-green-500 hover:bg-green-400 disabled:opacity-50 rounded-lg text-sm font-bold transition">
+                          {busy ? '…' : '✓ Approve'}
+                        </button>
+                        <button onClick={() => denySuggestion(s)} disabled={busy}
+                          className="flex-1 py-2 bg-red-500/30 hover:bg-red-500/50 text-red-200 disabled:opacity-50 rounded-lg text-sm font-bold transition">
+                          ✕ Deny
+                        </button>
+                      </>
+                    )}
+                    <button onClick={() => deleteSuggestion(s)}
+                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg text-sm transition">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
