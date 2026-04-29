@@ -636,6 +636,7 @@ function MainApp({ user }) {
     }
   };
 
+  const updateTrickProgress = (id, progress) => saveTricks(tricks.map(t => t.id === id ? { ...t, progress } : t));
   const updateTrickVideos = (id, videos) => saveTricks(tricks.map(t => t.id === id ? { ...t, videos } : t));
   const updateTrickNotes = (id, notes) => saveTricks(tricks.map(t => t.id === id ? { ...t, notes } : t));
   const updateGlobalVideos = async (id, videos) => {
@@ -777,7 +778,7 @@ function MainApp({ user }) {
             filterDifficulty={filterDifficulty} setFilterDifficulty={setFilterDifficulty}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             filterTracker={filterTracker} setFilterTracker={setFilterTracker}
-            onOpenTrick={openTrick} onUpdateStatus={updateTrickStatus}
+            onOpenTrick={openTrick} onUpdateStatus={updateTrickStatus} onUpdateProgress={updateTrickProgress}
             onAddNew={() => setActiveTab('add')} />
         )}
         {activeTab === 'training' && (
@@ -953,7 +954,7 @@ function QuickLink({ label, icon, onClick, color }) {
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, onOpenTrick, onUpdateStatus, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, onOpenTrick, onUpdateStatus, onUpdateProgress, onAddNew }) {
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
   const trackerStatusIds = ['not_started', 'looking_into', 'training_hard', 'yes_i_can'];
@@ -968,7 +969,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
     if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterCategory !== 'all' && t.category !== filterCategory) return false;
     if (filterDifficulty !== 'all' && t.difficulty !== filterDifficulty) return false;
-    if (filterStatus !== 'all' && t.status !== filterStatus) return false;
+    if (filterStatus !== 'all' && (t.progress || 'not_started') !== filterStatus) return false;
     if (filterTracker !== 'all' && t.status !== filterTracker) return false;
     return true;
   });
@@ -1009,7 +1010,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
               {isGymnastics && <span className="text-xs font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Gymnastics</span>}
             </div>
             <div className={`space-y-2 ${isGymnastics ? 'bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-2' : ''}`}>
-              {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} onUpdateStatus={onUpdateStatus} isGymnastics={isGymnastics} />)}
+              {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} onUpdateStatus={onUpdateStatus} onUpdateProgress={onUpdateProgress} isGymnastics={isGymnastics} />)}
             </div>
           </div>
         );
@@ -1039,9 +1040,10 @@ function normalizeUrl(url) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
-function TrickCard({ trick, onOpen, onUpdateStatus, isGymnastics }) {
+function TrickCard({ trick, onOpen, onUpdateStatus, onUpdateProgress, isGymnastics }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const status = STATUS_LEVELS.find(s => s.id === trick.status);
+  const progress = trick.progress || 'not_started';
   const tutorialVideo = trick.videos?.find(v => v.type === 'tutorial' && v.primary)
     || trick.videos?.find(v => v.type === 'tutorial');
   const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary)
@@ -1055,14 +1057,15 @@ function TrickCard({ trick, onOpen, onUpdateStatus, isGymnastics }) {
   const statusSteps = ['not_started', 'looking_into', 'training_hard', 'yes_i_can']
     .map(id => STATUS_LEVELS.find(s => s.id === id))
     .filter(Boolean);
-  const renderTrackerRow = (label, steps) => (
+  const setProgress = (e, id) => { e.stopPropagation(); if (onUpdateProgress) onUpdateProgress(trick.id, id); };
+  const renderTrackerRow = (label, steps, currentValue, handler) => (
     <div className="mt-2 pt-2 border-t border-slate-700/60">
       <div className="text-[10px] font-semibold uppercase text-slate-400 mb-1">{label}</div>
       <div className="flex gap-1.5 flex-wrap">
         {steps.map(s => {
-          const active = trick.status === s.id;
+          const active = currentValue === s.id;
           return (
-            <button key={s.id} onClick={(e) => setStatus(e, s.id)}
+            <button key={s.id} onClick={(e) => handler(e, s.id)}
               className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition border ${active ? `${s.color} ${s.textColor} border-white/40` : 'bg-slate-900/60 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
               <span>{s.emoji}</span><span>{s.label}</span>
             </button>
@@ -1098,8 +1101,8 @@ function TrickCard({ trick, onOpen, onUpdateStatus, isGymnastics }) {
         )}
         <button onClick={openCard} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
       </div>
-      {renderTrackerRow('Progress', progressSteps)}
-      {renderTrackerRow('Status', statusSteps)}
+      {renderTrackerRow('Progress', progressSteps, progress, setProgress)}
+      {renderTrackerRow('Status', statusSteps, trick.status, setStatus)}
     </div>
   );
 }
