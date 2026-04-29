@@ -956,9 +956,14 @@ function QuickLink({ label, icon, onClick, color }) {
 function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, onOpenTrick, onUpdateStatus, onAddNew }) {
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
-  const statuses = ['all', ...STATUS_LEVELS.map(s => s.id)];
   const trackerStatusIds = ['not_started', 'looking_into', 'training_hard', 'yes_i_can'];
   const trackerOptions = ['all', ...trackerStatusIds];
+  const progressOptions = ['all', 'not_started', 'trampoline_landing', 'soft_landing', 'hard_landing'];
+  const progressLabel = (opt) => {
+    if (opt === 'all') return 'All';
+    if (opt === 'not_started') return 'No landing';
+    return STATUS_LEVELS.find(s => s.id === opt)?.label || opt;
+  };
   const filtered = tricks.filter(t => {
     if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterCategory !== 'all' && t.category !== filterCategory) return false;
@@ -990,7 +995,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
         <FilterRow label="Category" options={categories} selected={filterCategory} onChange={setFilterCategory} />
         <FilterRow label="Difficulty" options={difficulties} selected={filterDifficulty} onChange={setFilterDifficulty} />
         <FilterRow label="Status Tracker" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
-        <FilterRow label="Status" options={statuses} selected={filterStatus} onChange={setFilterStatus} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
+        <FilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
       </div>
       <div className="text-sm text-slate-400">{filtered.length} tricks</div>
       {sortedCategories.map(cat => {
