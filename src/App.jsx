@@ -812,7 +812,7 @@ function MainApp({ user }) {
         <TrickDetailModal trick={displayTricks.find(t => t.id === selectedTrick.id) || selectedTrick}
           autoplayUrl={autoplayVideoUrl}
           isAdmin={userIsAdmin}
-          onClose={closeTrick} onUpdateStatus={updateTrickStatus}
+          onClose={closeTrick} onUpdateStatus={updateTrickStatus} onUpdateProgress={updateTrickProgress}
           onUpdateVideos={updateTrickVideos} onUpdateGlobalVideos={updateGlobalVideos}
           onUpdateNotes={updateTrickNotes} />
       )}
@@ -1195,7 +1195,7 @@ function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef, isGl
   );
 }
 
-function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
+function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus, onUpdateProgress, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
   const [newVideoType, setNewVideoType] = useState('reference');
@@ -1265,25 +1265,62 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
           </div>
         </div>
         <div className="p-5 space-y-5">
-          <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Status</div>
-            <div className="space-y-2">
-              {STATUS_LEVELS.map(s => {
-                const progressArr = Array.isArray(trick.progress) ? trick.progress : [];
-                const allLandingsDone = ['trampoline_landing', 'soft_landing', 'hard_landing'].every(id => progressArr.includes(id));
-                const locked = s.id === 'yes_i_can' && !allLandingsDone;
-                return (
-                  <button key={s.id} onClick={() => { if (!locked) onUpdateStatus(trick.id, s.id); }} disabled={locked}
-                    title={locked ? 'Complete all landings on the trick card first' : undefined}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${trick.status === s.id ? `${s.color} border-white/40` : locked ? 'bg-slate-900/40 border-slate-800 cursor-not-allowed opacity-60' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
-                    <span className="text-2xl">{locked ? '🔒' : s.emoji}</span>
-                    <span className={`font-bold ${trick.status === s.id ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
-                    {trick.status === s.id && <Check className="ml-auto w-5 h-5" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {(() => {
+            const statusIds = ['not_started', 'looking_into', 'training_hard', 'yes_i_can'];
+            const statusSteps = statusIds.map(id => STATUS_LEVELS.find(s => s.id === id)).filter(Boolean);
+            const progressArr = Array.isArray(trick.progress) ? trick.progress : [];
+            const REQUIRED_LANDINGS = ['trampoline_landing', 'soft_landing', 'hard_landing'];
+            const allLandingsDone = REQUIRED_LANDINGS.every(id => progressArr.includes(id));
+            const landingSteps = REQUIRED_LANDINGS.map(id => STATUS_LEVELS.find(s => s.id === id)).filter(Boolean);
+            const toggleLanding = (id) => {
+              if (!onUpdateProgress) return;
+              const next = progressArr.includes(id) ? progressArr.filter(p => p !== id) : [...progressArr, id];
+              onUpdateProgress(trick.id, next);
+            };
+            return (
+              <>
+                <div>
+                  <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Status</div>
+                  <div className="space-y-2">
+                    {statusSteps.map(s => {
+                      const locked = s.id === 'yes_i_can' && !allLandingsDone;
+                      return (
+                        <button key={s.id} onClick={() => { if (!locked) onUpdateStatus(trick.id, s.id); }} disabled={locked}
+                          title={locked ? 'Complete all landings first' : undefined}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${trick.status === s.id ? `${s.color} border-white/40` : locked ? 'bg-slate-900/40 border-slate-800 cursor-not-allowed opacity-60' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
+                          <span className="text-2xl">{locked ? '🔒' : s.emoji}</span>
+                          <span className={`font-bold ${trick.status === s.id ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
+                          {trick.status === s.id && <Check className="ml-auto w-5 h-5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {trick.status === 'training_hard' && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
+                    <div className="text-xs font-semibold text-yellow-300 uppercase mb-2">Progress · landings</div>
+                    <div className="space-y-2">
+                      {landingSteps.map(s => {
+                        const checked = progressArr.includes(s.id);
+                        return (
+                          <button key={s.id} onClick={() => toggleLanding(s.id)}
+                            className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${checked ? `${s.color} border-white/40` : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
+                            <span className="text-2xl">{checked ? '☑' : '☐'}</span>
+                            <span className="text-xl">{s.emoji}</span>
+                            <span className={`font-bold ${checked ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
+                            {checked && <Check className="ml-auto w-5 h-5" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {allLandingsDone && (
+                      <div className="text-xs text-green-300 mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> All landings done — Complete Master is unlocked.</div>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-1">📹 Reference Videos</div>
             <div className="space-y-2">
