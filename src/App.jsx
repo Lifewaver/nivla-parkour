@@ -2727,11 +2727,11 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                         const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
                         const mastered = t.status === 'yes_i_can';
                         const inProgress = t.status && t.status !== 'not_started' && !mastered;
+                        const inFocus = weeklyGoals.some(g => g.trickId === t.id);
                         return (
-                          <button
+                          <div
                             key={t.id}
-                            onClick={() => onOpenTrick(t)}
-                            className={`w-full flex items-center gap-3 rounded-lg p-2.5 text-left transition border ${
+                            className={`w-full flex items-center gap-2 rounded-lg p-2.5 transition border ${
                               mastered
                                 ? 'bg-green-500/10 border-green-500/40 hover:bg-green-500/20'
                                 : inProgress
@@ -2739,13 +2739,22 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                                   : 'bg-slate-900 border-transparent hover:bg-slate-800'
                             }`}
                           >
-                            <span className="text-lg flex-shrink-0">{status.emoji}</span>
-                            <CategoryIcon category={t.category} size={16} className="text-slate-300 flex-shrink-0" />
-                            <span className="flex-1 truncate font-medium text-sm">{t.name}</span>
-                            <span className={`text-xs flex-shrink-0 ${mastered ? 'text-green-300' : inProgress ? 'text-yellow-300' : 'text-slate-500'}`}>
-                              {status.label}
-                            </span>
-                          </button>
+                            <button onClick={() => onOpenTrick(t)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
+                              <span className="text-lg flex-shrink-0">{status.emoji}</span>
+                              <CategoryIcon category={t.category} size={16} className="text-slate-300 flex-shrink-0" />
+                              <span className="flex-1 truncate font-medium text-sm">{t.name}</span>
+                              <span className={`text-xs flex-shrink-0 ${mastered ? 'text-green-300' : inProgress ? 'text-yellow-300' : 'text-slate-500'}`}>
+                                {status.label}
+                              </span>
+                            </button>
+                            {!mastered && (
+                              <button onClick={(e) => { e.stopPropagation(); inFocus ? removeGoal(t.id) : addSuggestion(t.id); }}
+                                className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition ${inFocus ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-yellow-500 text-slate-900 hover:bg-yellow-400'}`}
+                                title={inFocus ? 'Remove from In Focus' : 'Add to In Focus'}>
+                                {inFocus ? '✓ Added' : '+ Add'}
+                              </button>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
