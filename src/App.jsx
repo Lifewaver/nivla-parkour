@@ -782,7 +782,7 @@ function MainApp({ user }) {
             filterDifficulty={filterDifficulty} setFilterDifficulty={setFilterDifficulty}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             filterTracker={filterTracker} setFilterTracker={setFilterTracker}
-            onOpenTrick={openTrick} onUpdateStatus={updateTrickStatus} onUpdateProgress={updateTrickProgress}
+            onOpenTrick={openTrick}
             onAddNew={() => setActiveTab('add')} />
         )}
         {activeTab === 'training' && (
@@ -958,7 +958,7 @@ function QuickLink({ label, icon, onClick, color }) {
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, onOpenTrick, onUpdateStatus, onUpdateProgress, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, onOpenTrick, onAddNew }) {
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
   const trackerStatusIds = ['not_started', 'looking_into', 'training_hard', 'yes_i_can'];
@@ -1018,7 +1018,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
               {isGymnastics && <span className="text-xs font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Gymnastics</span>}
             </div>
             <div className={`space-y-2 ${isGymnastics ? 'bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-2' : ''}`}>
-              {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} onUpdateStatus={onUpdateStatus} onUpdateProgress={onUpdateProgress} isGymnastics={isGymnastics} />)}
+              {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} isGymnastics={isGymnastics} />)}
             </div>
           </div>
         );
@@ -1048,35 +1048,15 @@ function normalizeUrl(url) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
-function TrickCard({ trick, onOpen, onUpdateStatus, onUpdateProgress, isGymnastics }) {
+function TrickCard({ trick, onOpen, isGymnastics }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const status = STATUS_LEVELS.find(s => s.id === trick.status);
-  const progressArr = Array.isArray(trick.progress) ? trick.progress : [];
-  const REQUIRED_LANDINGS = ['trampoline_landing', 'soft_landing', 'hard_landing'];
-  const allLandingsDone = REQUIRED_LANDINGS.every(id => progressArr.includes(id));
   const tutorialVideo = trick.videos?.find(v => v.type === 'tutorial' && v.primary)
     || trick.videos?.find(v => v.type === 'tutorial');
   const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary)
     || trick.videos?.find(v => v.type !== 'tutorial');
   const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpen(normalizeUrl(video.url)); };
   const openCard = () => onOpen();
-  const progressSteps = REQUIRED_LANDINGS
-    .map(id => STATUS_LEVELS.find(s => s.id === id))
-    .filter(Boolean);
-  const statusSteps = ['not_started', 'looking_into', 'training_hard', 'yes_i_can']
-    .map(id => STATUS_LEVELS.find(s => s.id === id))
-    .filter(Boolean);
-  const toggleProgress = (e, id) => {
-    e.stopPropagation();
-    if (!onUpdateProgress) return;
-    const next = progressArr.includes(id) ? progressArr.filter(p => p !== id) : [...progressArr, id];
-    onUpdateProgress(trick.id, next);
-  };
-  const setStatus = (e, id) => {
-    e.stopPropagation();
-    if (id === 'yes_i_can' && !allLandingsDone) return;
-    if (onUpdateStatus) onUpdateStatus(trick.id, id);
-  };
   return (
     <div className={`w-full border rounded-xl p-3 transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
       <div className="flex items-center gap-2 text-left">
@@ -1102,36 +1082,6 @@ function TrickCard({ trick, onOpen, onUpdateStatus, onUpdateProgress, isGymnasti
           </button>
         )}
         <button onClick={openCard} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
-      </div>
-      <div className="mt-2 pt-2 border-t border-slate-700/60">
-        <div className="text-[10px] font-semibold uppercase text-slate-400 mb-1">Progress</div>
-        <div className="flex gap-1.5 flex-wrap">
-          {progressSteps.map(s => {
-            const checked = progressArr.includes(s.id);
-            return (
-              <button key={s.id} onClick={(e) => toggleProgress(e, s.id)}
-                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition border ${checked ? `${s.color} ${s.textColor} border-white/40` : 'bg-slate-900/60 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                <span>{checked ? '☑' : '☐'}</span><span>{s.emoji}</span><span>{s.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div className="mt-2 pt-2 border-t border-slate-700/60">
-        <div className="text-[10px] font-semibold uppercase text-slate-400 mb-1">Status</div>
-        <div className="flex gap-1.5 flex-wrap">
-          {statusSteps.map(s => {
-            const active = trick.status === s.id;
-            const locked = s.id === 'yes_i_can' && !allLandingsDone;
-            return (
-              <button key={s.id} onClick={(e) => setStatus(e, s.id)} disabled={locked}
-                title={locked ? 'Complete all landings first' : undefined}
-                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition border ${active ? `${s.color} ${s.textColor} border-white/40` : locked ? 'bg-slate-900/40 text-slate-500 border-slate-800 cursor-not-allowed' : 'bg-slate-900/60 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                <span>{locked ? '🔒' : s.emoji}</span><span>{s.label}</span>
-              </button>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
