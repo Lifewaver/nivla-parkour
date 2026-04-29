@@ -1029,6 +1029,44 @@ function TrickCard({ trick, onClick, isGymnastics }) {
   );
 }
 
+function getVideoEmbed(url) {
+  if (!url) return null;
+  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (yt) return { type: 'youtube', src: `https://www.youtube.com/embed/${yt[1]}` };
+  const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vimeo) return { type: 'vimeo', src: `https://player.vimeo.com/video/${vimeo[1]}` };
+  return null;
+}
+
+function VideoCard({ video, onRemove }) {
+  const embed = getVideoEmbed(video.url);
+  return (
+    <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg overflow-hidden">
+      {embed && (
+        <div className="aspect-video bg-black">
+          <iframe
+            src={embed.src}
+            title={video.label}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="w-full h-full border-0"
+          />
+        </div>
+      )}
+      <div className="flex items-center gap-2 p-2">
+        <a href={video.url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center gap-2 text-sm hover:text-purple-300 truncate">
+          <Play className="w-4 h-4 flex-shrink-0 text-purple-400" />
+          <span className="truncate">{video.label}</span>
+          <ExternalLink className="w-3 h-3 flex-shrink-0 text-slate-500" />
+        </a>
+        <button onClick={onRemove} className="text-slate-500 hover:text-red-400 flex-shrink-0">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUpdateNotes }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
@@ -1075,10 +1113,7 @@ function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUp
             <div className="space-y-2">
               {referenceVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No reference videos yet. Add inspiration clips below.</div>}
               {referenceVideos.map((v, i) => (
-                <div key={i} className="flex items-center gap-2 bg-purple-900/30 border border-purple-500/30 rounded-lg p-2">
-                  <a href={v.url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center gap-2 text-sm hover:text-purple-300 truncate"><Play className="w-4 h-4 flex-shrink-0 text-purple-400" /><span className="truncate">{v.label}</span></a>
-                  <button onClick={() => removeVideo(v)} className="text-slate-500 hover:text-red-400"><X className="w-4 h-4" /></button>
-                </div>
+                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} />
               ))}
             </div>
           </div>
@@ -1087,10 +1122,7 @@ function TrickDetailModal({ trick, onClose, onUpdateStatus, onUpdateVideos, onUp
             <div className="space-y-2">
               {tutorialVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No tutorials yet. Add one below to learn how to do this trick.</div>}
               {tutorialVideos.map((v, i) => (
-                <div key={i} className="flex items-center gap-2 bg-purple-900/30 border border-purple-500/30 rounded-lg p-2">
-                  <a href={v.url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center gap-2 text-sm hover:text-purple-300 truncate"><Play className="w-4 h-4 flex-shrink-0 text-purple-400" /><span className="truncate">{v.label}</span></a>
-                  <button onClick={() => removeVideo(v)} className="text-slate-500 hover:text-red-400"><X className="w-4 h-4" /></button>
-                </div>
+                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} />
               ))}
             </div>
           </div>
