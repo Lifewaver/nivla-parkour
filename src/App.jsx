@@ -1252,7 +1252,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
                           <span className={`font-bold ${trick.status === s.id ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
                           {trick.status === s.id && <Check className="ml-auto w-5 h-5" />}
                         </button>
-                        {isTrainingHard && trick.status === 'training_hard' && (
+                        {isTrainingHard && (trick.status === 'training_hard' || trick.status === 'yes_i_can') && (
                           <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 ml-4">
                             <div className="text-xs font-semibold text-yellow-300 uppercase mb-2">Progress · landings</div>
                             <div className="space-y-2">
