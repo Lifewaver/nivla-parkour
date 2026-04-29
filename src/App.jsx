@@ -2161,15 +2161,41 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                   {isOpen && lockedTricks.length > 0 && (
                     <div className="mb-2">
                       <div className="text-[10px] font-semibold text-purple-300 uppercase mb-1">🔒 Focus for this session ({lockedTricks.length})</div>
-                      <div className="space-y-1">
-                        {lockedTricks.map(t => (
-                          <div key={t.id} className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/40 rounded p-2 text-sm">
-                            <CategoryIcon category={t.category} size={14} className="text-slate-300 flex-shrink-0" />
-                            <button onClick={() => onOpenTrick && onOpenTrick(t)} className="flex-1 truncate font-medium text-left hover:text-purple-200">{t.name}</button>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text} flex-shrink-0`}>{t.difficulty}</span>
-                            <button onClick={() => unlockFocusTrick(us.date, t.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove from focus"><X className="w-3.5 h-3.5" /></button>
-                          </div>
-                        ))}
+                      <div className="space-y-2">
+                        {lockedTricks.map(t => {
+                          const diff = DIFFICULTY_COLORS[t.difficulty];
+                          const tStatus = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+                          const tutorialVideo = t.videos?.find(v => v.type === 'tutorial' && v.primary) || t.videos?.find(v => v.type === 'tutorial');
+                          const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
+                          const playVideo = (e, video) => { e.stopPropagation(); if (video?.url && onOpenTrick) onOpenTrick(t, normalizeUrl(video.url)); };
+                          return (
+                            <div key={t.id} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-purple-500/40 rounded-xl p-3 flex items-center gap-2 transition">
+                              <button onClick={() => onOpenTrick && onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                                <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
+                                <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-bold truncate">{t.name}</div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
+                                    {t.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {t.videos.length}</span>}
+                                  </div>
+                                </div>
+                              </button>
+                              {referenceVideo && (
+                                <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
+                                  <Play className="w-4 h-4 fill-current" />
+                                </button>
+                              )}
+                              {tutorialVideo && (
+                                <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
+                                  <span className="text-base">🎓</span>
+                                </button>
+                              )}
+                              <button onClick={() => onOpenTrick && onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${tStatus.color} ${tStatus.textColor}`}>{tStatus.emoji}</button>
+                              <button onClick={() => unlockFocusTrick(us.date, t.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove from focus"><X className="w-4 h-4" /></button>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -2180,15 +2206,40 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                     return (
                       <div className="mb-2">
                         <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Suggested focus</div>
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           {visible.map(s => {
                             const canDismiss = remainingSuggestions.length > 1;
+                            const diff = DIFFICULTY_COLORS[s.trick.difficulty];
+                            const tStatus = STATUS_LEVELS.find(st => st.id === s.trick.status) || STATUS_LEVELS[0];
+                            const tutorialVideo = s.trick.videos?.find(v => v.type === 'tutorial' && v.primary) || s.trick.videos?.find(v => v.type === 'tutorial');
+                            const referenceVideo = s.trick.videos?.find(v => v.type !== 'tutorial' && v.primary) || s.trick.videos?.find(v => v.type !== 'tutorial');
+                            const playVideo = (e, video) => { e.stopPropagation(); if (video?.url && onOpenTrick) onOpenTrick(s.trick, normalizeUrl(video.url)); };
                             return (
-                              <div key={s.trick.id} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-sm transition">
-                                <CategoryIcon category={s.trick.category} size={14} className="text-slate-400 flex-shrink-0" />
-                                <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className="flex-1 truncate font-medium text-left">{s.trick.name}</button>
-                                <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
-                                <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition" title="Lock in for this session">+ Add</button>
+                              <div key={s.trick.id} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
+                                <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                                  <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
+                                  <CategoryIcon category={s.trick.category} size={20} className="text-slate-300 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-bold truncate">{s.trick.name}</div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{s.trick.difficulty}</span>
+                                      {s.trick.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {s.trick.videos.length}</span>}
+                                      <span className="text-[10px] text-slate-400 truncate">{s.reason}</span>
+                                    </div>
+                                  </div>
+                                </button>
+                                {referenceVideo && (
+                                  <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
+                                    <Play className="w-4 h-4 fill-current" />
+                                  </button>
+                                )}
+                                {tutorialVideo && (
+                                  <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
+                                    <span className="text-base">🎓</span>
+                                  </button>
+                                )}
+                                <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${tStatus.color} ${tStatus.textColor}`}>{tStatus.emoji}</button>
+                                <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition" title="Lock in for this session">+ Add</button>
                                 {canDismiss && (
                                   <button onClick={() => dismissSuggestion(us.date, s.trick.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Dismiss this suggestion"><X className="w-3.5 h-3.5" /></button>
                                 )}
