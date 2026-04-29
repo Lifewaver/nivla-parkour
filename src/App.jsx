@@ -1768,7 +1768,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
 }
 
 function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
-  const FOCUS_TAGS = ['landningar', 'flow', 'vips', 'styrka', 'precision', 'cat-leap', 'wallrun', 'flips', 'vault', 'kong'];
+  const FOCUS_TAGS = ['landningar', 'flow', 'vips', 'styrka', 'precision', 'flips', 'jump', 'tricks', 'leap', 'swings', 'vaults', 'gymnastics'];
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
   const [tags, setTags] = useState([]);
@@ -1777,6 +1777,12 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const [notes, setNotes] = useState('');
   const [savedToast, setSavedToast] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
+  const [practicedTricks, setPracticedTricks] = useState([]);
+  useEffect(() => {
+    const locked = Array.isArray(plannedSessionFocus[date]) ? plannedSessionFocus[date] : [];
+    setPracticedTricks(locked);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
 
   const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
   const sortedSessions = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -1995,13 +2001,14 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
       id: Date.now(),
       date,
       focusTags: tags,
+      practicedTricks,
       rpe: Number(rpe),
       durationMinutes: duration ? Math.max(0, parseInt(duration, 10) || 0) : 0,
       notes: notes.trim(),
       createdAt: Date.now(),
     };
     await saveTrainingSessions([entry, ...safeSessions]);
-    setTags([]); setDuration(''); setNotes(''); setRpe(6); setDate(today);
+    setTags([]); setDuration(''); setNotes(''); setRpe(6); setDate(today); setPracticedTricks([]);
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 2000);
   };
@@ -2254,6 +2261,38 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
           </div>
         </div>
         <div>
+          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Tricks practiced</div>
+          {practicedTricks.length === 0 && <div className="text-xs text-slate-500 italic mb-1">No tricks added — pick from the dropdown below.</div>}
+          {practicedTricks.length > 0 && (
+            <div className="space-y-1 mb-2">
+              {practicedTricks.map(id => {
+                const t = tricks.find(x => x.id === id);
+                if (!t) return null;
+                return (
+                  <div key={id} className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded p-2 text-sm">
+                    <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
+                    <span className="flex-1 truncate font-medium">{t.name}</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text} flex-shrink-0`}>{t.difficulty}</span>
+                    <button onClick={() => setPracticedTricks(arr => arr.filter(x => x !== id))} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {(() => {
+            const addable = (tricks || []).filter(t => !practicedTricks.includes(t.id)).sort((a, b) => a.name.localeCompare(b.name));
+            if (addable.length === 0) return null;
+            return (
+              <select value=""
+                onChange={e => { if (e.target.value) setPracticedTricks(arr => [...arr, parseInt(e.target.value, 10)]); }}
+                className="w-full bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5">
+                <option value="">+ Add a trick…</option>
+                {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
+              </select>
+            );
+          })()}
+        </div>
+        <div>
           <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Notes</div>
           <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="What worked? What's next?" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm resize-none" />
         </div>
@@ -2281,6 +2320,15 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                 {Array.isArray(s.focusTags) && s.focusTags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {s.focusTags.map(t => <span key={t} className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">#{t}</span>)}
+                  </div>
+                )}
+                {Array.isArray(s.practicedTricks) && s.practicedTricks.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {s.practicedTricks.map(id => {
+                      const t = tricks.find(x => x.id === id);
+                      if (!t) return null;
+                      return <span key={id} className="text-[10px] bg-purple-500/20 text-purple-200 px-1.5 py-0.5 rounded border border-purple-500/40">{t.name}</span>;
+                    })}
                   </div>
                 )}
                 {s.notes && <div className="text-xs text-slate-300 mt-2 whitespace-pre-wrap">{s.notes}</div>}
