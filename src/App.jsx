@@ -546,6 +546,7 @@ function MainApp({ user }) {
   const [completedWarmups, setCompletedWarmups] = useState({});
   const [completedConditioning, setCompletedConditioning] = useState({});
   const [globalVideos, setGlobalVideos] = useState({});
+  const [communityTricks, setCommunityTricks] = useState([]);
   const [selectedTrick, setSelectedTrick] = useState(null);
   const [autoplayVideoUrl, setAutoplayVideoUrl] = useState(null);
   const openTrick = (trick, videoUrl = null) => { setSelectedTrick(trick); setAutoplayVideoUrl(videoUrl); };
@@ -576,14 +577,15 @@ function MainApp({ user }) {
 
         // Load global trick overrides set by admin
         let globalOverrides = {};
-        let communityTricks = [];
+        let loadedCommunity = [];
         try {
           const overridesSnap = await getDoc(doc(db, 'globalConfig', 'tricks'));
           if (overridesSnap.exists()) {
             const data = overridesSnap.data();
             globalOverrides = data.overrides || {};
             setGlobalVideos(data.globalVideos || {});
-            communityTricks = Array.isArray(data.communityTricks) ? data.communityTricks : [];
+            loadedCommunity = Array.isArray(data.communityTricks) ? data.communityTricks : [];
+            setCommunityTricks(loadedCommunity);
           }
         } catch (e) { console.error('Global overrides load error', e); }
 
@@ -603,7 +605,7 @@ function MainApp({ user }) {
 
         const mergeCommunity = (existing) => {
           const existingIds = new Set(existing.map(t => t.id));
-          const additions = communityTricks
+          const additions = loadedCommunity
             .filter(ct => ct && ct.id != null && !existingIds.has(ct.id))
             .map(ct => applyOverrides({ ...ct, status: 'not_started', videos: [], notes: '', progress: [], coolness: 0 }));
           return additions.length > 0 ? [...existing, ...additions] : existing;
@@ -797,6 +799,7 @@ function MainApp({ user }) {
           <HomeTab stats={stats} streak={streak} mastered={mastered} inProgress={inProgress}
             total={tricks.length} weeklyGoals={weeklyGoals} tricks={tricks} onOpenTrick={openTrick}
             earnedBadges={earnedBadges} onLogTraining={logTrainingDay}
+            communityTricks={communityTricks}
             hasTrainedToday={trainingDays.includes(new Date().toISOString().split('T')[0])}
             setActiveTab={setActiveTab}
             goToWarmup={() => { setTrainingSection('warmup'); setActiveTab('training'); }}
@@ -905,7 +908,7 @@ function NavButton({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [], tricks = [], onOpenTrick, earnedBadges, onLogTraining, hasTrainedToday, setActiveTab, goToWarmup, goToStrength, goToGoals }) {
+function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [], tricks = [], onOpenTrick, earnedBadges, onLogTraining, communityTricks = [], hasTrainedToday, setActiveTab, goToWarmup, goToStrength, goToGoals }) {
   const progressPct = total > 0 ? Math.round((mastered / total) * 100) : 0;
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
@@ -969,6 +972,33 @@ function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [],
                 <div className="text-xs font-bold text-yellow-300 leading-tight">{b.name}</div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {communityTricks.length > 0 && (
+        <div className="bg-slate-800/50 backdrop-blur border border-cyan-500/30 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Plus className="w-5 h-5 text-cyan-400" />
+            <h2 className="font-bold text-lg">Latest community tricks</h2>
+            <button onClick={() => setActiveTab('tricks')} className="ml-auto text-sm text-cyan-300 hover:text-cyan-200 font-semibold">All →</button>
+          </div>
+          <div className="space-y-2">
+            {communityTricks.slice(-5).reverse().map(ct => {
+              const trick = tricks.find(t => t.id === ct.id) || ct;
+              const diff = DIFFICULTY_COLORS[trick.difficulty] || DIFFICULTY_COLORS.Medium;
+              return (
+                <button key={ct.id} onClick={() => onOpenTrick(trick)}
+                  className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-lg p-3 text-left transition">
+                  <div className={`w-1 h-8 ${diff.strip} rounded-full flex-shrink-0`} />
+                  <CategoryIcon category={trick.category} size={18} className="text-slate-300 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm truncate">{trick.name}</div>
+                    {ct.suggestedBy && <div className="text-[10px] text-slate-500 truncate">by {ct.suggestedBy}</div>}
+                  </div>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff.bg} ${diff.text} flex-shrink-0`}>{trick.difficulty}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
