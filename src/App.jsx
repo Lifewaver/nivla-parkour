@@ -1072,8 +1072,8 @@ function TrickCard({ trick, onOpen, isGymnastics }) {
           </div>
         </button>
         {referenceVideo && (
-          <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={`📹 ${referenceVideo.label}`}>
-            <span className="text-base">📹</span>
+          <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
+            <Play className="w-4 h-4 fill-current" />
           </button>
         )}
         {tutorialVideo && (
