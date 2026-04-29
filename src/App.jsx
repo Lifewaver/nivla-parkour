@@ -1625,7 +1625,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex gap-2 mb-4 overflow-x-auto">
-        {[{id:'goals',label:'Tricks in focus',icon:'🎯'},{id:'log',label:'Planing and Log',icon:'📊'},{id:'journal',label:'Journal',icon:'📖'}].map(s => (
+        {[{id:'goals',label:'Tricks in focus',icon:'🎯'},{id:'log',label:'Planing and Log',icon:'📊'}].map(s => (
           <button key={s.id} onClick={() => setSection(s.id)} className={`flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm transition ${section === s.id ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}>
             <span className="mr-1">{s.icon}</span>{s.label}
           </button>
@@ -1704,14 +1704,6 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
         />
       )}
 
-      {section === 'journal' && (
-        <SessionJournalSection
-          trainingSessions={trainingSessions}
-          saveTrainingSessions={saveTrainingSessions}
-          tricks={tricks}
-        />
-      )}
-
       {section === 'warmup' && (
         <div className="space-y-3">
           <button onClick={() => setSection('log')} className="text-sm text-purple-300 hover:text-purple-200 font-semibold flex items-center gap-1">
@@ -1785,6 +1777,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const [notes, setNotes] = useState('');
   const [savedToast, setSavedToast] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
   const [expandedSessions, setExpandedSessions] = useState({});
   const toggleSessionOpen = (dateStr) => setExpandedSessions(prev => ({ ...prev, [dateStr]: !prev[dateStr] }));
   const lastLoggedSession = useMemo(() => {
@@ -2345,11 +2338,29 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
           </div>
         </div>
       )}
+
+      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+        <button onClick={() => setJournalOpen(o => !o)} className="w-full flex items-center gap-2 text-left">
+          <ScrollText className="w-5 h-5 text-purple-400 flex-shrink-0" />
+          <span className="font-bold flex-1">Journal — logged sessions ({safeSessions.length})</span>
+          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${journalOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {journalOpen && (
+          <div className="mt-3">
+            <SessionJournalSection
+              trainingSessions={trainingSessions}
+              saveTrainingSessions={saveTrainingSessions}
+              tricks={tricks}
+              embedded
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function SessionJournalSection({ trainingSessions = [], saveTrainingSessions, tricks = [] }) {
+function SessionJournalSection({ trainingSessions = [], saveTrainingSessions, tricks = [], embedded = false }) {
   const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
   const sortedSessions = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const [openId, setOpenId] = useState(null);
@@ -2359,9 +2370,13 @@ function SessionJournalSection({ trainingSessions = [], saveTrainingSessions, tr
     if (openId === id) setOpenId(null);
     await saveTrainingSessions(safeSessions.filter(s => s.id !== id));
   };
+  const Wrapper = embedded ? 'div' : 'div';
+  const wrapperClass = embedded ? '' : 'bg-slate-800/50 border border-slate-700 rounded-2xl p-4';
   return (
-    <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
-      <div className="font-bold mb-3 flex items-center gap-2"><ScrollText className="w-5 h-5 text-purple-400" /> Logged sessions ({safeSessions.length})</div>
+    <Wrapper className={wrapperClass}>
+      {!embedded && (
+        <div className="font-bold mb-3 flex items-center gap-2"><ScrollText className="w-5 h-5 text-purple-400" /> Logged sessions ({safeSessions.length})</div>
+      )}
       {sortedSessions.length === 0 ? (
         <div className="text-sm text-slate-500 text-center py-6">No sessions logged yet.</div>
       ) : (
@@ -2431,7 +2446,7 @@ function SessionJournalSection({ trainingSessions = [], saveTrainingSessions, tr
           })}
         </div>
       )}
-    </div>
+    </Wrapper>
   );
 }
 
