@@ -1039,6 +1039,7 @@ function TrickCard({ trick, onOpen, isGymnastics }) {
     <div className={`w-full border rounded-xl p-3 flex items-center gap-2 text-left transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
       <button onClick={openCard} className="flex items-center gap-3 flex-1 min-w-0 text-left">
         <div className={`w-1 h-12 ${diff.strip} rounded-full flex-shrink-0`} />
+        <CategoryIcon category={trick.category} size={20} className="text-slate-300 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="font-bold truncate">{trick.name}</div>
           <div className="flex items-center gap-2 mt-1">
@@ -1375,7 +1376,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
                   return (
                     <div key={s.trick.id} className="flex items-center gap-2 bg-slate-800/80 rounded-lg p-3">
                       <button onClick={() => onOpenTrick(s.trick)} className="flex-1 text-left">
-                        <div className="flex items-center gap-2"><span className="text-lg">{s.icon}</span><span className="font-bold text-sm">{s.trick.name}</span><span className={`text-xs font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[s.trick.difficulty].bg} ${DIFFICULTY_COLORS[s.trick.difficulty].text}`}>{s.trick.difficulty}</span></div>
+                        <div className="flex items-center gap-2"><span className="text-lg">{s.icon}</span><CategoryIcon category={s.trick.category} size={16} className="text-slate-300 flex-shrink-0" /><span className="font-bold text-sm">{s.trick.name}</span><span className={`text-xs font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[s.trick.difficulty].bg} ${DIFFICULTY_COLORS[s.trick.difficulty].text}`}>{s.trick.difficulty}</span></div>
                         <div className="text-xs text-yellow-300/90 mt-1 ml-7">{s.reason}</div>
                       </button>
                       <button onClick={() => addSuggestion(s.trick.id)} disabled={inGoals} className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition ${inGoals ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500 text-slate-900 hover:bg-yellow-400'}`}>{inGoals ? '✓ Added' : '+ Add'}</button>
@@ -1670,6 +1671,7 @@ function SkillTreeTab({ tricks, onOpenTrick }) {
                             }`}
                           >
                             <span className="text-lg flex-shrink-0">{status.emoji}</span>
+                            <CategoryIcon category={t.category} size={16} className="text-slate-300 flex-shrink-0" />
                             <span className="flex-1 truncate font-medium text-sm">{t.name}</span>
                             <span className={`text-xs flex-shrink-0 ${mastered ? 'text-green-300' : inProgress ? 'text-yellow-300' : 'text-slate-500'}`}>
                               {status.label}
