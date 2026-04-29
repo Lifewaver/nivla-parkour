@@ -550,6 +550,7 @@ function MainApp({ user }) {
   const [plannedMonths, setPlannedMonths] = useState([]);
   const [plannedWeeks, setPlannedWeeks] = useState([]);
   const [plannedSessionFocus, setPlannedSessionFocus] = useState({});
+  const [plannedSessionDismissed, setPlannedSessionDismissed] = useState({});
   const [globalVideos, setGlobalVideos] = useState({});
   const [communityTricks, setCommunityTricks] = useState([]);
   const [selectedTrick, setSelectedTrick] = useState(null);
@@ -570,7 +571,7 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData] =
+        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
@@ -583,6 +584,7 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'plannedMonths'),
             loadUserData(user.uid, 'plannedWeeks'),
             loadUserData(user.uid, 'plannedSessionFocus'),
+            loadUserData(user.uid, 'plannedSessionDismissed'),
           ]);
 
         // Load global trick overrides set by admin
@@ -649,6 +651,7 @@ function MainApp({ user }) {
         if (plannedMonthsData) setPlannedMonths(plannedMonthsData);
         if (plannedWeeksData) setPlannedWeeks(plannedWeeksData);
         if (plannedFocusData) setPlannedSessionFocus(plannedFocusData);
+        if (plannedDismissedData) setPlannedSessionDismissed(plannedDismissedData);
       } catch (e) {
         console.error('Load error', e);
       }
@@ -668,6 +671,7 @@ function MainApp({ user }) {
   const savePlannedMonths = async (m) => { setPlannedMonths(m); await saveUserData(user.uid, 'plannedMonths', m); };
   const savePlannedWeeks = async (w) => { setPlannedWeeks(w); await saveUserData(user.uid, 'plannedWeeks', w); };
   const savePlannedSessionFocus = async (f) => { setPlannedSessionFocus(f); await saveUserData(user.uid, 'plannedSessionFocus', f); };
+  const savePlannedSessionDismissed = async (d) => { setPlannedSessionDismissed(d); await saveUserData(user.uid, 'plannedSessionDismissed', d); };
 
   const updateTrickStatus = (id, status) => {
     const oldTrick = tricks.find(t => t.id === id);
@@ -854,6 +858,7 @@ function MainApp({ user }) {
             plannedMonths={plannedMonths} savePlannedMonths={savePlannedMonths}
             plannedWeeks={plannedWeeks} savePlannedWeeks={savePlannedWeeks}
             plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
+            plannedSessionDismissed={plannedSessionDismissed} savePlannedSessionDismissed={savePlannedSessionDismissed}
             streak={streak}
             section={trainingSection} setSection={setTrainingSection} />
         )}
@@ -1516,7 +1521,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, streak = 0, section, setSection }) {
+function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, streak = 0, section, setSection }) {
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const [newJournalEntry, setNewJournalEntry] = useState('');
   const [expandedWeek, setExpandedWeek] = useState(null);
@@ -1689,6 +1694,8 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           savePlannedWeeks={savePlannedWeeks}
           plannedSessionFocus={plannedSessionFocus}
           savePlannedSessionFocus={savePlannedSessionFocus}
+          plannedSessionDismissed={plannedSessionDismissed}
+          savePlannedSessionDismissed={savePlannedSessionDismissed}
           streak={streak}
           tricks={tricks}
           weeklyGoals={weeklyGoals}
@@ -1760,7 +1767,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   );
 }
 
-function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
+function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
   const FOCUS_TAGS = ['landningar', 'flow', 'vips', 'styrka', 'precision', 'cat-leap', 'wallrun', 'flips', 'vault', 'kong'];
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
@@ -1963,6 +1970,21 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     setFocusForDate(dateStr, focusForDate(dateStr).filter(id => id !== trickId));
   };
 
+  const dismissedForDate = (dateStr) => Array.isArray(plannedSessionDismissed[dateStr]) ? plannedSessionDismissed[dateStr] : [];
+  const dismissSuggestion = (dateStr, trickId) => {
+    if (!savePlannedSessionDismissed) return;
+    const cur = dismissedForDate(dateStr);
+    if (cur.includes(trickId)) return;
+    const next = { ...plannedSessionDismissed, [dateStr]: [...cur, trickId] };
+    savePlannedSessionDismissed(next);
+  };
+  const restoreDismissed = (dateStr) => {
+    if (!savePlannedSessionDismissed) return;
+    const next = { ...plannedSessionDismissed };
+    delete next[dateStr];
+    savePlannedSessionDismissed(next);
+  };
+
   const toggleTag = (tag) => {
     setTags(t => t.includes(tag) ? t.filter(x => x !== tag) : [...t, tag]);
   };
@@ -2111,7 +2133,8 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
               const logged = us.loggedSession;
               const lockedIds = focusForDate(us.date);
               const lockedTricks = lockedIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
-              const remainingSuggestions = sessionSuggestions.filter(s => !lockedIds.includes(s.trick.id));
+              const dismissedIds = dismissedForDate(us.date);
+              const remainingSuggestions = sessionSuggestions.filter(s => !lockedIds.includes(s.trick.id) && !dismissedIds.includes(s.trick.id));
               const addable = tricks.filter(t => !lockedIds.includes(t.id) && t.status !== 'yes_i_can')
                 .sort((a, b) => a.name.localeCompare(b.name));
               return (
@@ -2150,9 +2173,15 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                               <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className="flex-1 truncate font-medium text-left">{s.trick.name}</button>
                               <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
                               <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="text-purple-300 hover:text-purple-100 flex-shrink-0 font-bold text-base leading-none" title="Lock in for this session">+</button>
+                              <button onClick={() => dismissSuggestion(us.date, s.trick.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Dismiss this suggestion"><X className="w-3.5 h-3.5" /></button>
                             </div>
                           ))}
                         </div>
+                        {dismissedIds.length > 0 && (
+                          <button onClick={() => restoreDismissed(us.date)} className="text-[10px] text-slate-500 hover:text-slate-300 mt-2">
+                            ↩ Restore {dismissedIds.length} dismissed
+                          </button>
+                        )}
                       </div>
                     );
                   })()}
