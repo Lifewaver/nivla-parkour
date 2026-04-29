@@ -556,6 +556,7 @@ function MainApp({ user }) {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTracker, setFilterTracker] = useState('all');
   const [filterVideo, setFilterVideo] = useState('all');
+  const [filterStars, setFilterStars] = useState('all');
   const [celebrationTrick, setCelebrationTrick] = useState(null);
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -794,6 +795,7 @@ function MainApp({ user }) {
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             filterTracker={filterTracker} setFilterTracker={setFilterTracker}
             filterVideo={filterVideo} setFilterVideo={setFilterVideo}
+            filterStars={filterStars} setFilterStars={setFilterStars}
             onOpenTrick={openTrick}
             onAddNew={() => setActiveTab('add')} />
         )}
@@ -971,7 +973,7 @@ function QuickLink({ label, icon, onClick, color }) {
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, onOpenTrick, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterStars, setFilterStars, onOpenTrick, onAddNew }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
@@ -999,6 +1001,14 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
       if (filterVideo === 'reference' && !vids.some(v => v.type !== 'tutorial')) return false;
       if (filterVideo === 'tutorial' && !vids.some(v => v.type === 'tutorial')) return false;
     }
+    if (filterStars !== 'all') {
+      const stars = t.coolness || 0;
+      if (filterStars === 'unrated' && stars !== 0) return false;
+      if (filterStars !== 'unrated') {
+        const min = parseInt(filterStars, 10);
+        if (stars < min) return false;
+      }
+    }
     return true;
   });
   const grouped = filtered.reduce((acc, t) => { if (!acc[t.category]) acc[t.category] = []; acc[t.category].push(t); return acc; }, {});
@@ -1024,7 +1034,13 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
       {(() => {
         const videoOptions = ['all', 'none', 'reference', 'tutorial'];
         const videoLabel = (opt) => ({ all: 'All', none: 'No video', reference: '📹 Reference', tutorial: '🎓 Tutorial' }[opt] || opt);
-        const activeFilterCount = [filterCategory, filterDifficulty, filterTracker, filterStatus, filterVideo].filter(v => v !== 'all').length;
+        const starsOptions = ['all', 'unrated', '1', '2', '3', '4', '5'];
+        const starsLabel = (opt) => {
+          if (opt === 'all') return 'All';
+          if (opt === 'unrated') return 'Unrated';
+          return opt === '5' ? '★★★★★' : `★${opt}+`;
+        };
+        const activeFilterCount = [filterCategory, filterDifficulty, filterTracker, filterStatus, filterVideo, filterStars].filter(v => v !== 'all').length;
         return (
           <div className="space-y-2">
             <button onClick={() => setFiltersOpen(o => !o)}
@@ -1044,8 +1060,9 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
                 <FilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
                 <FilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
                 <FilterRow label="Video" options={videoOptions} selected={filterVideo} onChange={setFilterVideo} labelMap={videoLabel} />
+                <FilterRow label="Stars" options={starsOptions} selected={filterStars} onChange={setFilterStars} labelMap={starsLabel} />
                 {activeFilterCount > 0 && (
-                  <button onClick={() => { setFilterCategory('all'); setFilterDifficulty('all'); setFilterTracker('all'); setFilterStatus('all'); setFilterVideo('all'); }}
+                  <button onClick={() => { setFilterCategory('all'); setFilterDifficulty('all'); setFilterTracker('all'); setFilterStatus('all'); setFilterVideo('all'); setFilterStars('all'); }}
                     className="text-xs text-slate-400 hover:text-white underline">
                     Clear all filters
                   </button>
