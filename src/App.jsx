@@ -964,7 +964,7 @@ function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [],
       <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-3">
           <Target className="w-5 h-5 text-purple-400" />
-          <h2 className="font-bold text-lg">This week's focus</h2>
+          <h2 className="font-bold text-lg">Övningar i fokus</h2>
           {goToGoals && <button onClick={goToGoals} className="ml-auto text-xs text-purple-300 hover:text-purple-200 font-semibold">Manage →</button>}
         </div>
         {weeklyGoals.length === 0 ? (
@@ -1615,7 +1615,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex gap-2 mb-4 overflow-x-auto">
-        {[{id:'goals',label:'Weekly Goals',icon:'🎯'},{id:'log',label:'Training Log',icon:'📊'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Strength',icon:'💪'}].map(s => (
+        {[{id:'goals',label:'Övningar i fokus',icon:'🎯'},{id:'log',label:'Training Log',icon:'📊'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Strength',icon:'💪'}].map(s => (
           <button key={s.id} onClick={() => setSection(s.id)} className={`flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm transition ${section === s.id ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}>
             <span className="mr-1">{s.icon}</span>{s.label}
           </button>
@@ -1645,7 +1645,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
             </div>
           )}
           <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
-            <div className="font-bold mb-2">This week's focus</div>
+            <div className="font-bold mb-2">Övningar i fokus</div>
             <div className="text-sm text-slate-400 mb-3">Pick up to 3-5 tricks to focus on</div>
             <div className="space-y-2 mb-3">
               {weeklyGoals.length === 0 && <div className="text-sm text-slate-500 text-center py-4">No goals yet. Pick some tricks to focus on!</div>}
@@ -1683,6 +1683,10 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           plannedWeeks={plannedWeeks}
           savePlannedWeeks={savePlannedWeeks}
           streak={streak}
+          tricks={tricks}
+          weeklyGoals={weeklyGoals}
+          setSection={setSection}
+          onOpenTrick={onOpenTrick}
         />
       )}
 
@@ -1743,7 +1747,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   );
 }
 
-function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, streak }) {
+function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
   const FOCUS_TAGS = ['landningar', 'flow', 'vips', 'styrka', 'precision', 'cat-leap', 'wallrun', 'flips', 'vault', 'kong'];
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
@@ -1864,6 +1868,69 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     return count;
   })();
   const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
+
+  const userMaxMasteredDifficulty = useMemo(() => {
+    const order = ['Easy', 'Medium', 'Hard', 'Super'];
+    const masteredLevels = (tricks || []).filter(t => t.status === 'yes_i_can').map(t => order.indexOf(t.difficulty)).filter(i => i >= 0);
+    return masteredLevels.length > 0 ? Math.max(...masteredLevels) : -1;
+  }, [tricks]);
+
+  const allowedDifficulties = useMemo(() => {
+    const order = ['Easy', 'Medium', 'Hard', 'Super'];
+    const maxIdx = Math.min(3, Math.max(0, userMaxMasteredDifficulty + 1));
+    return order.slice(0, maxIdx + 1);
+  }, [userMaxMasteredDifficulty]);
+
+  const sessionSuggestions = useMemo(() => {
+    const list = [];
+    const seen = new Set();
+    const add = (trick, reason) => {
+      if (!trick || seen.has(trick.id)) return;
+      if (!allowedDifficulties.includes(trick.difficulty)) return;
+      list.push({ trick, reason });
+      seen.add(trick.id);
+    };
+    (weeklyGoals || []).forEach(g => add((tricks || []).find(t => t.id === g.trickId), '🎯 Fokus'));
+    (tricks || []).filter(t => t.status === 'training_hard').forEach(t => add(t, '💪 Training hard'));
+    (tricks || []).filter(t => t.status === 'looking_into').forEach(t => add(t, '👀 Looking into'));
+    return list;
+  }, [tricks, weeklyGoals, allowedDifficulties]);
+
+  const upcomingSessions = useMemo(() => {
+    const result = [];
+    const todayD = new Date();
+    todayD.setHours(0, 0, 0, 0);
+    const sessionsByDate = {};
+    safeSessions.forEach(s => { if (s.date) sessionsByDate[s.date] = s; });
+    for (let i = 0; i < 28 && result.length < 6; i++) {
+      const d = new Date(todayD);
+      d.setDate(todayD.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      if (isPlannedDay(dateStr)) {
+        result.push({ date: dateStr, dayOfWeek: d.getDay(), loggedSession: sessionsByDate[dateStr] || null });
+      }
+    }
+    return result;
+  }, [plannedDays, plannedMonths, plannedWeeks, safeSessions]);
+
+  const formatUpcomingDate = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
+    const diff = Math.round((d - todayD) / 86400000);
+    const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const md = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (diff === 0) return `Today · ${weekday} ${md}`;
+    if (diff === 1) return `Tomorrow · ${weekday} ${md}`;
+    return `${weekday} ${md}`;
+  };
+
+  const startLogFor = (dateStr) => {
+    setDate(dateStr);
+    if (typeof window !== 'undefined') {
+      const el = document.getElementById('training-log-form');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   const toggleTag = (tag) => {
     setTags(t => t.includes(tag) ? t.filter(x => x !== tag) : [...t, tag]);
@@ -1995,7 +2062,52 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
         )}
       </div>
 
-      <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4 space-y-3">
+      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+        <div className="font-bold mb-3 flex items-center gap-2"><Calendar className="w-5 h-5 text-purple-400" /> Upcoming sessions</div>
+        {upcomingSessions.length === 0 ? (
+          <div className="text-sm text-slate-500">Pick months / weeks / weekdays above to plan your sessions.</div>
+        ) : (
+          <div className="space-y-3">
+            {upcomingSessions.map(us => {
+              const logged = us.loggedSession;
+              return (
+                <div key={us.date} className={`bg-slate-900 border rounded-xl p-3 ${logged ? 'border-green-500/40' : 'border-slate-700'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-bold text-sm">{formatUpcomingDate(us.date)}</div>
+                    {logged && <span className="text-[10px] font-bold bg-green-500/20 text-green-300 border border-green-500/40 px-2 py-0.5 rounded">✓ Logged · RPE {logged.rpe}</span>}
+                  </div>
+                  {sessionSuggestions.length > 0 ? (
+                    <div className="mb-2">
+                      <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Suggested focus</div>
+                      <div className="space-y-1">
+                        {sessionSuggestions.slice(0, 5).map(s => (
+                          <button key={s.trick.id} onClick={() => onOpenTrick && onOpenTrick(s.trick)}
+                            className="w-full flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-left text-sm transition">
+                            <CategoryIcon category={s.trick.category} size={14} className="text-slate-400 flex-shrink-0" />
+                            <span className="flex-1 truncate font-medium">{s.trick.name}</span>
+                            <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500 italic mb-2">No suggestions yet — set focus exercises or mark tricks as Looking into / Training hard.</div>
+                  )}
+                  <div className="flex gap-1.5">
+                    <button onClick={() => setSection && setSection('warmup')} className="flex-1 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 rounded font-bold text-xs transition">🔥 Warm Up</button>
+                    <button onClick={() => setSection && setSection('conditioning')} className="flex-1 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded font-bold text-xs transition">💪 Strength</button>
+                    {!logged && (
+                      <button onClick={() => startLogFor(us.date)} className="flex-1 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded font-bold text-xs transition">📝 Log it</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div id="training-log-form" className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4 space-y-3">
         <div className="font-bold flex items-center gap-2"><Plus className="w-5 h-5 text-purple-400" /> Log a session</div>
         <div className="grid grid-cols-2 gap-2">
           <div>
