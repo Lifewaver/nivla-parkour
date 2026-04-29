@@ -974,7 +974,7 @@ function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [],
       <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-3">
           <Target className="w-5 h-5 text-purple-400" />
-          <h2 className="font-bold text-lg">Tricks in focus</h2>
+          <h2 className="font-bold text-lg">In Focus</h2>
           {goToGoals && <button onClick={goToGoals} className="ml-auto text-xs text-purple-300 hover:text-purple-200 font-semibold">Manage →</button>}
         </div>
         {weeklyGoals.length === 0 ? (
@@ -2630,7 +2630,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
               onClick={() => setSelectedCategory(c)}
               className={`flex-shrink-0 px-3 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 ${selectedCategory === c ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
             >
-              {c === FOCUS_KEY ? <><span className="text-base">🎯</span>Tricks in focus</> : <><CategoryIcon category={c} size={16} />{c}</>}
+              {c === FOCUS_KEY ? <><span className="text-base">🎯</span>In Focus</> : <><CategoryIcon category={c} size={16} />{c}</>}
             </button>
           ))}
         </div>
@@ -2659,7 +2659,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
             </div>
           )}
           <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
-            <div className="font-bold mb-2">Tricks in focus</div>
+            <div className="font-bold mb-2">In Focus</div>
             <div className="text-sm text-slate-400 mb-3">Pick tricks to focus on. They'll show up as suggestions on upcoming sessions.</div>
             <div className="space-y-2 mb-3">
               {weeklyGoals.length === 0 && <div className="text-sm text-slate-500 text-center py-4">No focus tricks yet. Pick some below!</div>}
