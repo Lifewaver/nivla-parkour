@@ -549,6 +549,7 @@ function MainApp({ user }) {
   const [plannedDays, setPlannedDays] = useState([]);
   const [plannedMonths, setPlannedMonths] = useState([]);
   const [plannedWeeks, setPlannedWeeks] = useState([]);
+  const [plannedSessionFocus, setPlannedSessionFocus] = useState({});
   const [globalVideos, setGlobalVideos] = useState({});
   const [communityTricks, setCommunityTricks] = useState([]);
   const [selectedTrick, setSelectedTrick] = useState(null);
@@ -569,7 +570,7 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData] =
+        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
@@ -581,6 +582,7 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'plannedDays'),
             loadUserData(user.uid, 'plannedMonths'),
             loadUserData(user.uid, 'plannedWeeks'),
+            loadUserData(user.uid, 'plannedSessionFocus'),
           ]);
 
         // Load global trick overrides set by admin
@@ -646,6 +648,7 @@ function MainApp({ user }) {
         if (plannedData) setPlannedDays(plannedData);
         if (plannedMonthsData) setPlannedMonths(plannedMonthsData);
         if (plannedWeeksData) setPlannedWeeks(plannedWeeksData);
+        if (plannedFocusData) setPlannedSessionFocus(plannedFocusData);
       } catch (e) {
         console.error('Load error', e);
       }
@@ -664,6 +667,7 @@ function MainApp({ user }) {
   const savePlannedDays = async (d) => { setPlannedDays(d); await saveUserData(user.uid, 'plannedDays', d); };
   const savePlannedMonths = async (m) => { setPlannedMonths(m); await saveUserData(user.uid, 'plannedMonths', m); };
   const savePlannedWeeks = async (w) => { setPlannedWeeks(w); await saveUserData(user.uid, 'plannedWeeks', w); };
+  const savePlannedSessionFocus = async (f) => { setPlannedSessionFocus(f); await saveUserData(user.uid, 'plannedSessionFocus', f); };
 
   const updateTrickStatus = (id, status) => {
     const oldTrick = tricks.find(t => t.id === id);
@@ -849,6 +853,7 @@ function MainApp({ user }) {
             plannedDays={plannedDays} savePlannedDays={savePlannedDays}
             plannedMonths={plannedMonths} savePlannedMonths={savePlannedMonths}
             plannedWeeks={plannedWeeks} savePlannedWeeks={savePlannedWeeks}
+            plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
             streak={streak}
             section={trainingSection} setSection={setTrainingSection} />
         )}
@@ -1511,7 +1516,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, streak = 0, section, setSection }) {
+function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, streak = 0, section, setSection }) {
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const [newJournalEntry, setNewJournalEntry] = useState('');
   const [expandedWeek, setExpandedWeek] = useState(null);
@@ -1682,6 +1687,8 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           savePlannedMonths={savePlannedMonths}
           plannedWeeks={plannedWeeks}
           savePlannedWeeks={savePlannedWeeks}
+          plannedSessionFocus={plannedSessionFocus}
+          savePlannedSessionFocus={savePlannedSessionFocus}
           streak={streak}
           tricks={tricks}
           weeklyGoals={weeklyGoals}
@@ -1753,7 +1760,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   );
 }
 
-function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
+function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
   const FOCUS_TAGS = ['landningar', 'flow', 'vips', 'styrka', 'precision', 'cat-leap', 'wallrun', 'flips', 'vault', 'kong'];
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
@@ -1939,6 +1946,23 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     }
   };
 
+  const focusForDate = (dateStr) => Array.isArray(plannedSessionFocus[dateStr]) ? plannedSessionFocus[dateStr] : [];
+  const setFocusForDate = (dateStr, ids) => {
+    if (!savePlannedSessionFocus) return;
+    const next = { ...plannedSessionFocus };
+    if (ids.length === 0) delete next[dateStr];
+    else next[dateStr] = ids;
+    savePlannedSessionFocus(next);
+  };
+  const lockFocusTrick = (dateStr, trickId) => {
+    const cur = focusForDate(dateStr);
+    if (cur.includes(trickId)) return;
+    setFocusForDate(dateStr, [...cur, trickId]);
+  };
+  const unlockFocusTrick = (dateStr, trickId) => {
+    setFocusForDate(dateStr, focusForDate(dateStr).filter(id => id !== trickId));
+  };
+
   const toggleTag = (tag) => {
     setTags(t => t.includes(tag) ? t.filter(x => x !== tag) : [...t, tag]);
   };
@@ -2085,29 +2109,65 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
           <div className="space-y-3">
             {upcomingSessions.map(us => {
               const logged = us.loggedSession;
+              const lockedIds = focusForDate(us.date);
+              const lockedTricks = lockedIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
+              const remainingSuggestions = sessionSuggestions.filter(s => !lockedIds.includes(s.trick.id));
+              const addable = tricks.filter(t => !lockedIds.includes(t.id) && t.status !== 'yes_i_can')
+                .sort((a, b) => a.name.localeCompare(b.name));
               return (
                 <div key={us.date} className={`bg-slate-900 border rounded-xl p-3 ${logged ? 'border-green-500/40' : 'border-slate-700'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="font-bold text-sm">{formatUpcomingDate(us.date)}</div>
                     {logged && <span className="text-[10px] font-bold bg-green-500/20 text-green-300 border border-green-500/40 px-2 py-0.5 rounded">✓ Logged · RPE {logged.rpe}</span>}
                   </div>
-                  {sessionSuggestions.length > 0 ? (
+
+                  {lockedTricks.length > 0 && (
                     <div className="mb-2">
-                      <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Suggested focus</div>
+                      <div className="text-[10px] font-semibold text-purple-300 uppercase mb-1">🔒 Focus for this session ({lockedTricks.length})</div>
                       <div className="space-y-1">
-                        {sessionSuggestions.slice(0, 5).map(s => (
-                          <button key={s.trick.id} onClick={() => onOpenTrick && onOpenTrick(s.trick)}
-                            className="w-full flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-left text-sm transition">
-                            <CategoryIcon category={s.trick.category} size={14} className="text-slate-400 flex-shrink-0" />
-                            <span className="flex-1 truncate font-medium">{s.trick.name}</span>
-                            <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
-                          </button>
+                        {lockedTricks.map(t => (
+                          <div key={t.id} className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/40 rounded p-2 text-sm">
+                            <CategoryIcon category={t.category} size={14} className="text-slate-300 flex-shrink-0" />
+                            <button onClick={() => onOpenTrick && onOpenTrick(t)} className="flex-1 truncate font-medium text-left hover:text-purple-200">{t.name}</button>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text} flex-shrink-0`}>{t.difficulty}</span>
+                            <button onClick={() => unlockFocusTrick(us.date, t.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove from focus"><X className="w-3.5 h-3.5" /></button>
+                          </div>
                         ))}
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-xs text-slate-500 italic mb-2">No suggestions yet — set focus exercises or mark tricks as Looking into / Training hard.</div>
                   )}
+
+                  {remainingSuggestions.length > 0 && (
+                    <div className="mb-2">
+                      <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Suggested focus</div>
+                      <div className="space-y-1">
+                        {remainingSuggestions.slice(0, 5).map(s => (
+                          <div key={s.trick.id} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-sm transition">
+                            <CategoryIcon category={s.trick.category} size={14} className="text-slate-400 flex-shrink-0" />
+                            <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className="flex-1 truncate font-medium text-left">{s.trick.name}</button>
+                            <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
+                            <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="text-purple-300 hover:text-purple-100 flex-shrink-0 font-bold text-base leading-none" title="Lock in for this session">+</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!logged && addable.length > 0 && (
+                    <div className="mb-2">
+                      <select value=""
+                        onChange={(e) => { if (e.target.value) lockFocusTrick(us.date, parseInt(e.target.value, 10)); }}
+                        className="w-full bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5">
+                        <option value="">+ Add another trick…</option>
+                        {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  {lockedTricks.length === 0 && remainingSuggestions.length === 0 && (
+                    <div className="text-xs text-slate-500 italic mb-2">No suggestions yet — set tricks in focus or mark tricks as Looking into / Training hard.</div>
+                  )}
+
                   <div className="flex gap-1.5">
                     <button onClick={() => setSection && setSection('warmup')} className="flex-1 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 rounded font-bold text-xs transition">🔥 Warm Up</button>
                     <button onClick={() => setSection && setSection('conditioning')} className="flex-1 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded font-bold text-xs transition">💪 Strength</button>
