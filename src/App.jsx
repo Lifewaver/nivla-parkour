@@ -2636,54 +2636,64 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
         </div>
       </div>
 
-      {isFocus && (
-        <>
-          {focusSuggestions.length > 0 && (
-            <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-1"><Zap className="w-5 h-5 text-yellow-400" /><div className="font-bold">Suggested for this week</div></div>
-              <div className="text-sm text-slate-400 mb-3">Smart picks based on your progress</div>
-              <div className="space-y-2">
-                {focusSuggestions.map(s => {
-                  const inGoals = weeklyGoals.some(g => g.trickId === s.trick.id);
-                  return (
-                    <div key={s.trick.id} className="flex items-center gap-2 bg-slate-800/80 rounded-lg p-3">
-                      <button onClick={() => onOpenTrick(s.trick)} className="flex-1 text-left">
-                        <div className="flex items-center gap-2"><span className="text-lg">{s.icon}</span><CategoryIcon category={s.trick.category} size={16} className="text-slate-300 flex-shrink-0" /><span className="font-bold text-sm">{s.trick.name}</span><span className={`text-xs font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[s.trick.difficulty].bg} ${DIFFICULTY_COLORS[s.trick.difficulty].text}`}>{s.trick.difficulty}</span></div>
-                        <div className="text-xs text-yellow-300/90 mt-1 ml-7">{s.reason}</div>
-                      </button>
-                      <button onClick={() => addSuggestion(s.trick.id)} disabled={inGoals} className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition ${inGoals ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500 text-slate-900 hover:bg-yellow-400'}`}>{inGoals ? '✓ Added' : '+ Add'}</button>
-                    </div>
-                  );
-                })}
+      {isFocus && (() => {
+        const remainingSuggestions = focusSuggestions.filter(s => !weeklyGoals.some(g => g.trickId === s.trick.id));
+        const suggestionLimit = Math.max(1, 5 - weeklyGoals.length);
+        const visibleSuggestions = remainingSuggestions.slice(0, suggestionLimit);
+        const addable = tricks.filter(t => t.status !== 'yes_i_can' && !weeklyGoals.some(g => g.trickId === t.id))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        return (
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-3">
+            {weeklyGoals.length > 0 && (
+              <div className="mb-2">
+                <div className="text-[10px] font-semibold text-purple-300 uppercase mb-1">🎯 In Focus ({weeklyGoals.length})</div>
+                <div className="space-y-1">
+                  {weeklyGoals.map(g => {
+                    const t = tricks.find(x => x.id === g.trickId);
+                    if (!t) return null;
+                    return (
+                      <div key={g.trickId} className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/40 rounded p-2 text-sm">
+                        <CategoryIcon category={t.category} size={14} className="text-slate-300 flex-shrink-0" />
+                        <button onClick={() => onOpenTrick(t)} className="flex-1 truncate font-medium text-left hover:text-purple-200">{t.name}</button>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text} flex-shrink-0`}>{t.difficulty}</span>
+                        <button onClick={() => removeGoal(g.trickId)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove from focus"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-          <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
-            <div className="font-bold mb-2">In Focus</div>
-            <div className="text-sm text-slate-400 mb-3">Pick tricks to focus on. They'll show up as suggestions on upcoming sessions.</div>
-            <div className="space-y-2 mb-3">
-              {weeklyGoals.length === 0 && <div className="text-sm text-slate-500 text-center py-4">No focus tricks yet. Pick some below!</div>}
-              {weeklyGoals.map(g => {
-                const t = tricks.find(x => x.id === g.trickId); if (!t) return null;
-                const status = STATUS_LEVELS.find(s => s.id === t.status);
-                return (
-                  <div key={g.trickId} className="flex items-center gap-2 bg-slate-800 rounded-lg p-2">
-                    <button onClick={() => onOpenTrick(t)} className="flex-1 text-left flex items-center gap-2"><CategoryIcon category={t.category} size={18} className="text-slate-300 flex-shrink-0" /><span className="font-semibold text-sm">{t.name}</span><span className="ml-auto text-lg">{status?.emoji}</span></button>
-                    <button onClick={() => removeGoal(g.trickId)} className="text-slate-500 hover:text-red-400"><X className="w-4 h-4" /></button>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex gap-2">
-              <select value={newGoalTrickId} onChange={(e) => setNewGoalTrickId(e.target.value)} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm">
-                <option value="">Select a trick...</option>
-                {tricks.filter(t => t.status !== 'yes_i_can' && !weeklyGoals.some(g => g.trickId === t.id)).map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
+            )}
+
+            {visibleSuggestions.length > 0 && (
+              <div className="mb-2">
+                <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Suggested focus</div>
+                <div className="space-y-1">
+                  {visibleSuggestions.map(s => (
+                    <div key={s.trick.id} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 rounded p-2 text-sm transition">
+                      <CategoryIcon category={s.trick.category} size={14} className="text-slate-400 flex-shrink-0" />
+                      <button onClick={() => onOpenTrick(s.trick)} className="flex-1 truncate font-medium text-left">{s.trick.name}</button>
+                      <span className="text-[10px] text-slate-400 flex-shrink-0">{s.reason}</span>
+                      <button onClick={() => addSuggestion(s.trick.id)} className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition" title="Add to focus">+ Add</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {addable.length > 0 && (
+              <select value="" onChange={(e) => { if (e.target.value) addSuggestion(parseInt(e.target.value, 10)); }}
+                className="w-full bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5">
+                <option value="">+ Add another trick…</option>
+                {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
               </select>
-              <button onClick={addGoal} className="px-4 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold text-sm">Add</button>
-            </div>
+            )}
+
+            {weeklyGoals.length === 0 && visibleSuggestions.length === 0 && addable.length === 0 && (
+              <div className="text-xs text-slate-500 italic">No focus tricks yet. Mark tricks as Looking into / Training hard to get suggestions.</div>
+            )}
           </div>
-        </>
-      )}
+        );
+      })()}
 
       {!isFocus && inCategory.length === 0 ? (
         <div className="text-center py-12 text-slate-400">
