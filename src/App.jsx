@@ -964,7 +964,7 @@ function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [],
       <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-3">
           <Target className="w-5 h-5 text-purple-400" />
-          <h2 className="font-bold text-lg">Övningar i fokus</h2>
+          <h2 className="font-bold text-lg">Tricks in focus</h2>
           {goToGoals && <button onClick={goToGoals} className="ml-auto text-xs text-purple-300 hover:text-purple-200 font-semibold">Manage →</button>}
         </div>
         {weeklyGoals.length === 0 ? (
@@ -1615,7 +1615,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex gap-2 mb-4 overflow-x-auto">
-        {[{id:'goals',label:'Övningar i fokus',icon:'🎯'},{id:'log',label:'Training Log',icon:'📊'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Strength',icon:'💪'}].map(s => (
+        {[{id:'goals',label:'Tricks in focus',icon:'🎯'},{id:'log',label:'Planing and Log',icon:'📊'},{id:'warmup',label:'Warm Up',icon:'🔥'},{id:'conditioning',label:'Strength',icon:'💪'}].map(s => (
           <button key={s.id} onClick={() => setSection(s.id)} className={`flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm transition ${section === s.id ? 'bg-purple-500' : 'bg-slate-800 text-slate-300'}`}>
             <span className="mr-1">{s.icon}</span>{s.label}
           </button>
@@ -1645,7 +1645,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
             </div>
           )}
           <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
-            <div className="font-bold mb-2">Övningar i fokus</div>
+            <div className="font-bold mb-2">Tricks in focus</div>
             <div className="text-sm text-slate-400 mb-3">Pick up to 3-5 tricks to focus on</div>
             <div className="space-y-2 mb-3">
               {weeklyGoals.length === 0 && <div className="text-sm text-slate-500 text-center py-4">No goals yet. Pick some tricks to focus on!</div>}
