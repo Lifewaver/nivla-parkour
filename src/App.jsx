@@ -547,6 +547,8 @@ function MainApp({ user }) {
   const [completedConditioning, setCompletedConditioning] = useState({});
   const [trainingSessions, setTrainingSessions] = useState([]);
   const [plannedDays, setPlannedDays] = useState([]);
+  const [plannedMonths, setPlannedMonths] = useState([]);
+  const [plannedWeeks, setPlannedWeeks] = useState([]);
   const [globalVideos, setGlobalVideos] = useState({});
   const [communityTricks, setCommunityTricks] = useState([]);
   const [selectedTrick, setSelectedTrick] = useState(null);
@@ -567,7 +569,7 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData] =
+        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
@@ -577,6 +579,8 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'completedConditioning'),
             loadUserData(user.uid, 'trainingSessions'),
             loadUserData(user.uid, 'plannedDays'),
+            loadUserData(user.uid, 'plannedMonths'),
+            loadUserData(user.uid, 'plannedWeeks'),
           ]);
 
         // Load global trick overrides set by admin
@@ -640,6 +644,8 @@ function MainApp({ user }) {
         if (conditioningData) setCompletedConditioning(conditioningData);
         if (sessionsData) setTrainingSessions(sessionsData);
         if (plannedData) setPlannedDays(plannedData);
+        if (plannedMonthsData) setPlannedMonths(plannedMonthsData);
+        if (plannedWeeksData) setPlannedWeeks(plannedWeeksData);
       } catch (e) {
         console.error('Load error', e);
       }
@@ -656,6 +662,8 @@ function MainApp({ user }) {
   const saveConditioning = async (c) => { setCompletedConditioning(c); await saveUserData(user.uid, 'completedConditioning', c); };
   const saveTrainingSessions = async (s) => { setTrainingSessions(s); await saveUserData(user.uid, 'trainingSessions', s); };
   const savePlannedDays = async (d) => { setPlannedDays(d); await saveUserData(user.uid, 'plannedDays', d); };
+  const savePlannedMonths = async (m) => { setPlannedMonths(m); await saveUserData(user.uid, 'plannedMonths', m); };
+  const savePlannedWeeks = async (w) => { setPlannedWeeks(w); await saveUserData(user.uid, 'plannedWeeks', w); };
 
   const updateTrickStatus = (id, status) => {
     const oldTrick = tricks.find(t => t.id === id);
@@ -839,6 +847,8 @@ function MainApp({ user }) {
             weeklyFocus={weeklyFocus}
             trainingDays={trainingDays} trainingSessions={trainingSessions} saveTrainingSessions={saveTrainingSessions}
             plannedDays={plannedDays} savePlannedDays={savePlannedDays}
+            plannedMonths={plannedMonths} savePlannedMonths={savePlannedMonths}
+            plannedWeeks={plannedWeeks} savePlannedWeeks={savePlannedWeeks}
             streak={streak}
             section={trainingSection} setSection={setTrainingSection} />
         )}
@@ -1501,7 +1511,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, plannedDays = [], savePlannedDays, streak = 0, section, setSection }) {
+function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, streak = 0, section, setSection }) {
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const [newJournalEntry, setNewJournalEntry] = useState('');
   const [expandedWeek, setExpandedWeek] = useState(null);
@@ -1668,6 +1678,10 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           saveTrainingSessions={saveTrainingSessions}
           plannedDays={plannedDays}
           savePlannedDays={savePlannedDays}
+          plannedMonths={plannedMonths}
+          savePlannedMonths={savePlannedMonths}
+          plannedWeeks={plannedWeeks}
+          savePlannedWeeks={savePlannedWeeks}
           streak={streak}
         />
       )}
@@ -1729,7 +1743,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   );
 }
 
-function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, streak }) {
+function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, streak }) {
   const FOCUS_TAGS = ['landningar', 'flow', 'vips', 'styrka', 'precision', 'cat-leap', 'wallrun', 'flips', 'vault', 'kong'];
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
@@ -1797,10 +1811,14 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     return 'bg-orange-300';
   };
   const todayStr = today;
+  const weekOfMonth = (date) => Math.ceil(date.getDate() / 7);
   const isPlannedDay = (dateStr) => {
-    if (!Array.isArray(plannedDays) || plannedDays.length === 0) return false;
     const d = new Date(dateStr + 'T00:00:00');
-    return plannedDays.includes(d.getDay());
+    if (Array.isArray(plannedDays) && plannedDays.length > 0 && !plannedDays.includes(d.getDay())) return false;
+    if (Array.isArray(plannedMonths) && plannedMonths.length > 0 && !plannedMonths.includes(d.getMonth())) return false;
+    if (Array.isArray(plannedWeeks) && plannedWeeks.length > 0 && !plannedWeeks.includes(weekOfMonth(d))) return false;
+    const anySelected = (plannedDays?.length || 0) + (plannedMonths?.length || 0) + (plannedWeeks?.length || 0);
+    return anySelected > 0;
   };
   const cellClasses = (dateStr) => {
     const planned = isPlannedDay(dateStr);
@@ -1808,11 +1826,14 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     const ring = planned && future ? ' ring-1 ring-purple-400/60' : '';
     return `${cellColor(dateStr)}${ring}`;
   };
-  const togglePlannedDay = (dayNum) => {
-    if (!savePlannedDays) return;
-    const next = plannedDays.includes(dayNum) ? plannedDays.filter(d => d !== dayNum) : [...plannedDays, dayNum].sort();
-    savePlannedDays(next);
+  const toggleInArray = (arr, value, save) => {
+    if (!save) return;
+    const next = arr.includes(value) ? arr.filter(x => x !== value) : [...arr, value].sort((a, b) => a - b);
+    save(next);
   };
+  const togglePlannedDay = (n) => toggleInArray(plannedDays, n, savePlannedDays);
+  const togglePlannedMonth = (n) => toggleInArray(plannedMonths, n, savePlannedMonths);
+  const togglePlannedWeek = (n) => toggleInArray(plannedWeeks, n, savePlannedWeeks);
   const WEEKDAYS = [
     { num: 1, label: 'Mon' },
     { num: 2, label: 'Tue' },
@@ -1822,6 +1843,13 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     { num: 6, label: 'Sat' },
     { num: 0, label: 'Sun' },
   ];
+  const MONTHS = [
+    { num: 0, label: 'Jan' }, { num: 1, label: 'Feb' }, { num: 2, label: 'Mar' },
+    { num: 3, label: 'Apr' }, { num: 4, label: 'May' }, { num: 5, label: 'Jun' },
+    { num: 6, label: 'Jul' }, { num: 7, label: 'Aug' }, { num: 8, label: 'Sep' },
+    { num: 9, label: 'Oct' }, { num: 10, label: 'Nov' }, { num: 11, label: 'Dec' },
+  ];
+  const WEEKS = [1, 2, 3, 4, 5];
   const plannedSessionsThisMonth = (() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -1829,7 +1857,9 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     let count = 0;
     const lastDay = new Date(year, month + 1, 0).getDate();
     for (let d = 1; d <= lastDay; d++) {
-      if (plannedDays.includes(new Date(year, month, d).getDay())) count++;
+      const date = new Date(year, month, d);
+      const dateStr = date.toISOString().split('T')[0];
+      if (isPlannedDay(dateStr)) count++;
     }
     return count;
   })();
@@ -1911,22 +1941,55 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
         </div>
       </div>
 
-      <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
-        <div className="font-bold flex items-center gap-2 mb-1"><Calendar className="w-5 h-5 text-purple-400" /> Which days will you train?</div>
-        <div className="text-xs text-slate-400 mb-3">Pick the weekdays you plan to train. Future planned days get a purple ring on the heatmap.</div>
-        <div className="flex flex-wrap gap-1.5">
-          {WEEKDAYS.map(d => {
-            const on = plannedDays.includes(d.num);
-            return (
-              <button key={d.num} onClick={() => togglePlannedDay(d.num)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                {d.label}
-              </button>
-            );
-          })}
+      <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4 space-y-3">
+        <div>
+          <div className="font-bold flex items-center gap-2 mb-1"><Calendar className="w-5 h-5 text-purple-400" /> Plan your training</div>
+          <div className="text-xs text-slate-400">Pick months, weeks and weekdays you plan to train. Empty = all. Future planned days get a purple ring on the heatmap.</div>
         </div>
-        {plannedDays.length > 0 && (
-          <div className="text-xs text-slate-300 mt-3">
+        <div>
+          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Months</div>
+          <div className="flex flex-wrap gap-1.5">
+            {MONTHS.map(m => {
+              const on = plannedMonths.includes(m.num);
+              return (
+                <button key={m.num} onClick={() => togglePlannedMonth(m.num)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Weeks of the month</div>
+          <div className="flex flex-wrap gap-1.5">
+            {WEEKS.map(w => {
+              const on = plannedWeeks.includes(w);
+              return (
+                <button key={w} onClick={() => togglePlannedWeek(w)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                  Week {w}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Weekdays</div>
+          <div className="flex flex-wrap gap-1.5">
+            {WEEKDAYS.map(d => {
+              const on = plannedDays.includes(d.num);
+              return (
+                <button key={d.num} onClick={() => togglePlannedDay(d.num)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {(plannedDays.length + plannedMonths.length + plannedWeeks.length) > 0 && (
+          <div className="text-xs text-slate-300">
             <span className="text-purple-300 font-bold">{plannedSessionsThisMonth}</span> planned training day{plannedSessionsThisMonth === 1 ? '' : 's'} in {monthName}.
           </div>
         )}
