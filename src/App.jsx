@@ -1200,6 +1200,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   const [newVideoType, setNewVideoType] = useState('reference');
   const [newVideoGlobal, setNewVideoGlobal] = useState(false);
   const [notesInput, setNotesInput] = useState(trick.notes || '');
+  const [landingsCollapsed, setLandingsCollapsed] = useState(false);
   const autoplayRef = React.useRef(null);
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const allVideos = trick.videos || [];
@@ -1326,23 +1327,36 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
                         </button>
                         {isTrainingHard && (trick.status === 'training_hard' || trick.status === 'yes_i_can') && (
                           <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 ml-4">
-                            <div className="text-xs font-semibold text-yellow-300 uppercase mb-2">Progress · landings</div>
-                            <div className="space-y-2">
-                              {landingSteps.map(ls => {
-                                const checked = progressArr.includes(ls.id);
-                                return (
-                                  <button key={ls.id} onClick={() => toggleLanding(ls.id)}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${checked ? `${ls.color} border-white/40` : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
-                                    <span className="text-2xl">{checked ? '☑' : '☐'}</span>
-                                    <span className="text-xl">{ls.emoji}</span>
-                                    <span className={`font-bold ${checked ? 'text-white' : 'text-slate-300'}`}>{ls.label}</span>
-                                    {checked && <Check className="ml-auto w-5 h-5" />}
-                                  </button>
-                                );
-                              })}
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-xs font-semibold text-yellow-300 uppercase">Progress · landings</div>
+                              {trick.status === 'yes_i_can' && (
+                                <button onClick={() => setLandingsCollapsed(c => !c)}
+                                  className="text-yellow-300 hover:text-yellow-200 transition"
+                                  title={landingsCollapsed ? 'Show landings' : 'Hide landings'}>
+                                  <ChevronDown className={`w-4 h-4 transition-transform ${landingsCollapsed ? '' : 'rotate-180'}`} />
+                                </button>
+                              )}
                             </div>
-                            {allLandingsDone && (
-                              <div className="text-xs text-green-300 mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> All landings done — Complete Master unlocked.</div>
+                            {!(trick.status === 'yes_i_can' && landingsCollapsed) && (
+                              <>
+                                <div className="space-y-2">
+                                  {landingSteps.map(ls => {
+                                    const checked = progressArr.includes(ls.id);
+                                    return (
+                                      <button key={ls.id} onClick={() => toggleLanding(ls.id)}
+                                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${checked ? 'bg-green-500 border-white/40' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
+                                        <span className="text-2xl">{checked ? '☑' : '☐'}</span>
+                                        <span className="text-xl">{ls.emoji}</span>
+                                        <span className={`font-bold ${checked ? 'text-white' : 'text-slate-300'}`}>{ls.label}</span>
+                                        {checked && <Check className="ml-auto w-5 h-5" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                {allLandingsDone && (
+                                  <div className="text-xs text-green-300 mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> All landings done — Complete Master unlocked.</div>
+                                )}
+                              </>
                             )}
                           </div>
                         )}
