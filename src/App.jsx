@@ -2647,16 +2647,27 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
             {weeklyGoals.length > 0 && (
               <div className="mb-2">
                 <div className="text-[10px] font-semibold text-purple-300 uppercase mb-1">🎯 In Focus ({weeklyGoals.length})</div>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {weeklyGoals.map(g => {
                     const t = tricks.find(x => x.id === g.trickId);
                     if (!t) return null;
+                    const diff = DIFFICULTY_COLORS[t.difficulty];
+                    const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
                     return (
-                      <div key={g.trickId} className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/40 rounded p-2 text-sm">
-                        <CategoryIcon category={t.category} size={14} className="text-slate-300 flex-shrink-0" />
-                        <button onClick={() => onOpenTrick(t)} className="flex-1 truncate font-medium text-left hover:text-purple-200">{t.name}</button>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text} flex-shrink-0`}>{t.difficulty}</span>
-                        <button onClick={() => removeGoal(g.trickId)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove from focus"><X className="w-3.5 h-3.5" /></button>
+                      <div key={g.trickId} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-purple-500/40 rounded-xl p-3 flex items-center gap-2 transition">
+                        <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                          <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
+                          <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold truncate">{t.name}</div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
+                              {t.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {t.videos.length}</span>}
+                            </div>
+                          </div>
+                        </button>
+                        <button onClick={() => onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
+                        <button onClick={() => removeGoal(g.trickId)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove from focus"><X className="w-4 h-4" /></button>
                       </div>
                     );
                   })}
