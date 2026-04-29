@@ -546,6 +546,7 @@ function MainApp({ user }) {
   const [completedWarmups, setCompletedWarmups] = useState({});
   const [completedConditioning, setCompletedConditioning] = useState({});
   const [trainingSessions, setTrainingSessions] = useState([]);
+  const [plannedDays, setPlannedDays] = useState([]);
   const [globalVideos, setGlobalVideos] = useState({});
   const [communityTricks, setCommunityTricks] = useState([]);
   const [selectedTrick, setSelectedTrick] = useState(null);
@@ -566,7 +567,7 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData] =
+        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
@@ -575,6 +576,7 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'completedWarmups'),
             loadUserData(user.uid, 'completedConditioning'),
             loadUserData(user.uid, 'trainingSessions'),
+            loadUserData(user.uid, 'plannedDays'),
           ]);
 
         // Load global trick overrides set by admin
@@ -637,6 +639,7 @@ function MainApp({ user }) {
         if (warmupsData) setCompletedWarmups(warmupsData);
         if (conditioningData) setCompletedConditioning(conditioningData);
         if (sessionsData) setTrainingSessions(sessionsData);
+        if (plannedData) setPlannedDays(plannedData);
       } catch (e) {
         console.error('Load error', e);
       }
@@ -652,6 +655,7 @@ function MainApp({ user }) {
   const saveWarmups = async (w) => { setCompletedWarmups(w); await saveUserData(user.uid, 'completedWarmups', w); };
   const saveConditioning = async (c) => { setCompletedConditioning(c); await saveUserData(user.uid, 'completedConditioning', c); };
   const saveTrainingSessions = async (s) => { setTrainingSessions(s); await saveUserData(user.uid, 'trainingSessions', s); };
+  const savePlannedDays = async (d) => { setPlannedDays(d); await saveUserData(user.uid, 'plannedDays', d); };
 
   const updateTrickStatus = (id, status) => {
     const oldTrick = tricks.find(t => t.id === id);
@@ -834,6 +838,7 @@ function MainApp({ user }) {
             journal={journal} saveJournal={saveJournal} onOpenTrick={openTrick}
             weeklyFocus={weeklyFocus}
             trainingDays={trainingDays} trainingSessions={trainingSessions} saveTrainingSessions={saveTrainingSessions}
+            plannedDays={plannedDays} savePlannedDays={savePlannedDays}
             streak={streak}
             section={trainingSection} setSection={setTrainingSection} />
         )}
@@ -1496,7 +1501,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, streak = 0, section, setSection }) {
+function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, plannedDays = [], savePlannedDays, streak = 0, section, setSection }) {
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const [newJournalEntry, setNewJournalEntry] = useState('');
   const [expandedWeek, setExpandedWeek] = useState(null);
@@ -1661,6 +1666,8 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           trainingDays={trainingDays}
           trainingSessions={trainingSessions}
           saveTrainingSessions={saveTrainingSessions}
+          plannedDays={plannedDays}
+          savePlannedDays={savePlannedDays}
           streak={streak}
         />
       )}
@@ -1722,7 +1729,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   );
 }
 
-function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, streak }) {
+function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, streak }) {
   const FOCUS_TAGS = ['landningar', 'flow', 'vips', 'styrka', 'precision', 'cat-leap', 'wallrun', 'flips', 'vault', 'kong'];
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
@@ -1789,6 +1796,44 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     if (avg >= 4) return 'bg-orange-400';
     return 'bg-orange-300';
   };
+  const todayStr = today;
+  const isPlannedDay = (dateStr) => {
+    if (!Array.isArray(plannedDays) || plannedDays.length === 0) return false;
+    const d = new Date(dateStr + 'T00:00:00');
+    return plannedDays.includes(d.getDay());
+  };
+  const cellClasses = (dateStr) => {
+    const planned = isPlannedDay(dateStr);
+    const future = dateStr > todayStr;
+    const ring = planned && future ? ' ring-1 ring-purple-400/60' : '';
+    return `${cellColor(dateStr)}${ring}`;
+  };
+  const togglePlannedDay = (dayNum) => {
+    if (!savePlannedDays) return;
+    const next = plannedDays.includes(dayNum) ? plannedDays.filter(d => d !== dayNum) : [...plannedDays, dayNum].sort();
+    savePlannedDays(next);
+  };
+  const WEEKDAYS = [
+    { num: 1, label: 'Mon' },
+    { num: 2, label: 'Tue' },
+    { num: 3, label: 'Wed' },
+    { num: 4, label: 'Thu' },
+    { num: 5, label: 'Fri' },
+    { num: 6, label: 'Sat' },
+    { num: 0, label: 'Sun' },
+  ];
+  const plannedSessionsThisMonth = (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    let count = 0;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    for (let d = 1; d <= lastDay; d++) {
+      if (plannedDays.includes(new Date(year, month, d).getDay())) count++;
+    }
+    return count;
+  })();
+  const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
 
   const toggleTag = (tag) => {
     setTags(t => t.includes(tag) ? t.filter(x => x !== tag) : [...t, tag]);
@@ -1847,8 +1892,8 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
             {weeks.map((week, wi) => (
               <div key={wi} className="flex flex-col gap-1">
                 {week.map(d => (
-                  <div key={d} title={`${d}${dayActivity[d] ? ` · ${dayActivity[d].sessions} session${dayActivity[d].sessions === 1 ? '' : 's'}` : ''}`}
-                    className={`w-3 h-3 rounded-sm ${cellColor(d)}`} />
+                  <div key={d} title={`${d}${dayActivity[d] ? ` · ${dayActivity[d].sessions} session${dayActivity[d].sessions === 1 ? '' : 's'}` : ''}${isPlannedDay(d) ? ' · planned' : ''}`}
+                    className={`w-3 h-3 rounded-sm ${cellClasses(d)}`} />
                 ))}
               </div>
             ))}
@@ -1864,6 +1909,27 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
             <span>More</span>
           </div>
         </div>
+      </div>
+
+      <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
+        <div className="font-bold flex items-center gap-2 mb-1"><Calendar className="w-5 h-5 text-purple-400" /> Which days will you train?</div>
+        <div className="text-xs text-slate-400 mb-3">Pick the weekdays you plan to train. Future planned days get a purple ring on the heatmap.</div>
+        <div className="flex flex-wrap gap-1.5">
+          {WEEKDAYS.map(d => {
+            const on = plannedDays.includes(d.num);
+            return (
+              <button key={d.num} onClick={() => togglePlannedDay(d.num)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                {d.label}
+              </button>
+            );
+          })}
+        </div>
+        {plannedDays.length > 0 && (
+          <div className="text-xs text-slate-300 mt-3">
+            <span className="text-purple-300 font-bold">{plannedSessionsThisMonth}</span> planned training day{plannedSessionsThisMonth === 1 ? '' : 's'} in {monthName}.
+          </div>
+        )}
       </div>
 
       <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4 space-y-3">
