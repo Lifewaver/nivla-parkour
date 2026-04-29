@@ -436,7 +436,6 @@ export default function ParkourApp() {
               displayName: firebaseUser.displayName || '',
               photoURL: firebaseUser.photoURL || '',
               lastSignIn: Date.now(),
-              isAdmin: ADMIN_EMAILS.includes(firebaseUser.email),
             }, { merge: true });
           } catch (e) {
             console.error('Profile save error', e);
@@ -460,7 +459,6 @@ export default function ParkourApp() {
                 displayName: firebaseUser.displayName || '',
                 photoURL: firebaseUser.photoURL || '',
                 lastSignIn: Date.now(),
-                isAdmin: false,
               }, { merge: true });
             } catch (e) {}
             setAuthChecking(false);
@@ -537,7 +535,8 @@ export default function ParkourApp() {
 function MainApp({ user }) {
   const [activeTab, setActiveTab] = useState('home');
   const [trainingSection, setTrainingSection] = useState('goals');
-  const userIsAdmin = isAdmin(user.email);
+  const [profileIsAdmin, setProfileIsAdmin] = useState(false);
+  const userIsAdmin = isAdmin(user.email) || profileIsAdmin;
   const [tricks, setTricks] = useState([]);
   const [trainingDays, setTrainingDays] = useState([]);
   const [journal, setJournal] = useState([]);
@@ -572,6 +571,12 @@ function MainApp({ user }) {
           const overridesSnap = await getDoc(doc(db, 'globalConfig', 'tricks'));
           if (overridesSnap.exists()) globalOverrides = overridesSnap.data().overrides || {};
         } catch (e) { console.error('Global overrides load error', e); }
+
+        // Load own profile to pick up any dynamic admin grant
+        try {
+          const profileSnap = await getDoc(doc(db, 'userProfiles', user.uid));
+          if (profileSnap.exists() && profileSnap.data().isAdmin === true) setProfileIsAdmin(true);
+        } catch (e) { console.error('Profile load error', e); }
 
         const applyOverrides = (t) => {
           const OLD_GYM = ['Trampoline', 'Tumbling', 'Floor'];
@@ -1596,6 +1601,21 @@ function AdminTab({ currentUserUid }) {
     }
   };
 
+  const toggleAdmin = async (profile) => {
+    const next = !profile.isAdmin;
+    if (!window.confirm(next
+      ? `Grant admin rights to ${profile.displayName || profile.email}?`
+      : `Remove admin rights from ${profile.displayName || profile.email}?`)) return;
+    setRequestError(null);
+    try {
+      await setDoc(doc(db, 'userProfiles', profile.uid), { isAdmin: next }, { merge: true });
+      setProfiles(p => p.map(x => x.uid === profile.uid ? { ...x, isAdmin: next } : x));
+    } catch (e) {
+      console.error('Toggle admin error', e);
+      setRequestError(`Admin toggle failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
+    }
+  };
+
   const viewUser = async (profile) => {
     setSelectedUser(profile);
     setLoadingUser(true);
@@ -1891,13 +1911,13 @@ service cloud.firestore {
             </div>
           </div>
         )}
-        {requests.length === 0 ? (
+        {requests.filter(r => r.status !== 'approved').length === 0 ? (
           <div className="text-sm text-slate-500 text-center py-3">No access requests yet.</div>
         ) : (
           <div className="space-y-3">
-            {requests.map(req => {
+            {requests.filter(r => r.status !== 'approved').map(req => {
               const isPending = req.status === 'pending';
-              const statusLabel = { pending: '⏳ Pending', approved: '✅ Approved', rejected: '🚫 Denied' }[req.status] || req.status;
+              const statusLabel = { pending: '⏳ Pending', rejected: '🚫 Denied' }[req.status] || req.status;
               return (
                 <div key={req.uid} className={`bg-slate-900 rounded-xl p-3 flex items-center gap-3 ${!isPending ? 'opacity-60' : ''}`}>
                   {req.photoURL ? (
@@ -1922,7 +1942,7 @@ service cloud.firestore {
                       </button>
                     </div>
                   )}
-                  {(req.status === 'approved' || req.status === 'rejected') && (
+                  {req.status === 'rejected' && (
                     <button onClick={() => removeUser(req)} className="px-3 py-1.5 bg-slate-700 hover:bg-red-600 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition flex-shrink-0">
                       🗑️ Remove
                     </button>
@@ -1942,37 +1962,64 @@ service cloud.firestore {
             </div>
           ) : (
             <div className="space-y-2">
-              {profiles.map(p => (
-                <button
-                  key={p.uid}
-                  onClick={() => viewUser(p)}
-                  className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left transition"
-                >
-                  {p.photoURL ? (
-                    <img src={p.photoURL} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center font-black flex-shrink-0">
-                      {p.displayName?.[0] || '?'}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold truncate">{p.displayName || 'Unknown'}</span>
-                      {p.uid === currentUserUid && (
-                        <span className="text-xs font-bold bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded">You</span>
+              {profiles.map(p => {
+                const isSelf = p.uid === currentUserUid;
+                const isHardcodedAdmin = ADMIN_EMAILS.includes(p.email);
+                const isHardcodedUser = ALLOWED_EMAILS.includes(p.email);
+                const showsAsAdmin = p.isAdmin || isHardcodedAdmin;
+                return (
+                  <div key={p.uid} className="bg-slate-800 rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => viewUser(p)}
+                      className="w-full flex items-center gap-3 hover:bg-slate-700 p-3 text-left transition"
+                    >
+                      {p.photoURL ? (
+                        <img src={p.photoURL} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center font-black flex-shrink-0">
+                          {p.displayName?.[0] || '?'}
+                        </div>
                       )}
-                      {p.isAdmin && (
-                        <span className="text-xs">🛡️</span>
-                      )}
-                    </div>
-                    <div className="text-xs text-slate-400 truncate">{p.email}</div>
-                    <div className="text-xs text-slate-500">
-                      Last seen: {formatDate(p.lastSignIn)}
-                    </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold truncate">{p.displayName || 'Unknown'}</span>
+                          {isSelf && (
+                            <span className="text-xs font-bold bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded">You</span>
+                          )}
+                          {showsAsAdmin && (
+                            <span className="text-xs">🛡️</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-400 truncate">{p.email}</div>
+                        <div className="text-xs text-slate-500">
+                          Last seen: {formatDate(p.lastSignIn)}
+                        </div>
+                      </div>
+                      <Eye className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                    </button>
+                    {!isSelf && (
+                      <div className="flex gap-2 px-3 pb-3 pt-1">
+                        {!isHardcodedAdmin && (
+                          <button
+                            onClick={() => toggleAdmin(p)}
+                            className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${p.isAdmin ? 'bg-yellow-600/30 text-yellow-200 hover:bg-yellow-600/50' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                          >
+                            {p.isAdmin ? '🛡️ Remove admin' : '🛡️ Make admin'}
+                          </button>
+                        )}
+                        {!isHardcodedUser && (
+                          <button
+                            onClick={() => removeUser(p)}
+                            className="flex-1 px-3 py-1.5 bg-slate-700 hover:bg-red-600 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition"
+                          >
+                            🗑️ Remove access
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <Eye className="w-5 h-5 text-slate-500 flex-shrink-0" />
-                </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
