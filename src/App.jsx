@@ -578,6 +578,7 @@ function MainApp({ user }) {
         // Load global trick overrides set by admin
         let globalOverrides = {};
         let loadedCommunity = [];
+        let deletedSet = new Set();
         try {
           const overridesSnap = await getDoc(doc(db, 'globalConfig', 'tricks'));
           if (overridesSnap.exists()) {
@@ -586,6 +587,7 @@ function MainApp({ user }) {
             setGlobalVideos(data.globalVideos || {});
             loadedCommunity = Array.isArray(data.communityTricks) ? data.communityTricks : [];
             setCommunityTricks(loadedCommunity);
+            deletedSet = new Set(Array.isArray(data.deletedTricks) ? data.deletedTricks : []);
           }
         } catch (e) { console.error('Global overrides load error', e); }
 
@@ -606,19 +608,23 @@ function MainApp({ user }) {
         const mergeCommunity = (existing) => {
           const existingIds = new Set(existing.map(t => t.id));
           const additions = loadedCommunity
-            .filter(ct => ct && ct.id != null && !existingIds.has(ct.id))
+            .filter(ct => ct && ct.id != null && !existingIds.has(ct.id) && !deletedSet.has(ct.id))
             .map(ct => applyOverrides({ ...ct, status: 'not_started', videos: [], notes: '', progress: [], coolness: 0 }));
           return additions.length > 0 ? [...existing, ...additions] : existing;
         };
 
         if (tricksData) {
-          const migrated = tricksData.map(applyOverrides);
+          const filtered = tricksData.filter(t => !deletedSet.has(t.id));
+          const migrated = filtered.map(applyOverrides);
           const merged = mergeCommunity(migrated);
-          const changed = merged.length !== tricksData.length || merged.some((t, i) => i < tricksData.length && t.category !== tricksData[i].category);
+          const changed = merged.length !== tricksData.length
+            || merged.some((t, i) => i < tricksData.length && t.category !== tricksData[i].category);
           setTricks(merged);
           if (changed) await saveUserData(user.uid, 'tricks', merged);
         } else {
-          const seed = INITIAL_TRICKS.map(t => applyOverrides({ ...t, status: 'not_started', videos: [], notes: '' }));
+          const seed = INITIAL_TRICKS
+            .filter(t => !deletedSet.has(t.id))
+            .map(t => applyOverrides({ ...t, status: 'not_started', videos: [], notes: '' }));
           const initial = mergeCommunity(seed);
           setTricks(initial);
           await saveUserData(user.uid, 'tricks', initial);
@@ -2162,6 +2168,8 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
   const [usersExpanded, setUsersExpanded] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [communityTricks, setCommunityTricks] = useState([]);
+  const [deletedTricks, setDeletedTricks] = useState([]);
+  const [deletingTrickId, setDeletingTrickId] = useState(null);
   const [suggestionError, setSuggestionError] = useState(null);
   const [processingSuggestion, setProcessingSuggestion] = useState(null);
   const [syncing, setSyncing] = useState(false);
@@ -2200,6 +2208,7 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
           const data = snap.data();
           setOverrides(data.overrides || {});
           setCommunityTricks(Array.isArray(data.communityTricks) ? data.communityTricks : []);
+          setDeletedTricks(Array.isArray(data.deletedTricks) ? data.deletedTricks : []);
         }
       } catch (e) { console.error('Global overrides load error', e); }
 
@@ -2366,6 +2375,36 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
       setSyncError(`Sync failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
     }
     setSyncing(false);
+  };
+
+  const removeTrickFromGlobal = async (trickId, trickName) => {
+    if (!window.confirm(`Remove "${trickName}" from the global trick list?\n\nThis will hide it for all users on next load. Their personal videos and progress for this trick will be discarded when their app re-syncs.`)) return;
+    setDeletingTrickId(trickId);
+    setSaveError(null);
+    try {
+      const snap = await getDoc(doc(db, 'globalConfig', 'tricks'));
+      const data = snap.exists() ? snap.data() : {};
+      const existingDeleted = Array.isArray(data.deletedTricks) ? data.deletedTricks : [];
+      const existingCommunity = Array.isArray(data.communityTricks) ? data.communityTricks : [];
+      const existingGV = data.globalVideos || {};
+      const newGV = { ...existingGV };
+      delete newGV[String(trickId)];
+      const next = {
+        deletedTricks: Array.from(new Set([...existingDeleted, trickId])),
+        communityTricks: existingCommunity.filter(t => t.id !== trickId),
+        globalVideos: newGV,
+        updatedAt: Date.now(),
+      };
+      await setDoc(doc(db, 'globalConfig', 'tricks'), next, { merge: true });
+      setDeletedTricks(next.deletedTricks);
+      setCommunityTricks(next.communityTricks);
+      setSaveOk(true);
+      setTimeout(() => setSaveOk(false), 1500);
+    } catch (e) {
+      console.error('Remove trick error', e);
+      setSaveError(`Remove failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
+    }
+    setDeletingTrickId(null);
   };
 
   const deleteSuggestion = async (s) => {
@@ -3016,8 +3055,14 @@ service cloud.firestore {
           <div className="space-y-1 max-h-64 overflow-y-auto">
             {(() => {
               const DIFF_ORDER = { Easy: 0, Medium: 1, Hard: 2, Super: 3 };
-              const withEffective = INITIAL_TRICKS
-                .map(t => ({ trick: t, effective: overrides[String(t.id)] ? { ...t, ...overrides[String(t.id)] } : t }))
+              const deletedSet = new Set(deletedTricks);
+              const seedRows = INITIAL_TRICKS
+                .filter(t => !deletedSet.has(t.id))
+                .map(t => ({ trick: t, effective: overrides[String(t.id)] ? { ...t, ...overrides[String(t.id)] } : t, source: 'seed' }));
+              const communityRows = communityTricks
+                .filter(t => !deletedSet.has(t.id))
+                .map(t => ({ trick: t, effective: overrides[String(t.id)] ? { ...t, ...overrides[String(t.id)] } : t, source: 'community' }));
+              const withEffective = [...seedRows, ...communityRows]
                 .filter(({ effective }) => {
                   if (trickSearch && !effective.name.toLowerCase().includes(trickSearch.toLowerCase())) return false;
                   if (trickFilterCategory !== 'all' && effective.category !== trickFilterCategory) return false;
@@ -3034,18 +3079,26 @@ service cloud.firestore {
                   || a.effective.name.localeCompare(b.effective.name));
               }
               return withEffective;
-            })().map(({ trick: t, effective }) => {
+            })().map(({ trick: t, effective, source }) => {
               const ov = overrides[String(t.id)];
               const col = DIFFICULTY_COLORS[effective.difficulty];
+              const isDeleting = deletingTrickId === t.id;
               return (
-                <button key={t.id} onClick={() => startEdit(t)}
-                  className="w-full flex items-center gap-2 bg-slate-900 hover:bg-slate-800 rounded-lg px-3 py-2 text-left transition text-sm">
-                  <div className={`w-1.5 h-6 rounded-full ${col.strip} flex-shrink-0`} />
-                  <CategoryIcon category={effective.category} size={15} className="flex-shrink-0 text-slate-400" />
-                  <span className="flex-1 truncate font-medium">{effective.name}</span>
-                  {ov && <span className="text-xs text-blue-400 flex-shrink-0">✏️</span>}
-                  <span className={`text-xs font-semibold flex-shrink-0 ${col.text}`}>{effective.difficulty}</span>
-                </button>
+                <div key={t.id} className="w-full flex items-center gap-2 bg-slate-900 hover:bg-slate-800 rounded-lg px-3 py-2 text-left transition text-sm">
+                  <button onClick={() => startEdit(t)} className="flex-1 flex items-center gap-2 min-w-0">
+                    <div className={`w-1.5 h-6 rounded-full ${col.strip} flex-shrink-0`} />
+                    <CategoryIcon category={effective.category} size={15} className="flex-shrink-0 text-slate-400" />
+                    <span className="flex-1 truncate font-medium">{effective.name}</span>
+                    {source === 'community' && <span className="text-[10px] font-bold text-cyan-300 bg-cyan-500/20 border border-cyan-500/40 px-1.5 py-0.5 rounded flex-shrink-0">🌐</span>}
+                    {ov && <span className="text-xs text-blue-400 flex-shrink-0">✏️</span>}
+                    <span className={`text-xs font-semibold flex-shrink-0 ${col.text}`}>{effective.difficulty}</span>
+                  </button>
+                  <button onClick={() => removeTrickFromGlobal(t.id, effective.name)} disabled={isDeleting}
+                    title="Remove from global trick list"
+                    className="flex-shrink-0 p-1 text-slate-500 hover:text-red-400 disabled:opacity-30 transition">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               );
             })}
           </div>
