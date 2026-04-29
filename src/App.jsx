@@ -1295,8 +1295,15 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
                     const isTrainingHard = s.id === 'training_hard';
                     return (
                       <React.Fragment key={s.id}>
-                        <button onClick={() => { if (!locked) onUpdateStatus(trick.id, s.id); }} disabled={locked}
-                          title={locked ? 'Complete all landings first' : undefined}
+                        <button onClick={() => {
+                            if (locked) return;
+                            if (s.id === 'yes_i_can' && trick.status === 'yes_i_can') {
+                              onUpdateStatus(trick.id, 'training_hard');
+                            } else {
+                              onUpdateStatus(trick.id, s.id);
+                            }
+                          }} disabled={locked}
+                          title={locked ? 'Complete all landings first' : (s.id === 'yes_i_can' && trick.status === 'yes_i_can' ? 'Click to revert to Training hard' : undefined)}
                           className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${trick.status === s.id ? `${s.color} border-white/40` : locked ? 'bg-slate-900/40 border-slate-800 cursor-not-allowed opacity-60' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
                           <span className="text-2xl">{locked ? '🔒' : s.emoji}</span>
                           <span className={`font-bold ${trick.status === s.id ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
