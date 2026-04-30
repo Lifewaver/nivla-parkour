@@ -541,7 +541,7 @@ function LoginScreen({ error, requestStatus }) {
       <div className="max-w-sm w-full text-center">
         <div className="text-7xl mb-6">🤸</div>
         <h1 className="text-4xl font-black bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500 bg-clip-text text-transparent mb-2">
-          NIVLA PARKOUR (Alfa Test)
+          NIVLA PARKOUR
         </h1>
         <p className="text-slate-400 mb-8">Your personal training journal</p>
         {error && (
@@ -1268,7 +1268,7 @@ function MainApp({ user }) {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500 bg-clip-text text-transparent">
-              NIVLA PARKOUR (Alfa Test)
+              NIVLA PARKOUR
             </h1>
             <div className="text-xs text-slate-400">Hi {user.displayName?.split(' ')[0] || 'there'}!</div>
           </div>
