@@ -17,6 +17,16 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.16',
+    date: '2026-04-30',
+    title: 'Add-a-video: collapsed and multi-tag',
+    notes: [
+      'The Add a video box in the trick modal is collapsed by default — tap to expand.',
+      'Reference and Tutorial are now multi-select tags: a single video can be tagged as either or both.',
+      'Existing videos keep working unchanged; new "both"-tagged videos appear in both the Reference and Tutorial sections.',
+    ],
+  },
+  {
     version: '1.15',
     date: '2026-04-30',
     title: 'Simpler status: just three',
@@ -169,6 +179,14 @@ const LANDING_LEVELS = [
 ];
 
 const LANDING_IDS = LANDING_LEVELS.map(l => l.id);
+
+const isTutorialVideo = (v) => v?.type === 'tutorial' || v?.type === 'both';
+const isReferenceVideo = (v) => v?.type !== 'tutorial';
+const computeVideoType = (isReference, isTutorial) => {
+  if (isReference && isTutorial) return 'both';
+  if (isTutorial) return 'tutorial';
+  return 'reference';
+};
 
 const migrateStatus = (s) => {
   if (s === 'got_it' || s === 'training' || s === 'want_to_learn') return s;
@@ -1248,7 +1266,7 @@ function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [],
               const trick = tricks.find(t => t.id === g.trickId); if (!trick) return null;
               const diff = DIFFICULTY_COLORS[trick.difficulty];
               const status = STATUS_LEVELS.find(s => s.id === trick.status) || STATUS_LEVELS[0];
-              const tutorialVideo = trick.videos?.find(v => v.type === 'tutorial' && v.primary) || trick.videos?.find(v => v.type === 'tutorial');
+              const tutorialVideo = trick.videos?.find(v => isTutorialVideo(v) && v.primary) || trick.videos?.find(v => isTutorialVideo(v));
               const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary) || trick.videos?.find(v => v.type !== 'tutorial');
               const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(trick, normalizeUrl(video.url)); };
               return (
@@ -1308,7 +1326,7 @@ function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [],
             {communityTricks.slice(-5).reverse().map(ct => {
               const trick = tricks.find(t => t.id === ct.id) || ct;
               const diff = DIFFICULTY_COLORS[trick.difficulty] || DIFFICULTY_COLORS.Medium;
-              const tutorialVideo = trick.videos?.find(v => v.type === 'tutorial' && v.primary) || trick.videos?.find(v => v.type === 'tutorial');
+              const tutorialVideo = trick.videos?.find(v => isTutorialVideo(v) && v.primary) || trick.videos?.find(v => isTutorialVideo(v));
               const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary) || trick.videos?.find(v => v.type !== 'tutorial');
               const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(trick, normalizeUrl(video.url)); };
               return (
@@ -1387,8 +1405,8 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
     if (filterVideo !== 'all') {
       const vids = Array.isArray(t.videos) ? t.videos : [];
       if (filterVideo === 'none' && vids.length > 0) return false;
-      if (filterVideo === 'reference' && !vids.some(v => v.type !== 'tutorial')) return false;
-      if (filterVideo === 'tutorial' && !vids.some(v => v.type === 'tutorial')) return false;
+      if (filterVideo === 'reference' && !vids.some(isReferenceVideo)) return false;
+      if (filterVideo === 'tutorial' && !vids.some(isTutorialVideo)) return false;
     }
     if (filterStars !== 'all') {
       const stars = t.coolness || 0;
@@ -1507,8 +1525,8 @@ function TrickCard({ trick, onOpen, isGymnastics }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const status = STATUS_LEVELS.find(s => s.id === trick.status);
   const unread = !!trick._unread;
-  const tutorialVideo = trick.videos?.find(v => v.type === 'tutorial' && v.primary)
-    || trick.videos?.find(v => v.type === 'tutorial');
+  const tutorialVideo = trick.videos?.find(v => isTutorialVideo(v) && v.primary)
+    || trick.videos?.find(v => isTutorialVideo(v));
   const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary)
     || trick.videos?.find(v => v.type !== 'tutorial');
   const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpen(normalizeUrl(video.url)); };
@@ -1605,8 +1623,10 @@ function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef, isGl
 function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus, onUpdateProgress, onUpdateStatusAndProgress, onUpdateCoolness, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
-  const [newVideoType, setNewVideoType] = useState('reference');
+  const [newVideoIsReference, setNewVideoIsReference] = useState(true);
+  const [newVideoIsTutorial, setNewVideoIsTutorial] = useState(false);
   const [newVideoGlobal, setNewVideoGlobal] = useState(false);
+  const [addVideoOpen, setAddVideoOpen] = useState(false);
   const [notesInput, setNotesInput] = useState(trick.notes || '');
   const autoplayRef = React.useRef(null);
   const diff = DIFFICULTY_COLORS[trick.difficulty];
@@ -1614,8 +1634,8 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   const personalVideos = allVideos.filter(v => !v._global);
   const globalList = allVideos.filter(v => v._global).map(({ _global, ...rest }) => rest);
   const stripFlag = ({ _global, ...rest }) => rest;
-  const tutorialVideos = allVideos.filter(v => v.type === 'tutorial');
-  const referenceVideos = allVideos.filter(v => v.type !== 'tutorial');
+  const tutorialVideos = allVideos.filter(isTutorialVideo);
+  const referenceVideos = allVideos.filter(isReferenceVideo);
   const isAutoplayVideo = (v) => autoplayUrl && normalizeUrl(v.url) === autoplayUrl;
   useEffect(() => {
     if (autoplayUrl && autoplayRef.current) {
@@ -1625,7 +1645,11 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
     const url = normalizeUrl(newVideoUrl.trim());
-    const newEntry = { url, label: newVideoLabel.trim() || (newVideoType === 'tutorial' ? 'Tutorial' : 'Video'), type: newVideoType };
+    const isRef = newVideoIsReference || (!newVideoIsReference && !newVideoIsTutorial);
+    const isTut = newVideoIsTutorial;
+    const type = computeVideoType(isRef, isTut);
+    const defaultLabel = type === 'tutorial' ? 'Tutorial' : 'Video';
+    const newEntry = { url, label: newVideoLabel.trim() || defaultLabel, type };
     if (isAdmin && newVideoGlobal) {
       onUpdateGlobalVideos(trick.id, [...globalList, newEntry]);
     } else {
@@ -1805,22 +1829,45 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
               ))}
             </div>
           </div>
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-3">
-            <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Add a video</div>
-            <div className="flex gap-2 mb-2">
-              <button onClick={() => setNewVideoType('tutorial')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${newVideoType === 'tutorial' ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400'}`}>🎓 Tutorial</button>
-              <button onClick={() => setNewVideoType('reference')} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${newVideoType === 'reference' ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400'}`}>📹 Reference</button>
-            </div>
-            <input type="text" value={newVideoLabel} onChange={(e) => setNewVideoLabel(e.target.value)} placeholder={newVideoType === 'tutorial' ? 'Label (e.g. How to Backflip by Storror)' : 'Label (e.g. Sick line by Jason Paul)'} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2" />
-            <div className="flex gap-2">
-              <input type="url" value={newVideoUrl} onChange={(e) => setNewVideoUrl(e.target.value)} placeholder="YouTube or Instagram URL" className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
-              <button onClick={addVideo} className="px-4 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold text-sm">Add</button>
-            </div>
-            {isAdmin && (
-              <label className="flex items-center gap-2 mt-2 text-xs text-slate-300 cursor-pointer">
-                <input type="checkbox" checked={newVideoGlobal} onChange={(e) => setNewVideoGlobal(e.target.checked)} className="accent-purple-500" />
-                <span>🌐 Share with everyone (global)</span>
-              </label>
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl">
+            <button onClick={() => setAddVideoOpen(o => !o)}
+              className="w-full flex items-center justify-between p-3 hover:bg-slate-800 transition rounded-xl">
+              <span className="text-xs font-semibold text-slate-400 uppercase flex items-center gap-2">
+                <Plus className="w-4 h-4" /> Add a video
+              </span>
+              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${addVideoOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {addVideoOpen && (
+              <div className="px-3 pb-3 space-y-2">
+                <div>
+                  <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Tag as</div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setNewVideoIsReference(v => !v)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-bold transition border ${newVideoIsReference ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                      📹 Reference
+                    </button>
+                    <button onClick={() => setNewVideoIsTutorial(v => !v)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-bold transition border ${newVideoIsTutorial ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                      🎓 Tutorial
+                    </button>
+                  </div>
+                </div>
+                <input type="text" value={newVideoLabel} onChange={(e) => setNewVideoLabel(e.target.value)}
+                  placeholder="Label (e.g. Sick line by Jason Paul)"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+                <div className="flex gap-2">
+                  <input type="url" value={newVideoUrl} onChange={(e) => setNewVideoUrl(e.target.value)}
+                    placeholder="YouTube or Instagram URL"
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
+                  <button onClick={addVideo} className="px-4 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold text-sm">Add</button>
+                </div>
+                {isAdmin && (
+                  <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input type="checkbox" checked={newVideoGlobal} onChange={(e) => setNewVideoGlobal(e.target.checked)} className="accent-purple-500" />
+                    <span>🌐 Share with everyone (global)</span>
+                  </label>
+                )}
+              </div>
             )}
           </div>
           <div>
@@ -2438,7 +2485,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                         {lockedTricks.map(t => {
                           const diff = DIFFICULTY_COLORS[t.difficulty];
                           const tStatus = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-                          const tutorialVideo = t.videos?.find(v => v.type === 'tutorial' && v.primary) || t.videos?.find(v => v.type === 'tutorial');
+                          const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
                           const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
                           const playVideo = (e, video) => { e.stopPropagation(); if (video?.url && onOpenTrick) onOpenTrick(t, normalizeUrl(video.url)); };
                           return (
@@ -2484,7 +2531,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                             const canDismiss = remainingSuggestions.length > 1;
                             const diff = DIFFICULTY_COLORS[s.trick.difficulty];
                             const tStatus = STATUS_LEVELS.find(st => st.id === s.trick.status) || STATUS_LEVELS[0];
-                            const tutorialVideo = s.trick.videos?.find(v => v.type === 'tutorial' && v.primary) || s.trick.videos?.find(v => v.type === 'tutorial');
+                            const tutorialVideo = s.trick.videos?.find(v => isTutorialVideo(v) && v.primary) || s.trick.videos?.find(v => isTutorialVideo(v));
                             const referenceVideo = s.trick.videos?.find(v => v.type !== 'tutorial' && v.primary) || s.trick.videos?.find(v => v.type !== 'tutorial');
                             const playVideo = (e, video) => { e.stopPropagation(); if (video?.url && onOpenTrick) onOpenTrick(s.trick, normalizeUrl(video.url)); };
                             return (
@@ -2603,7 +2650,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                 if (!t) return null;
                 const diff = DIFFICULTY_COLORS[t.difficulty];
                 const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-                const tutorialVideo = t.videos?.find(v => v.type === 'tutorial' && v.primary) || t.videos?.find(v => v.type === 'tutorial');
+                const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
                 const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
                 const playVideo = (e, video) => { e.stopPropagation(); if (video?.url && onOpenTrick) onOpenTrick(t, normalizeUrl(video.url)); };
                 return (
@@ -3036,7 +3083,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                     if (!t) return null;
                     const diff = DIFFICULTY_COLORS[t.difficulty];
                     const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-                    const tutorialVideo = t.videos?.find(v => v.type === 'tutorial' && v.primary) || t.videos?.find(v => v.type === 'tutorial');
+                    const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
                     const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
                     const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
                     return (
@@ -3108,7 +3155,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
         const renderTierRow = (t) => {
           const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
           const diff = DIFFICULTY_COLORS[t.difficulty];
-          const tutorialVideo = t.videos?.find(v => v.type === 'tutorial' && v.primary) || t.videos?.find(v => v.type === 'tutorial');
+          const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
           const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
           const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
           return (
@@ -3258,7 +3305,9 @@ function AddTab({ user, setActiveTab }) {
   const [videos, setVideos] = useState([]);
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
-  const [newVideoType, setNewVideoType] = useState('reference');
+  const [newVideoIsReference, setNewVideoIsReference] = useState(true);
+  const [newVideoIsTutorial, setNewVideoIsTutorial] = useState(false);
+  const [addVideoOpen, setAddVideoOpen] = useState(false);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -3268,14 +3317,19 @@ function AddTab({ user, setActiveTab }) {
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
     const url = normalizeUrl(newVideoUrl.trim());
-    setVideos([...videos, { url, label: newVideoLabel.trim() || (newVideoType === 'tutorial' ? 'Tutorial' : 'Video'), type: newVideoType }]);
+    const isRef = newVideoIsReference || (!newVideoIsReference && !newVideoIsTutorial);
+    const type = computeVideoType(isRef, newVideoIsTutorial);
+    const defaultLabel = type === 'tutorial' ? 'Tutorial' : 'Video';
+    setVideos([...videos, { url, label: newVideoLabel.trim() || defaultLabel, type }]);
     setNewVideoUrl(''); setNewVideoLabel('');
   };
   const removeVideo = (idx) => setVideos(videos.filter((_, i) => i !== idx));
   const reset = () => {
     setName(''); setCategory('Flips'); setDifficulty('Medium');
     setVideos([]); setNotes('');
-    setNewVideoUrl(''); setNewVideoLabel(''); setNewVideoType('reference');
+    setNewVideoUrl(''); setNewVideoLabel('');
+    setNewVideoIsReference(true); setNewVideoIsTutorial(false);
+    setAddVideoOpen(false);
   };
   const submit = async () => {
     if (!name.trim() || submitting) return;
@@ -3325,7 +3379,7 @@ function AddTab({ user, setActiveTab }) {
               <div className="space-y-2 mb-2">
                 {videos.map((v, i) => (
                   <div key={i} className="flex items-center gap-2 bg-slate-900/50 border border-slate-700 rounded-lg p-2 text-sm">
-                    <span className="text-base">{v.type === 'tutorial' ? '🎓' : '📹'}</span>
+                    <span className="text-base">{v.type === 'both' ? '📹🎓' : v.type === 'tutorial' ? '🎓' : '📹'}</span>
                     <span className="truncate flex-1">{v.label}</span>
                     <span className="text-xs text-slate-500 truncate flex-shrink-0 max-w-[120px]">{v.url}</span>
                     <button onClick={() => removeVideo(i)} className="text-slate-500 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
@@ -3333,16 +3387,32 @@ function AddTab({ user, setActiveTab }) {
                 ))}
               </div>
             )}
-            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-2 space-y-2">
-              <div className="flex gap-2">
-                <button onClick={() => setNewVideoType('tutorial')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${newVideoType === 'tutorial' ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400'}`}>🎓 Tutorial</button>
-                <button onClick={() => setNewVideoType('reference')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${newVideoType === 'reference' ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400'}`}>📹 Reference</button>
+            <div className="bg-slate-900/50 border border-slate-700 rounded-lg">
+              <button onClick={() => setAddVideoOpen(o => !o)}
+                className="w-full flex items-center justify-between p-2 hover:bg-slate-800/50 transition rounded-lg">
+                <span className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                  <Plus className="w-3.5 h-3.5" /> Add a video
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${addVideoOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {addVideoOpen && (
+              <div className="p-2 pt-0 space-y-2">
+              <div>
+                <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Tag as</div>
+                <div className="flex gap-2">
+                  <button onClick={() => setNewVideoIsReference(v => !v)}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition border ${newVideoIsReference ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>📹 Reference</button>
+                  <button onClick={() => setNewVideoIsTutorial(v => !v)}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition border ${newVideoIsTutorial ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>🎓 Tutorial</button>
+                </div>
               </div>
               <input type="text" value={newVideoLabel} onChange={e => setNewVideoLabel(e.target.value)} placeholder="Label (e.g. Storror tutorial)" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
               <div className="flex gap-2">
                 <input type="url" value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} placeholder="YouTube or Vimeo URL" className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
                 <button onClick={addVideo} disabled={!newVideoUrl.trim()} className="px-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg font-bold text-sm">Add</button>
               </div>
+              </div>
+              )}
             </div>
           </div>
           <div>
@@ -4369,7 +4439,7 @@ service cloud.firestore {
                           {s.videos.map((v, i) => (
                             <a key={i} href={normalizeUrl(v.url)} target="_blank" rel="noopener noreferrer"
                               className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 truncate max-w-[200px]">
-                              {v.type === 'tutorial' ? '🎓' : '📹'} {v.label}
+                              {v.type === 'both' ? '📹🎓' : v.type === 'tutorial' ? '🎓' : '📹'} {v.label}
                             </a>
                           ))}
                         </div>
