@@ -17,6 +17,17 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.25',
+    date: '2026-04-30',
+    title: 'Quests in In Focus',
+    notes: [
+      'In Focus now opens with an Active quests panel. Daily, weekly, streak and milestone quests track live as you train.',
+      'Quests: Train 3 focus tricks today · Log a session today · Train 3 sessions this week · 3-day streak · 7-day streak · First trick · Master 5 Easy · Master 3 Medium.',
+      'Each quest shows a progress bar with the current count vs target and the reward. Completed quests collapse into a Completed (N) section.',
+      'Phase 4 of the Skill Tree redesign — polish pass next.',
+    ],
+  },
+  {
     version: '1.24',
     date: '2026-04-30',
     title: 'Pick your path',
@@ -1594,7 +1605,8 @@ function MainApp({ user }) {
           <ProgressTab stats={stats} tricks={tricks} earnedBadges={earnedBadges} trainingDays={trainingDays} />
         )}
         {activeTab === 'skilltree' && (
-          <SkillTreeTab tricks={displayTricks} onOpenTrick={openTrick} weeklyGoals={weeklyGoals} saveGoals={saveGoals} />
+          <SkillTreeTab tricks={displayTricks} onOpenTrick={openTrick} weeklyGoals={weeklyGoals} saveGoals={saveGoals}
+            trainingSessions={trainingSessions} streak={streak} />
         )}
         {activeTab === 'add' && (
           <AddTab user={user} setActiveTab={setActiveTab} />
@@ -3556,6 +3568,122 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
   );
 }
 
+// =============================================================
+// QUEST SYSTEM
+// =============================================================
+const QUESTS = [
+  { id: 'q_daily_focus', type: 'daily', icon: '🎯', title: 'Train 3 focus tricks today', target: 3, reward: '⚡ +50 XP' },
+  { id: 'q_daily_log',   type: 'daily', icon: '📝', title: 'Log a training session today', target: 1, reward: '🔥 streak' },
+  { id: 'q_weekly_3',    type: 'weekly', icon: '📅', title: 'Train 3 sessions this week', target: 3, reward: '🏅 Badge' },
+  { id: 'q_streak_3',    type: 'streak', icon: '🔥', title: 'Train 3 days in a row', target: 3, reward: 'On Fire badge' },
+  { id: 'q_streak_7',    type: 'streak', icon: '🚀', title: 'Train 7 days in a row', target: 7, reward: 'Week Warrior' },
+  { id: 'q_first_master',type: 'totalMastered', icon: '🌟', title: 'Master your first trick', target: 1, reward: 'First Steps badge' },
+  { id: 'q_easy_5',      type: 'masteredByDiff', diff: 'Easy', icon: '🌱', title: 'Master 5 Easy tricks', target: 5, reward: 'Getting Started' },
+  { id: 'q_medium_3',    type: 'masteredByDiff', diff: 'Medium', icon: '💪', title: 'Master 3 Medium tricks', target: 3, reward: 'Leveling Up' },
+];
+
+const getMondayOf = (d) => {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(date);
+  monday.setDate(diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+};
+
+const computeQuestProgress = (quest, ctx) => {
+  const { tricks = [], weeklyGoals = [], trainingSessions = [], streak = 0 } = ctx;
+  const today = new Date().toISOString().split('T')[0];
+  if (quest.type === 'streak') return Math.min(streak, quest.target);
+  if (quest.type === 'totalMastered') return Math.min(tricks.filter(t => t.status === 'got_it').length, quest.target);
+  if (quest.type === 'masteredByDiff') return Math.min(tricks.filter(t => t.status === 'got_it' && t.difficulty === quest.diff).length, quest.target);
+  if (quest.type === 'daily') {
+    if (quest.id === 'q_daily_focus') {
+      const todaySession = trainingSessions.find(s => s.date === today);
+      if (!todaySession) return 0;
+      const focusIds = new Set(weeklyGoals.map(g => g.trickId));
+      const practiced = (todaySession.practicedTricks || []).filter(id => focusIds.has(id));
+      return Math.min(practiced.length, quest.target);
+    }
+    if (quest.id === 'q_daily_log') return trainingSessions.some(s => s.date === today) ? 1 : 0;
+  }
+  if (quest.type === 'weekly') {
+    const monday = getMondayOf(new Date());
+    const sessionsThisWeek = trainingSessions.filter(s => {
+      const d = new Date(s.date + 'T00:00:00');
+      return d >= monday;
+    }).length;
+    return Math.min(sessionsThisWeek, quest.target);
+  }
+  return 0;
+};
+
+const QUEST_TYPE_LABEL = {
+  daily: 'Daily',
+  weekly: 'Weekly',
+  streak: 'Streak',
+  totalMastered: 'Milestone',
+  masteredByDiff: 'Milestone',
+};
+
+function QuestsPanel({ tricks, weeklyGoals, trainingSessions, streak, onOpenFocusManage }) {
+  const ctx = { tricks, weeklyGoals, trainingSessions, streak };
+  const items = QUESTS.map(q => ({ ...q, progress: computeQuestProgress(q, ctx) }));
+  const active = items.filter(q => q.progress < q.target);
+  const completed = items.filter(q => q.progress >= q.target);
+
+  const QuestRow = ({ q }) => {
+    const pct = Math.min(100, Math.round((q.progress / q.target) * 100));
+    const done = q.progress >= q.target;
+    const tone = done ? 'border-green-500/50 bg-green-500/10' : 'border-slate-700 bg-slate-800/60';
+    return (
+      <div className={`rounded-xl border p-3 ${tone}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xl flex-shrink-0">{q.icon}</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[9px] font-black uppercase tracking-wider text-slate-400">{QUEST_TYPE_LABEL[q.type] || 'Quest'}</div>
+            <div className="text-sm font-bold leading-tight">{q.title}</div>
+          </div>
+          {done ? (
+            <span className="text-[10px] font-black text-green-300 flex-shrink-0">✓ DONE</span>
+          ) : (
+            <span className="text-[11px] font-bold text-slate-300 flex-shrink-0">{q.progress}/{q.target}</span>
+          )}
+        </div>
+        <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+          <div className={`h-full transition-all duration-500 ${done ? 'bg-green-400' : 'bg-purple-400'}`} style={{ width: `${pct}%` }} />
+        </div>
+        <div className="text-[10px] text-slate-400 mt-1.5 truncate">Reward: <span className="text-yellow-300 font-semibold">{q.reward}</span></div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-slate-800/40 border border-purple-500/30 rounded-2xl p-3 space-y-2">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-base">⚔️</span>
+        <h3 className="font-black text-sm uppercase tracking-wide text-purple-300">Active quests</h3>
+        <span className="ml-auto text-[10px] text-slate-400">{completed.length} / {QUESTS.length} done</span>
+      </div>
+      <div className="space-y-2">
+        {active.map(q => <QuestRow key={q.id} q={q} />)}
+        {active.length === 0 && (
+          <div className="text-xs text-slate-400 italic">All quests complete — you legend.</div>
+        )}
+      </div>
+      {completed.length > 0 && (
+        <details className="text-xs">
+          <summary className="text-slate-400 cursor-pointer hover:text-slate-200">Completed ({completed.length})</summary>
+          <div className="mt-2 space-y-2">
+            {completed.map(q => <QuestRow key={q.id} q={q} />)}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
 function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onRemoveFocus }) {
   const idsInCategory = useMemo(() => new Set(tricks.map(t => t.id)), [tricks]);
 
@@ -3733,7 +3861,7 @@ function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onR
   );
 }
 
-function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
+function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, trainingSessions = [], streak = 0 }) {
   const FOCUS_KEY = '__focus__';
   const TIERS = ['Easy', 'Medium', 'Hard', 'Super'];
   const trickCategories = [...new Set(tricks.map(t => t.category))].sort((a, b) => {
@@ -3854,6 +3982,10 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
           className="flex items-center gap-2 text-sm font-semibold text-purple-300 hover:text-purple-200">
           <ArrowLeft className="w-4 h-4" /> Back to map
         </button>
+      )}
+
+      {isFocus && (
+        <QuestsPanel tricks={tricks} weeklyGoals={weeklyGoals} trainingSessions={trainingSessions} streak={streak} />
       )}
 
       {isFocus && (() => {
