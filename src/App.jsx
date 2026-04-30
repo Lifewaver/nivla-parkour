@@ -1203,7 +1203,7 @@ function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
 // =================================================================
 function MainApp({ user }) {
   const [activeTab, setActiveTab] = useState('home');
-  const [trainingSection, setTrainingSection] = useState('log');
+  const [trainingSection, setTrainingSection] = useState(null);
   const [profileIsAdmin, setProfileIsAdmin] = useState(false);
   const userIsAdmin = isAdmin(user.email) || profileIsAdmin;
   const [tricks, setTricks] = useState([]);
@@ -1735,7 +1735,7 @@ function MainApp({ user }) {
           <NavButton icon={Home} label="Today" active={activeTab === 'home'} onClick={() => { closeTrick(); setActiveTab('home'); }} />
           <NavButton icon={Dumbbell} label="Tricks" active={activeTab === 'tricks'} onClick={() => { closeTrick(); setActiveTab('tricks'); }} />
          <NavButton icon={GitBranch} label="Tree" active={activeTab === 'skilltree'} onClick={() => { closeTrick(); setActiveTab('skilltree'); }} />
-         <NavButton icon={Calendar} label="Training" active={activeTab === 'training'} onClick={() => { closeTrick(); setActiveTab('training'); }} />
+         <NavButton icon={Calendar} label="Training" active={activeTab === 'training'} onClick={() => { closeTrick(); setTrainingSection(null); setActiveTab('training'); if (typeof window !== 'undefined') requestAnimationFrame(() => window.scrollTo({ top: 0 })); }} />
           <NavButton icon={Trophy} label="Progress" active={activeTab === 'progress'} onClick={() => { closeTrick(); setActiveTab('progress'); }} />
          {userIsAdmin && (
          <NavButton icon={Shield} label="Admin" active={activeTab === 'admin'} onClick={() => { closeTrick(); setActiveTab('admin'); }} />
@@ -2681,7 +2681,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           templates={templates}
           saveTemplates={saveTemplates}
           onOpenTrick={onOpenTrick}
-          onClose={() => setSection('log')} />
+          onClose={() => setSection(null)} />
       ) : (
         <TrainingLogSection
           trainingDays={trainingDays}
