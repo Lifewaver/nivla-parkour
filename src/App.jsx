@@ -2677,11 +2677,24 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const [submitting, setSubmitting] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
   const [practicedTricks, setPracticedTricks] = useState([]);
+  const prevDateRef = React.useRef(null);
   useEffect(() => {
     const locked = Array.isArray(plannedSessionFocus[date]) ? plannedSessionFocus[date] : [];
-    setPracticedTricks(locked);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date]);
+    if (prevDateRef.current !== date) {
+      // Switching to a different date — reset the practiced list to that date's focus.
+      setPracticedTricks(locked);
+      prevDateRef.current = date;
+      return;
+    }
+    // Same date, focus updated — merge any newly-added focus tricks in without
+    // clobbering manual additions or removals.
+    setPracticedTricks(prev => {
+      const set = new Set(prev);
+      const additions = locked.filter(id => !set.has(id));
+      if (additions.length === 0) return prev;
+      return [...prev, ...additions];
+    });
+  }, [date, plannedSessionFocus]);
 
   const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
 
