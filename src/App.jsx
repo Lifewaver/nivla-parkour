@@ -17,6 +17,18 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.24',
+    date: '2026-04-30',
+    title: 'Pick your path',
+    notes: [
+      'Tree tab now opens to a world map: 7 category cards in a 2-column grid showing level, XP, mastered count and the boss for each category.',
+      'In Focus has its own card at the top of the map.',
+      'Tap a card to dive into that category\'s tree; a Back to map link returns you to the grid.',
+      'Fully mastered categories get a gold border and a glow.',
+      'Phase 3 of the Skill Tree redesign — quests still coming.',
+    ],
+  },
+  {
     version: '1.23',
     date: '2026-04-30',
     title: 'XP, levels, and a boss to beat',
@@ -3729,10 +3741,10 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
     if (b === 'Gymnastics') return -1;
     return a.localeCompare(b);
   });
-  const allCategories = [FOCUS_KEY, ...trickCategories];
-  const [selectedCategory, setSelectedCategory] = useState(FOCUS_KEY);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const isFocus = selectedCategory === FOCUS_KEY;
+  const isMap = selectedCategory === null;
 
   const inCategory = isFocus
     ? weeklyGoals.map(g => tricks.find(t => t.id === g.trickId)).filter(Boolean)
@@ -3769,30 +3781,80 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
-      <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-2xl p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <GitBranch className="w-5 h-5 text-purple-400" />
-          <h2 className="font-bold text-lg">Skill Tree</h2>
-        </div>
-        <p className="text-sm text-slate-400">
-          Climb each category from Easy to Super. Tap a trick to open it.
-        </p>
-      </div>
+      {isMap ? (
+        <>
+          <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <GitBranch className="w-5 h-5 text-purple-400" />
+              <h2 className="font-black text-lg">Pick your path</h2>
+            </div>
+            <p className="text-sm text-slate-400">
+              Each category is its own world. Master tricks to climb levels and unlock new branches.
+            </p>
+          </div>
 
-      <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Category</div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {allCategories.map(c => (
-            <button
-              key={c}
-              onClick={() => setSelectedCategory(c)}
-              className={`flex-shrink-0 px-3 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 ${selectedCategory === c ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
-            >
-              {c === FOCUS_KEY ? <><span className="text-base">🎯</span>In Focus</> : <><CategoryIcon category={c} size={16} />{c}</>}
-            </button>
-          ))}
-        </div>
-      </div>
+          <button onClick={() => setSelectedCategory(FOCUS_KEY)}
+            className="w-full text-left bg-gradient-to-br from-purple-600/30 to-pink-600/20 border-2 border-purple-500/50 rounded-2xl p-4 hover:from-purple-600/40 hover:to-pink-600/30 transition">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-purple-500/30 border-2 border-purple-300 flex items-center justify-center text-2xl flex-shrink-0">🎯</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">In Focus</div>
+                <div className="font-black text-base">{weeklyGoals.length} active {weeklyGoals.length === 1 ? 'trick' : 'tricks'}</div>
+                <div className="text-xs text-slate-400 mt-0.5">Manage your weekly focus list →</div>
+              </div>
+            </div>
+          </button>
+
+          <div className="grid grid-cols-2 gap-3">
+            {trickCategories.map(cat => {
+              const inCat = tricks.filter(t => t.category === cat);
+              const mastered = inCat.filter(t => t.status === 'got_it').length;
+              const masteredPct = inCat.length > 0 ? Math.round((mastered / inCat.length) * 100) : 0;
+              const earned = Math.round(inCat.reduce((sum, t) => sum + computeTrickXp(t), 0));
+              const max = inCat.reduce((sum, t) => sum + (XP_PER_DIFFICULTY[t.difficulty] || 0), 0);
+              const lv = xpToLevel(earned, max);
+              const catColor = CATEGORY_COLORS[cat];
+              const bossId = BOSS_TRICKS[cat];
+              const boss = bossId ? inCat.find(t => t.id === bossId) : null;
+              const bossDefeated = boss?.status === 'got_it';
+              const fullyMastered = inCat.length > 0 && mastered === inCat.length;
+              return (
+                <button key={cat} onClick={() => setSelectedCategory(cat)}
+                  className="text-left rounded-2xl p-3 border-2 transition hover:scale-[1.02] active:scale-95 bg-slate-800/60 hover:bg-slate-800"
+                  style={{
+                    borderColor: fullyMastered ? '#facc15' : (catColor?.hex ? catColor.hex + '66' : '#475569'),
+                    boxShadow: fullyMastered ? '0 0 24px rgba(250, 204, 21, 0.3)' : undefined,
+                  }}>
+                  <div className="flex items-start justify-between mb-2">
+                    <CategoryIcon category={cat} size={36} />
+                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-700 text-slate-200">LVL {lv}</span>
+                  </div>
+                  <div className="font-black text-sm leading-tight" style={catColor ? { color: catColor.hex } : undefined}>{cat}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">{mastered}/{inCat.length} · {earned} XP</div>
+                  <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mt-1.5">
+                    <div className="h-full transition-all duration-500"
+                      style={{ width: `${masteredPct}%`, backgroundColor: catColor?.hex || '#a855f7' }} />
+                  </div>
+                  {boss && (
+                    <div className="mt-2 flex items-center gap-1 text-[10px]">
+                      <span className="text-orange-400">🔥</span>
+                      <span className={`truncate ${bossDefeated ? 'text-yellow-300 font-bold' : 'text-slate-400'}`}>
+                        {bossDefeated ? `✓ ${boss.name}` : boss.name}
+                      </span>
+                    </div>
+                  )}
+                  <div className="text-[10px] text-purple-300 font-semibold mt-1">{mastered === 0 ? 'Start your journey →' : fullyMastered ? '✨ Mastered!' : 'Continue →'}</div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <button onClick={() => setSelectedCategory(null)}
+          className="flex items-center gap-2 text-sm font-semibold text-purple-300 hover:text-purple-200">
+          <ArrowLeft className="w-4 h-4" /> Back to map
+        </button>
+      )}
 
       {isFocus && (() => {
         const remainingSuggestions = focusSuggestions.filter(s => !weeklyGoals.some(g => g.trickId === s.trick.id));
@@ -3949,12 +4011,12 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
         );
       })()}
 
-      {!isFocus && inCategory.length === 0 ? (
+      {!isMap && !isFocus && inCategory.length === 0 ? (
         <div className="text-center py-12 text-slate-400">
           <div className="text-5xl mb-2">🌱</div>
           <div>No tricks in this category yet.</div>
         </div>
-      ) : !isFocus && (() => {
+      ) : !isMap && !isFocus && (() => {
         const masteredPct = inCategory.length > 0 ? Math.round((totalMastered / inCategory.length) * 100) : 0;
         const catColor = CATEGORY_COLORS[selectedCategory];
         const earnedXp = Math.round(inCategory.reduce((sum, t) => sum + computeTrickXp(t), 0));
