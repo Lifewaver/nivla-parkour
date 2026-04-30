@@ -342,8 +342,8 @@ function StatusPill({ trick, onClick, title, size = 'md' }) {
   const level = progressLevelFor(trick);
   const tone = PROGRESS_TONES[level];
   const status = STATUS_LEVELS.find(s => s.id === trick?.status) || STATUS_LEVELS[0];
-  const dotSize = size === 'sm' ? 12 : 14;
-  const ringClass = size === 'sm' ? 'w-6 h-6' : 'w-7 h-7';
+  const dotSize = size === 'sm' ? 14 : 18;
+  const ringClass = size === 'sm' ? 'w-7 h-7' : 'w-9 h-9';
   const Comp = onClick ? 'button' : 'span';
   return (
     <Comp onClick={onClick} title={title || status.label}
