@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-   Home, Dumbbell, Calendar, Trophy, Plus, Flame, Search, X, ExternalLink,
-  Check, Video, Target, Award, TrendingUp, ChevronRight, ChevronDown, Zap, Play, Pause,
+  Home, Dumbbell, Calendar, Trophy, Plus, Flame, Search, X, ExternalLink,
+  Check, Video, Target, TrendingUp, ChevronRight, ChevronDown, Play, Pause,
   RotateCcw, LogOut, Shield, Eye, ArrowLeft, ScrollText, GitBranch, Star
 } from 'lucide-react';
 import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from './firebase';
@@ -751,23 +751,6 @@ const BADGES = [
   { id: 'flip_master', name: 'Flip Master', desc: 'Master 5 Flips', icon: '🤸', check: (s) => s.flipMastered >= 5 },
 ];
 
-const getWeekKey = (dateStr) => {
-  const d = new Date(dateStr);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(d);
-  monday.setDate(diff);
-  return monday.toISOString().split('T')[0];
-};
-
-const formatWeekRange = (mondayStr) => {
-  const monday = new Date(mondayStr);
-  const sunday = new Date(monday);
-  sunday.setDate(sunday.getDate() + 6);
-  const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  return `${fmt(monday)} - ${fmt(sunday)}`;
-};
-
 // =================================================================
 // FIRESTORE HELPERS
 // =================================================================
@@ -1417,10 +1400,7 @@ function MainApp({ user }) {
   const saveConditioning = async (c) => { setCompletedConditioning(c); await saveUserData(user.uid, 'completedConditioning', c); };
   const saveTrainingSessions = async (s) => { setTrainingSessions(s); await saveUserData(user.uid, 'trainingSessions', s); };
   const savePlannedDays = async (d) => { setPlannedDays(d); await saveUserData(user.uid, 'plannedDays', d); };
-  const savePlannedMonths = async (m) => { setPlannedMonths(m); await saveUserData(user.uid, 'plannedMonths', m); };
-  const savePlannedWeeks = async (w) => { setPlannedWeeks(w); await saveUserData(user.uid, 'plannedWeeks', w); };
   const savePlannedSessionFocus = async (f) => { setPlannedSessionFocus(f); await saveUserData(user.uid, 'plannedSessionFocus', f); };
-  const savePlannedSessionDismissed = async (d) => { setPlannedSessionDismissed(d); await saveUserData(user.uid, 'plannedSessionDismissed', d); };
   const savePlannedSessionIntents = async (i) => { setPlannedSessionIntents(i); await saveUserData(user.uid, 'plannedSessionIntents', i); };
   const saveTemplates = async (t) => { setTemplates(t); await saveUserData(user.uid, 'templates', t); };
 
@@ -1528,7 +1508,6 @@ function MainApp({ user }) {
 
   const streak = computeStreakFor(trainingDays);
   const mastered = tricks.filter(t => t.status === 'got_it').length;
-  const inProgress = tricks.filter(t => t.status === 'training').length;
 
   const stats = {
     mastered, streak,
@@ -1541,15 +1520,6 @@ function MainApp({ user }) {
   };
 
   const earnedBadges = BADGES.filter(b => b.check(stats));
-
-  const inProgressTricks = tricks.filter(t => t.status === 'training');
-  const notStartedEasy = tricks.filter(t => t.status === 'want_to_learn' && t.difficulty === 'Easy');
-  const pool = inProgressTricks.length >= 3 ? inProgressTricks : [...inProgressTricks, ...notStartedEasy];
-  const now = new Date();
-  const weekNum = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 604800000);
-  const weeklyFocus = pool.length > 0
-    ? [0, 1, 2].map(i => pool[(weekNum + i * 7) % pool.length]).filter((t, i, arr) => t && arr.findIndex(x => x.id === t.id) === i)
-    : [];
 
   if (loading) {
     return (
@@ -1681,14 +1651,13 @@ function MainApp({ user }) {
             completedWarmups={completedWarmups} saveWarmups={saveWarmups}
             completedConditioning={completedConditioning} saveConditioning={saveConditioning}
             journal={journal} onOpenTrick={openTrick}
-            weeklyFocus={weeklyFocus}
             trainingDays={trainingDays} trainingSessions={trainingSessions} saveTrainingSessions={saveTrainingSessions}
             markDayTrained={markDayTrained}
             plannedDays={plannedDays} savePlannedDays={savePlannedDays}
-            plannedMonths={plannedMonths} savePlannedMonths={savePlannedMonths}
-            plannedWeeks={plannedWeeks} savePlannedWeeks={savePlannedWeeks}
+            plannedMonths={plannedMonths}
+            plannedWeeks={plannedWeeks}
             plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
-            plannedSessionDismissed={plannedSessionDismissed} savePlannedSessionDismissed={savePlannedSessionDismissed}
+            plannedSessionDismissed={plannedSessionDismissed}
             plannedSessionIntents={plannedSessionIntents} savePlannedSessionIntents={savePlannedSessionIntents}
             templates={templates} saveTemplates={saveTemplates}
             streak={streak}
@@ -2557,61 +2526,11 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal = [], onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, templates = [], saveTemplates, streak = 0, section, setSection, onUpdateTrickStatus }) {
-  const [newGoalTrickId, setNewGoalTrickId] = useState('');
+function TrainingTab({ weeklyGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal = [], onOpenTrick, trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], plannedWeeks = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, plannedSessionIntents = {}, savePlannedSessionIntents, templates = [], saveTemplates, streak = 0, section, setSection, onUpdateTrickStatus }) {
   const today = new Date().toISOString().split('T')[0];
   const safeWarmups = completedWarmups || {};
   const safeConditioning = completedConditioning || {};
 
-  const getSuggestions = () => {
-    const suggestions = [];
-    const currentGoalIds = new Set(weeklyGoals.map(g => g.trickId));
-    const addedIds = new Set();
-    const tryAdd = (trick, reason, icon, priority) => {
-      if (!trick || currentGoalIds.has(trick.id) || addedIds.has(trick.id)) return false;
-      suggestions.push({ trick, reason, icon, priority });
-      addedIds.add(trick.id);
-      return true;
-    };
-    const hasLanding = (t, id) => Array.isArray(t.progress) && t.progress.includes(id);
-    tricks.filter(t => t.status === 'training' && hasLanding(t, 'soft_landing')).slice(0, 2).forEach(t => tryAdd(t, 'Almost mastered — one more push!', '🎯', 1));
-    tricks.filter(t => t.status === 'training' && hasLanding(t, 'trampoline_landing') && !hasLanding(t, 'soft_landing')).slice(0, 2).forEach(t => tryAdd(t, 'Got it on trampoline — try soft mat next', '🤾', 2));
-    tricks.filter(t => t.status === 'training' && (!Array.isArray(t.progress) || t.progress.length === 0)).slice(0, 2).forEach(t => tryAdd(t, 'Already training — stay consistent', '💪', 3));
-    const categories = [...new Set(tricks.map(t => t.category))];
-    const categoryProgress = categories.map(cat => {
-      const catTricks = tricks.filter(t => t.category === cat);
-      const mastered = catTricks.filter(t => t.status === 'got_it').length;
-      return { cat, pct: catTricks.length > 0 ? mastered / catTricks.length : 0, tricks: catTricks };
-    }).sort((a, b) => a.pct - b.pct);
-    for (const weakCat of categoryProgress.slice(0, 2)) {
-      const easy = weakCat.tricks.find(t => t.status === 'want_to_learn' && t.difficulty === 'Easy');
-      if (easy) tryAdd(easy, `Strengthen weak area: ${weakCat.cat}`, '⚖️', 5);
-    }
-    const masteredEasy = tricks.filter(t => t.status === 'got_it' && t.difficulty === 'Easy');
-    const masteredCats = [...new Set(masteredEasy.map(t => t.category))];
-    for (const cat of masteredCats) {
-      if (masteredEasy.filter(t => t.category === cat).length >= 2) {
-        const next = tricks.find(t => t.category === cat && t.difficulty === 'Medium' && t.status === 'want_to_learn');
-        if (next) tryAdd(next, `Ready to level up your ${cat}!`, '🚀', 6);
-      }
-    }
-    if (suggestions.length < 3) {
-      const fallback = tricks.filter(t => (t.status === 'want_to_learn' || t.status === 'not_started') && (t.difficulty === 'Easy' || t.difficulty === 'Medium'));
-      for (const f of fallback) { if (suggestions.length >= 3) break; tryAdd(f, 'Good one to add to your training', '🌟', 7); }
-    }
-    return suggestions.sort((a, b) => a.priority - b.priority).slice(0, 3);
-  };
-  const suggestions = getSuggestions();
-
-  const addGoal = () => {
-    if (!newGoalTrickId) return;
-    const trick = tricks.find(t => t.id === parseInt(newGoalTrickId));
-    if (!trick || weeklyGoals.some(g => g.trickId === trick.id)) return;
-    saveGoals([...weeklyGoals, { trickId: trick.id, addedAt: Date.now() }]);
-    setNewGoalTrickId('');
-  };
-  const addSuggestion = (id) => { if (!weeklyGoals.some(g => g.trickId === id)) saveGoals([...weeklyGoals, { trickId: id, addedAt: Date.now() }]); };
-  const removeGoal = (id) => saveGoals(weeklyGoals.filter(g => g.trickId !== id));
   const toggleWarmup = (id) => {
     const list = safeWarmups[today] || [];
     saveWarmups({ ...safeWarmups, [today]: list.includes(id) ? list.filter(x => x !== id) : [...list, id] });
@@ -2651,15 +2570,11 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           saveTrainingSessions={saveTrainingSessions}
           markDayTrained={markDayTrained}
           plannedDays={plannedDays}
-          savePlannedDays={savePlannedDays}
           plannedMonths={plannedMonths}
-          savePlannedMonths={savePlannedMonths}
           plannedWeeks={plannedWeeks}
-          savePlannedWeeks={savePlannedWeeks}
           plannedSessionFocus={plannedSessionFocus}
           savePlannedSessionFocus={savePlannedSessionFocus}
           plannedSessionDismissed={plannedSessionDismissed}
-          savePlannedSessionDismissed={savePlannedSessionDismissed}
           plannedSessionIntents={plannedSessionIntents}
           savePlannedSessionIntents={savePlannedSessionIntents}
           streak={streak}
@@ -2681,7 +2596,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   );
 }
 
-function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, streak, tricks = [], weeklyGoals = [], completedWarmups = {}, toggleWarmup, resetWarmups, completedConditioning = {}, toggleConditioning, resetConditioning, section, setSection, onOpenTrick, onUpdateTrickStatus }) {
+function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, markDayTrained, plannedDays = [], plannedMonths = [], plannedWeeks = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, plannedSessionIntents = {}, savePlannedSessionIntents, streak, tricks = [], weeklyGoals = [], completedWarmups = {}, toggleWarmup, resetWarmups, completedConditioning = {}, toggleConditioning, resetConditioning, section, setSection, onOpenTrick, onUpdateTrickStatus }) {
   const FOCUS_TAGS = ['landning', 'flow', 'vips', 'strength', 'precision', 'flips', 'jump', 'tricks', 'leap', 'swings', 'vaults', 'gymnastics'];
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
@@ -2690,19 +2605,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const [duration, setDuration] = useState('');
   const [notes, setNotes] = useState('');
   const [savedToast, setSavedToast] = useState(false);
-  const [planOpen, setPlanOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
-  const [expandedSessions, setExpandedSessions] = useState({});
-  const toggleSessionOpen = (dateStr) => setExpandedSessions(prev => ({ ...prev, [dateStr]: !prev[dateStr] }));
-  const lastLoggedSession = useMemo(() => {
-    return [...(Array.isArray(trainingSessions) ? trainingSessions : [])]
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-      .find(s => Array.isArray(s.practicedTricks) && s.practicedTricks.length > 0) || null;
-  }, [trainingSessions]);
-  const copyLastSessionTo = (dateStr) => {
-    if (!lastLoggedSession) return;
-    setFocusForDate(dateStr, [...lastLoggedSession.practicedTricks]);
-  };
   const [practicedTricks, setPracticedTricks] = useState([]);
   useEffect(() => {
     const locked = Array.isArray(plannedSessionFocus[date]) ? plannedSessionFocus[date] : [];
@@ -2711,7 +2614,6 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   }, [date]);
 
   const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
-  const sortedSessions = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
   const totalSessions = safeSessions.length;
   const totalMinutes = safeSessions.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0);
@@ -2729,45 +2631,6 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const reachedMilestones = milestones.filter(m => totalSessions >= m.count);
   const nextMilestone = milestones.find(m => totalSessions < m.count);
 
-  const dayActivity = useMemo(() => {
-    const map = {};
-    (Array.isArray(trainingDays) ? trainingDays : []).forEach(d => { map[d] = { logged: true, sessions: 0, totalRpe: 0 }; });
-    safeSessions.forEach(s => {
-      if (!s.date) return;
-      if (!map[s.date]) map[s.date] = { logged: false, sessions: 0, totalRpe: 0 };
-      map[s.date].sessions += 1;
-      map[s.date].totalRpe += Number(s.rpe) || 0;
-    });
-    return map;
-  }, [trainingDays, safeSessions]);
-
-  const heatmapDays = useMemo(() => {
-    const days = [];
-    const todayD = new Date();
-    todayD.setHours(0, 0, 0, 0);
-    const totalDays = 16 * 7;
-    const start = new Date(todayD);
-    start.setDate(todayD.getDate() - (totalDays - 1));
-    while (start.getDay() !== 1) start.setDate(start.getDate() - 1);
-    const cursor = new Date(start);
-    while (cursor <= todayD) {
-      days.push(cursor.toISOString().split('T')[0]);
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return days;
-  }, []);
-
-  const cellColor = (dateStr) => {
-    const a = dayActivity[dateStr];
-    if (!a) return 'bg-slate-800/60';
-    if (a.sessions === 0) return 'bg-orange-500/30';
-    const avg = a.totalRpe / a.sessions;
-    if (avg >= 8) return 'bg-orange-600';
-    if (avg >= 6) return 'bg-orange-500';
-    if (avg >= 4) return 'bg-orange-400';
-    return 'bg-orange-300';
-  };
-  const todayStr = today;
   const weekOfMonth = (date) => Math.ceil(date.getDate() / 7);
   const isPlannedDay = (dateStr) => {
     const d = new Date(dateStr + 'T00:00:00');
@@ -2777,51 +2640,6 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     const anySelected = (plannedDays?.length || 0) + (plannedMonths?.length || 0) + (plannedWeeks?.length || 0);
     return anySelected > 0;
   };
-  const cellClasses = (dateStr) => {
-    const planned = isPlannedDay(dateStr);
-    const future = dateStr > todayStr;
-    const ring = planned && future ? ' ring-1 ring-purple-400/60' : '';
-    return `${cellColor(dateStr)}${ring}`;
-  };
-  const toggleInArray = (arr, value, save) => {
-    if (!save) return;
-    const next = arr.includes(value) ? arr.filter(x => x !== value) : [...arr, value].sort((a, b) => a - b);
-    save(next);
-  };
-  const togglePlannedDay = (n) => toggleInArray(plannedDays, n, savePlannedDays);
-  const togglePlannedMonth = (n) => toggleInArray(plannedMonths, n, savePlannedMonths);
-  const togglePlannedWeek = (n) => toggleInArray(plannedWeeks, n, savePlannedWeeks);
-  const WEEKDAYS = [
-    { num: 1, label: 'Mon' },
-    { num: 2, label: 'Tue' },
-    { num: 3, label: 'Wed' },
-    { num: 4, label: 'Thu' },
-    { num: 5, label: 'Fri' },
-    { num: 6, label: 'Sat' },
-    { num: 0, label: 'Sun' },
-  ];
-  const MONTHS = [
-    { num: 0, label: 'Jan' }, { num: 1, label: 'Feb' }, { num: 2, label: 'Mar' },
-    { num: 3, label: 'Apr' }, { num: 4, label: 'May' }, { num: 5, label: 'Jun' },
-    { num: 6, label: 'Jul' }, { num: 7, label: 'Aug' }, { num: 8, label: 'Sep' },
-    { num: 9, label: 'Oct' }, { num: 10, label: 'Nov' }, { num: 11, label: 'Dec' },
-  ];
-  const WEEKS = [1, 2, 3, 4, 5];
-  const plannedSessionsThisMonth = (() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    let count = 0;
-    const lastDay = new Date(year, month + 1, 0).getDate();
-    for (let d = 1; d <= lastDay; d++) {
-      const date = new Date(year, month, d);
-      const dateStr = date.toISOString().split('T')[0];
-      if (isPlannedDay(dateStr)) count++;
-    }
-    return count;
-  })();
-  const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
-
   const userMaxMasteredDifficulty = useMemo(() => {
     const order = ['Easy', 'Medium', 'Hard', 'Super'];
     const masteredLevels = (tricks || []).filter(t => t.status === 'got_it').map(t => order.indexOf(t.difficulty)).filter(i => i >= 0);
@@ -2866,25 +2684,6 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     return result;
   }, [plannedDays, plannedMonths, plannedWeeks, safeSessions]);
 
-  const formatUpcomingDate = (dateStr) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
-    const diff = Math.round((d - todayD) / 86400000);
-    const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-    const md = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (diff === 0) return `Today · ${weekday} ${md}`;
-    if (diff === 1) return `Tomorrow · ${weekday} ${md}`;
-    return `${weekday} ${md}`;
-  };
-
-  const startLogFor = (dateStr) => {
-    setDate(dateStr);
-    if (typeof window !== 'undefined') {
-      const el = document.getElementById('phase-log');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  };
-
   const focusForDate = (dateStr) => Array.isArray(plannedSessionFocus[dateStr]) ? plannedSessionFocus[dateStr] : [];
   const setFocusForDate = (dateStr, ids) => {
     if (!savePlannedSessionFocus) return;
@@ -2900,21 +2699,6 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   };
   const unlockFocusTrick = (dateStr, trickId) => {
     setFocusForDate(dateStr, focusForDate(dateStr).filter(id => id !== trickId));
-  };
-
-  const dismissedForDate = (dateStr) => Array.isArray(plannedSessionDismissed[dateStr]) ? plannedSessionDismissed[dateStr] : [];
-  const dismissSuggestion = (dateStr, trickId) => {
-    if (!savePlannedSessionDismissed) return;
-    const cur = dismissedForDate(dateStr);
-    if (cur.includes(trickId)) return;
-    const next = { ...plannedSessionDismissed, [dateStr]: [...cur, trickId] };
-    savePlannedSessionDismissed(next);
-  };
-  const restoreDismissed = (dateStr) => {
-    if (!savePlannedSessionDismissed) return;
-    const next = { ...plannedSessionDismissed };
-    delete next[dateStr];
-    savePlannedSessionDismissed(next);
   };
 
   const toggleTag = (tag) => {
@@ -2942,14 +2726,6 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 2000);
   };
-
-  const removeSession = async (id) => {
-    if (!window.confirm('Delete this training session?')) return;
-    await saveTrainingSessions(safeSessions.filter(s => s.id !== id));
-  };
-
-  const weeks = [];
-  for (let i = 0; i < heatmapDays.length; i += 7) weeks.push(heatmapDays.slice(i, i + 7));
 
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const m = new Date();
