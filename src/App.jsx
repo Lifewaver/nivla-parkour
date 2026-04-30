@@ -3127,6 +3127,25 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
 
   return (
     <div className="space-y-4">
+      <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs font-semibold text-orange-300 uppercase">Streak</div>
+            <div className="flex items-baseline gap-2"><span className="text-4xl font-black">{streak}</span><span className="text-sm font-bold text-orange-200">days</span></div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs font-semibold text-orange-300 uppercase">Total</div>
+            <div className="text-2xl font-black">{totalSessions} <span className="text-sm font-bold text-orange-200">sessions</span></div>
+            <div className="text-xs text-slate-300">{totalHours} h logged · avg RPE {avgRpe || '—'}</div>
+          </div>
+        </div>
+        {nextMilestone && (
+          <div className="mt-3 text-xs text-orange-200">
+            Next milestone: <span className="font-bold">{nextMilestone.label}</span> ({nextMilestone.count - totalSessions} to go)
+          </div>
+        )}
+      </div>
+
       {(() => {
         const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         return (
@@ -3625,25 +3644,6 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
           </div>
         );
       })()}
-
-      <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-2xl p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold text-orange-300 uppercase">Streak</div>
-            <div className="flex items-baseline gap-2"><span className="text-4xl font-black">{streak}</span><span className="text-sm font-bold text-orange-200">days</span></div>
-          </div>
-          <div className="text-right">
-            <div className="text-xs font-semibold text-orange-300 uppercase">Total</div>
-            <div className="text-2xl font-black">{totalSessions} <span className="text-sm font-bold text-orange-200">sessions</span></div>
-            <div className="text-xs text-slate-300">{totalHours} h logged · avg RPE {avgRpe || '—'}</div>
-          </div>
-        </div>
-        {nextMilestone && (
-          <div className="mt-3 text-xs text-orange-200">
-            Next milestone: <span className="font-bold">{nextMilestone.label}</span> ({nextMilestone.count - totalSessions} to go)
-          </div>
-        )}
-      </div>
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
         <div className="font-bold mb-3 flex items-center gap-2"><Calendar className="w-5 h-5 text-purple-400" /> Last 16 weeks</div>
