@@ -1657,6 +1657,7 @@ function MainApp({ user }) {
           <TodayTab streak={streak} weeklyGoals={weeklyGoals} tricks={displayTricks} onOpenTrick={openTrick}
             plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
             hasTrainedToday={trainingDays.includes(new Date().toISOString().split('T')[0])}
+            fireCelebration={fireCelebration}
             goToWarmup={() => { setTrainingSection('warmup'); setActiveTab('training'); }}
             goToStrength={() => { setTrainingSection('conditioning'); setActiveTab('training'); }}
             goToLog={() => { setTrainingSection('log'); setActiveTab('training'); }} />
@@ -1911,7 +1912,7 @@ function NavButton({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedSessionFocus = {}, savePlannedSessionFocus, hasTrainedToday, goToWarmup, goToStrength, goToLog }) {
+function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedSessionFocus = {}, savePlannedSessionFocus, hasTrainedToday, fireCelebration, goToWarmup, goToStrength, goToLog }) {
   const today = new Date().toISOString().split('T')[0];
   const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
   const lockedIds = Array.isArray(plannedSessionFocus[today]) ? plannedSessionFocus[today] : [];
@@ -1948,6 +1949,16 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedS
   const useTheseForToday = () => {
     if (!savePlannedSessionFocus || suggestions.length === 0) return;
     savePlannedSessionFocus({ ...plannedSessionFocus, [today]: suggestions.map(t => t.id) });
+    if (fireCelebration) {
+      fireCelebration({
+        _id: Date.now(),
+        kind: 'small',
+        icon: '🎯',
+        title: `${suggestions.length} ${suggestions.length === 1 ? 'trick' : 'tricks'} locked in`,
+        subtitle: 'Hit Log it when you\'re done training.',
+        tone: 'cyan',
+      });
+    }
   };
 
   const renderTrickRow = (t) => {
@@ -2631,6 +2642,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const [duration, setDuration] = useState('');
   const [notes, setNotes] = useState('');
   const [savedToast, setSavedToast] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
   const [practicedTricks, setPracticedTricks] = useState([]);
   useEffect(() => {
@@ -2732,25 +2744,30 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   };
 
   const submit = async () => {
-    if (!date) return;
-    const realChanges = sessionTrickAdvances.filter(a => a.fromStatus !== a.toStatus);
-    const entry = {
-      id: Date.now(),
-      date,
-      focusTags: tags,
-      practicedTricks,
-      rpe: Number(rpe),
-      durationMinutes: duration ? Math.max(0, parseInt(duration, 10) || 0) : 0,
-      notes: notes.trim(),
-      trickStatusChanges: realChanges,
-      createdAt: Date.now(),
-    };
-    await saveTrainingSessions([entry, ...safeSessions]);
-    if (markDayTrained) await markDayTrained(date);
-    setTags([]); setDuration(''); setNotes(''); setRpe(6); setDate(today); setPracticedTricks([]);
-    setSessionTrickAdvances([]);
-    setSavedToast(true);
-    setTimeout(() => setSavedToast(false), 2000);
+    if (!date || submitting) return;
+    setSubmitting(true);
+    try {
+      const realChanges = sessionTrickAdvances.filter(a => a.fromStatus !== a.toStatus);
+      const entry = {
+        id: Date.now(),
+        date,
+        focusTags: tags,
+        practicedTricks,
+        rpe: Number(rpe),
+        durationMinutes: duration ? Math.max(0, parseInt(duration, 10) || 0) : 0,
+        notes: notes.trim(),
+        trickStatusChanges: realChanges,
+        createdAt: Date.now(),
+      };
+      await saveTrainingSessions([entry, ...safeSessions]);
+      if (markDayTrained) await markDayTrained(date);
+      setTags([]); setDuration(''); setNotes(''); setRpe(6); setDate(today); setPracticedTricks([]);
+      setSessionTrickAdvances([]);
+      setSavedToast(true);
+      setTimeout(() => setSavedToast(false), 2000);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
@@ -3396,9 +3413,9 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                         <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Notes</div>
                         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="What worked? What's next?" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs resize-none" />
                       </div>
-                      <button onClick={() => { submit(); setSessionTrickAdvances([]); }}
-                        className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold text-sm transition hover:scale-[1.02] active:scale-95">
-                        {savedToast ? '✅ Saved!' : 'Save session'}
+                      <button onClick={submit} disabled={submitting}
+                        className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold text-sm transition hover:scale-[1.02] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100">
+                        {savedToast ? '✅ Saved!' : submitting ? 'Saving…' : 'Save session'}
                       </button>
                     </div>
                   )}
@@ -5892,6 +5909,7 @@ service cloud.firestore {
               <div className="font-black text-lg truncate">{selectedUser.displayName || 'Unknown'}</div>
               <div className="text-xs text-slate-400 truncate">{selectedUser.email}</div>
               <div className="text-xs text-slate-500 mt-1">Last sign-in: {formatDate(selectedUser.lastSignIn)}</div>
+              <div className="text-[10px] text-slate-500 italic mt-1">Data shown as of this user's last sync · global trick edits apply on their next load.</div>
             </div>
             {selectedUser.isAdmin && (
               <span className="text-xs font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-2 py-1 rounded">
