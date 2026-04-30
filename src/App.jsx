@@ -17,6 +17,16 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.18',
+    date: '2026-04-30',
+    title: 'First-run onboarding',
+    notes: [
+      'Brand-new family members now get a 3-tap setup: pick 3 tricks to learn first, pick training weekdays, hit Let\'s go. Their picks land directly in Today.',
+      'Existing users with any data are auto-marked as onboarded and skip the flow.',
+      'Friendlier empty states across the app — clear nudges instead of dispiriting "no goals" placeholders.',
+    ],
+  },
+  {
     version: '1.17',
     date: '2026-04-30',
     title: 'Today is the front door',
@@ -655,6 +665,188 @@ export default function ParkourApp() {
 }
 
 // =================================================================
+// ONBOARDING
+// =================================================================
+function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
+  const [step, setStep] = useState(1);
+  const [pickedTrickIds, setPickedTrickIds] = useState([]);
+  const [pickedWeekdays, setPickedWeekdays] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const easyTricks = useMemo(
+    () => tricks.filter(t => t.difficulty === 'Easy').slice().sort((a, b) => a.name.localeCompare(b.name)),
+    [tricks]
+  );
+
+  const WEEKDAYS = [
+    { num: 1, label: 'Mon' }, { num: 2, label: 'Tue' }, { num: 3, label: 'Wed' },
+    { num: 4, label: 'Thu' }, { num: 5, label: 'Fri' }, { num: 6, label: 'Sat' }, { num: 0, label: 'Sun' },
+  ];
+
+  const toggleTrick = (id) => {
+    setPickedTrickIds(curr => {
+      if (curr.includes(id)) return curr.filter(x => x !== id);
+      if (curr.length >= 3) return curr;
+      return [...curr, id];
+    });
+  };
+
+  const toggleWeekday = (n) => {
+    setPickedWeekdays(curr => curr.includes(n) ? curr.filter(x => x !== n) : [...curr, n]);
+  };
+
+  const handleFinish = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onFinish({ trickIds: pickedTrickIds, weekdays: pickedWeekdays });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const StepDots = () => (
+    <div className="flex items-center gap-1.5">
+      {[1, 2, 3].map(n => (
+        <span key={n}
+          className={`w-2 h-2 rounded-full transition ${n === step ? 'bg-purple-400 w-6' : n < step ? 'bg-purple-600' : 'bg-slate-700'}`} />
+      ))}
+    </div>
+  );
+
+  const firstName = (userName || '').split(' ')[0] || 'there';
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 text-white">
+      <div className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-lg border-b border-purple-500/20 px-4 py-3">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <StepDots />
+          <button onClick={onSkip} className="text-xs text-slate-400 hover:text-slate-200">Skip</button>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 py-6 pb-32">
+        {step === 1 && (
+          <div className="space-y-4">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wide text-purple-300 mb-1">Welcome, {firstName} 👋</div>
+              <h1 className="text-3xl font-black leading-tight">Pick 3 tricks you want to learn first</h1>
+              <p className="text-sm text-slate-400 mt-2">Easy ones to get rolling — you can always change your mind later.</p>
+            </div>
+            <div className="text-xs text-slate-400">{pickedTrickIds.length} / 3 picked</div>
+            <div className="grid grid-cols-2 gap-2">
+              {easyTricks.map(t => {
+                const picked = pickedTrickIds.includes(t.id);
+                const diff = DIFFICULTY_COLORS[t.difficulty];
+                const disabled = !picked && pickedTrickIds.length >= 3;
+                return (
+                  <button key={t.id} onClick={() => toggleTrick(t.id)} disabled={disabled}
+                    className={`relative text-left rounded-xl p-3 border transition ${picked ? 'bg-purple-500/30 border-purple-400 ring-2 ring-purple-400' : disabled ? 'bg-slate-900/40 border-slate-800 opacity-50 cursor-not-allowed' : 'bg-slate-800/70 border-slate-700 hover:bg-slate-800'}`}>
+                    {picked && (
+                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-purple-400 flex items-center justify-center">
+                        <Check className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                    <CategoryIcon category={t.category} size={32} className="text-slate-200 mb-2" />
+                    <div className="font-bold text-sm leading-tight pr-8">{t.name}</div>
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
+                      <span className="text-[10px] text-slate-500">{t.category}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-4">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wide text-purple-300 mb-1">Step 2 of 3</div>
+              <h1 className="text-3xl font-black leading-tight">When do you usually train?</h1>
+              <p className="text-sm text-slate-400 mt-2">Pick the weekdays you'd like to set aside for parkour. We'll suggest sessions on those days.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {WEEKDAYS.map(d => {
+                const on = pickedWeekdays.includes(d.num);
+                return (
+                  <button key={d.num} onClick={() => toggleWeekday(d.num)}
+                    className={`px-4 py-3 rounded-xl text-sm font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                    {d.label}
+                  </button>
+                );
+              })}
+            </div>
+            {pickedWeekdays.length === 0 && (
+              <div className="text-xs text-slate-500 italic">Or skip this and pick days later in Training.</div>
+            )}
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-4">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wide text-purple-300 mb-1">All set</div>
+              <h1 className="text-3xl font-black leading-tight">Let's go 🚀</h1>
+              <p className="text-sm text-slate-400 mt-2">Today's session is loaded with your 3 picks. Tap Today to start.</p>
+            </div>
+            <div className="bg-slate-800/70 border border-purple-500/30 rounded-2xl p-4 space-y-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-purple-300">Locked in for today</div>
+              {pickedTrickIds.length === 0 ? (
+                <div className="text-sm text-slate-400 italic">No tricks picked — tap back to pick some.</div>
+              ) : (
+                pickedTrickIds.map(id => {
+                  const t = tricks.find(x => x.id === id);
+                  if (!t) return null;
+                  const diff = DIFFICULTY_COLORS[t.difficulty];
+                  return (
+                    <div key={id} className="flex items-center gap-3 bg-slate-900/60 border border-slate-700 rounded-xl p-2.5">
+                      <div className={`w-1 h-10 ${diff?.strip} rounded-full flex-shrink-0`} />
+                      <CategoryIcon category={t.category} size={18} className="text-slate-300 flex-shrink-0" />
+                      <span className="font-bold text-sm flex-1 truncate">{t.name}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            {pickedWeekdays.length > 0 && (
+              <div className="text-xs text-slate-400">
+                Training days: <span className="text-purple-300 font-bold">{pickedWeekdays.map(n => WEEKDAYS.find(d => d.num === n)?.label).filter(Boolean).join(' · ')}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-lg border-t border-purple-500/20 px-4 py-3">
+        <div className="max-w-2xl mx-auto flex items-center gap-2">
+          {step > 1 && (
+            <button onClick={() => setStep(s => s - 1)}
+              className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm">
+              Back
+            </button>
+          )}
+          {step < 3 ? (
+            <button onClick={() => setStep(s => s + 1)}
+              disabled={step === 1 && pickedTrickIds.length === 0}
+              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed transition">
+              {step === 1 ? (pickedTrickIds.length === 0 ? 'Pick at least 1 to continue' : 'Continue →') : 'Continue →'}
+            </button>
+          ) : (
+            <button onClick={handleFinish} disabled={submitting}
+              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white font-bold disabled:opacity-50 transition">
+              {submitting ? 'Setting up…' : "Let's go 🚀"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =================================================================
 // MAIN APP
 // =================================================================
 function MainApp({ user }) {
@@ -700,11 +892,12 @@ function MainApp({ user }) {
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [showImprovementModal, setShowImprovementModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [onboardingComplete, setOnboardingComplete] = useState(true);
 
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData, viewedData] =
+        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData, viewedData, onboardingData] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
@@ -719,6 +912,7 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'plannedSessionFocus'),
             loadUserData(user.uid, 'plannedSessionDismissed'),
             loadUserData(user.uid, 'viewedTricks'),
+            loadUserData(user.uid, 'onboardingComplete'),
           ]);
 
         // Load global trick overrides set by admin
@@ -805,6 +999,23 @@ function MainApp({ user }) {
         if (plannedFocusData) setPlannedSessionFocus(plannedFocusData);
         if (plannedDismissedData) setPlannedSessionDismissed(plannedDismissedData);
         if (viewedData) setViewedTricks(viewedData);
+
+        if (onboardingData === true) {
+          setOnboardingComplete(true);
+        } else {
+          const hasData = (Array.isArray(goalsData) && goalsData.length > 0)
+            || (Array.isArray(daysData) && daysData.length > 0)
+            || (Array.isArray(sessionsData) && sessionsData.length > 0)
+            || (Array.isArray(plannedData) && plannedData.length > 0)
+            || (Array.isArray(plannedMonthsData) && plannedMonthsData.length > 0)
+            || (Array.isArray(plannedWeeksData) && plannedWeeksData.length > 0);
+          if (hasData) {
+            setOnboardingComplete(true);
+            saveUserData(user.uid, 'onboardingComplete', true).catch(e => console.error('Onboarding flag save error', e));
+          } else {
+            setOnboardingComplete(false);
+          }
+        }
       } catch (e) {
         console.error('Load error', e);
       }
@@ -931,6 +1142,32 @@ function MainApp({ user }) {
           <div className="text-white text-xl font-bold">Loading your training...</div>
         </div>
       </div>
+    );
+  }
+
+  const finishOnboarding = async ({ trickIds, weekdays }) => {
+    const today = new Date().toISOString().split('T')[0];
+    if (Array.isArray(trickIds) && trickIds.length > 0) {
+      const goals = trickIds.map(id => ({ trickId: id, addedAt: Date.now() }));
+      await saveGoals(goals);
+      await savePlannedSessionFocus({ ...plannedSessionFocus, [today]: trickIds });
+    }
+    if (Array.isArray(weekdays) && weekdays.length > 0) {
+      await savePlannedDays(weekdays);
+    }
+    await saveUserData(user.uid, 'onboardingComplete', true);
+    setOnboardingComplete(true);
+    setActiveTab('home');
+  };
+
+  const skipOnboarding = async () => {
+    await saveUserData(user.uid, 'onboardingComplete', true);
+    setOnboardingComplete(true);
+  };
+
+  if (!onboardingComplete) {
+    return (
+      <OnboardingFlow tricks={displayTricks} userName={user.displayName} onFinish={finishOnboarding} onSkip={skipOnboarding} />
     );
   }
 
@@ -1314,7 +1551,11 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedS
           <div className="font-black text-lg">{isPlanned ? "Today's session" : 'Want to train? Pick 3 tricks'}</div>
         </div>
         {suggestions.length === 0 ? (
-          <div className="text-sm text-slate-400 italic">No tricks to suggest yet. Browse the Tricks tab to mark some as 👀 Want to learn or 💪 Training.</div>
+          <div className="bg-slate-900/60 border border-dashed border-slate-700 rounded-xl p-4 text-center">
+            <div className="text-2xl mb-1">🤸</div>
+            <div className="text-sm font-bold text-slate-200 mb-1">Nothing to suggest yet</div>
+            <div className="text-xs text-slate-400">Browse the Tricks tab and tap a trick to mark it 👀 Want to learn or 💪 Training. Then come back here.</div>
+          </div>
         ) : (
           <>
             <div className="space-y-2">
@@ -2563,7 +2804,10 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                   )}
 
                   {isOpen && lockedTricks.length === 0 && remainingSuggestions.length === 0 && (
-                    <div className="text-xs text-slate-500 italic mb-2">No suggestions yet — set tricks in focus or mark tricks as Want to learn / Training.</div>
+                    <div className="bg-slate-900 border border-dashed border-slate-700 rounded-lg p-3 mb-2 text-center">
+                      <div className="text-sm text-slate-300">Nothing planned yet for this day.</div>
+                      <div className="text-xs text-slate-500 mt-1">Pick a trick from below, or mark tricks as 💪 Training in the Tricks tab to see them here.</div>
+                    </div>
                   )}
 
                   {isOpen && (
@@ -3118,7 +3362,11 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
             )}
 
             {weeklyGoals.length === 0 && visibleSuggestions.length === 0 && addable.length === 0 && (
-              <div className="text-xs text-slate-500 italic">No focus tricks yet. Mark tricks as Want to learn / Training to get suggestions.</div>
+              <div className="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-4 text-center">
+                <div className="text-2xl mb-1">🎯</div>
+                <div className="text-sm font-bold text-slate-200 mb-1">No focus tricks yet</div>
+                <div className="text-xs text-slate-400">Tap a category above and hit <span className="font-bold text-yellow-300">+ Add</span> next to any trick to focus on it this week.</div>
+              </div>
             )}
           </div>
         );
