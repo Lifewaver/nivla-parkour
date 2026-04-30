@@ -17,6 +17,15 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.29',
+    date: '2026-04-30',
+    title: 'One planning surface',
+    notes: [
+      'Removed the rich Upcoming sessions block from the Training log — the week strip + day sheets are now the only planning surface.',
+      'Cleaner page: streak header → week strip → (selected day sheet) → 16-week heatmap → planning controls → log form → coming up → journal.',
+    ],
+  },
+  {
     version: '1.28',
     date: '2026-04-30',
     title: 'Plan your week, in line',
@@ -3352,172 +3361,6 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                 <span className="text-purple-300 font-bold">{plannedSessionsThisMonth}</span> planned training day{plannedSessionsThisMonth === 1 ? '' : 's'} in {monthName}.
               </div>
             )}
-          </div>
-        )}
-      </div>
-
-      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
-        <div className="font-bold mb-3 flex items-center gap-2"><Calendar className="w-5 h-5 text-purple-400" /> Upcoming sessions</div>
-        {upcomingSessions.length === 0 ? (
-          <div className="text-sm text-slate-500">Pick months / weeks / weekdays above to plan your sessions.</div>
-        ) : (
-          <div className="space-y-3">
-            {upcomingSessions.map(us => {
-              const logged = us.loggedSession;
-              const lockedIds = focusForDate(us.date);
-              const lockedTricks = lockedIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
-              const dismissedIds = dismissedForDate(us.date);
-              const remainingSuggestions = sessionSuggestions.filter(s => !lockedIds.includes(s.trick.id) && !dismissedIds.includes(s.trick.id));
-              const addable = tricks.filter(t => !lockedIds.includes(t.id) && t.status !== 'got_it')
-                .sort((a, b) => a.name.localeCompare(b.name));
-              const isOpen = !!expandedSessions[us.date];
-              return (
-                <div key={us.date} className={`bg-slate-900 border rounded-xl p-3 ${logged ? 'border-green-500/40' : 'border-slate-700'}`}>
-                  <button onClick={() => toggleSessionOpen(us.date)} className={`w-full flex items-center gap-2 text-left ${isOpen ? 'mb-2' : ''}`}>
-                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                    <span className="font-bold text-sm flex-1">{formatUpcomingDate(us.date)}</span>
-                    {!isOpen && lockedTricks.length > 0 && (
-                      <span className="text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 px-1.5 py-0.5 rounded">{lockedTricks.length} locked</span>
-                    )}
-                    {logged && <span className="text-[10px] font-bold bg-green-500/20 text-green-300 border border-green-500/40 px-2 py-0.5 rounded">✓ Logged · RPE {logged.rpe}</span>}
-                  </button>
-
-                  {isOpen && lastLoggedSession && (
-                    <button onClick={() => copyLastSessionTo(us.date)}
-                      className="w-full mb-2 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded font-bold text-xs transition flex items-center justify-center gap-1"
-                      title={`Copy practiced tricks from session on ${lastLoggedSession.date}`}>
-                      📋 Copy last session ({lastLoggedSession.practicedTricks.length} {lastLoggedSession.practicedTricks.length === 1 ? 'trick' : 'tricks'} from {lastLoggedSession.date})
-                    </button>
-                  )}
-
-                  {isOpen && lockedTricks.length > 0 && (
-                    <div className="mb-2">
-                      <div className="text-[10px] font-semibold text-purple-300 uppercase mb-1">🔒 Focus for this session ({lockedTricks.length})</div>
-                      <div className="space-y-2">
-                        {lockedTricks.map(t => {
-                          const diff = DIFFICULTY_COLORS[t.difficulty];
-                          const tStatus = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-                          const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
-                          const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
-                          const playVideo = (e, video) => { e.stopPropagation(); if (video?.url && onOpenTrick) onOpenTrick(t, normalizeUrl(video.url)); };
-                          return (
-                            <div key={t.id} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-purple-500/40 rounded-xl p-3 flex items-center gap-2 transition">
-                              <button onClick={() => onOpenTrick && onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                                <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
-                                <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-bold truncate">{t.name}</div>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
-                                    {t.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {t.videos.length}</span>}
-                                  </div>
-                                </div>
-                              </button>
-                              {referenceVideo && (
-                                <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
-                                  <Play className="w-4 h-4 fill-current" />
-                                </button>
-                              )}
-                              {tutorialVideo && (
-                                <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
-                                  <span className="text-base">🎓</span>
-                                </button>
-                              )}
-                              <StatusPill trick={t} onClick={() => onOpenTrick && onOpenTrick(t)} />
-                              <button onClick={() => unlockFocusTrick(us.date, t.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove from focus"><X className="w-4 h-4" /></button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {isOpen && remainingSuggestions.length > 0 && (() => {
-                    const suggestionLimit = Math.max(1, 5 - lockedTricks.length);
-                    const visible = remainingSuggestions.slice(0, suggestionLimit);
-                    return (
-                      <div className="mb-2">
-                        <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Suggested focus</div>
-                        <div className="space-y-2">
-                          {visible.map(s => {
-                            const canDismiss = remainingSuggestions.length > 1;
-                            const diff = DIFFICULTY_COLORS[s.trick.difficulty];
-                            const tStatus = STATUS_LEVELS.find(st => st.id === s.trick.status) || STATUS_LEVELS[0];
-                            const tutorialVideo = s.trick.videos?.find(v => isTutorialVideo(v) && v.primary) || s.trick.videos?.find(v => isTutorialVideo(v));
-                            const referenceVideo = s.trick.videos?.find(v => v.type !== 'tutorial' && v.primary) || s.trick.videos?.find(v => v.type !== 'tutorial');
-                            const playVideo = (e, video) => { e.stopPropagation(); if (video?.url && onOpenTrick) onOpenTrick(s.trick, normalizeUrl(video.url)); };
-                            return (
-                              <div key={s.trick.id} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
-                                <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                                  <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
-                                  <CategoryIcon category={s.trick.category} size={20} className="text-slate-300 flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-bold truncate">{s.trick.name}</div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{s.trick.difficulty}</span>
-                                      {s.trick.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {s.trick.videos.length}</span>}
-                                      <span className="text-[10px] text-slate-400 truncate">{s.reason}</span>
-                                    </div>
-                                  </div>
-                                </button>
-                                {referenceVideo && (
-                                  <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
-                                    <Play className="w-4 h-4 fill-current" />
-                                  </button>
-                                )}
-                                {tutorialVideo && (
-                                  <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
-                                    <span className="text-base">🎓</span>
-                                  </button>
-                                )}
-                                <StatusPill trick={s.trick} onClick={() => onOpenTrick && onOpenTrick(s.trick)} />
-                                <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition" title="Lock in for this session">+ Add</button>
-                                {canDismiss && (
-                                  <button onClick={() => dismissSuggestion(us.date, s.trick.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Dismiss this suggestion"><X className="w-3.5 h-3.5" /></button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {dismissedIds.length > 0 && (
-                          <button onClick={() => restoreDismissed(us.date)} className="text-[10px] text-slate-500 hover:text-slate-300 mt-2">
-                            ↩ Restore {dismissedIds.length} dismissed
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {isOpen && !logged && addable.length > 0 && (
-                    <div className="mb-2">
-                      <select value=""
-                        onChange={(e) => { if (e.target.value) lockFocusTrick(us.date, parseInt(e.target.value, 10)); }}
-                        className="w-full bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5">
-                        <option value="">+ Add another trick…</option>
-                        {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
-                      </select>
-                    </div>
-                  )}
-
-                  {isOpen && lockedTricks.length === 0 && remainingSuggestions.length === 0 && (
-                    <div className="bg-slate-900 border border-dashed border-slate-700 rounded-lg p-3 mb-2 text-center">
-                      <div className="text-sm text-slate-300">Nothing planned yet for this day.</div>
-                      <div className="text-xs text-slate-500 mt-1">Pick a trick from below, or mark tricks as 💪 Training in the Tricks tab to see them here.</div>
-                    </div>
-                  )}
-
-                  {isOpen && (
-                    <div className="flex gap-1.5">
-                      <button onClick={() => setSection && setSection('warmup')} className="flex-1 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 rounded font-bold text-xs transition">🔥 Warm Up</button>
-                      <button onClick={() => setSection && setSection('conditioning')} className="flex-1 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded font-bold text-xs transition">💪 Strength</button>
-                      {!logged && (
-                        <button onClick={() => startLogFor(us.date)} className="flex-1 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded font-bold text-xs transition">📝 Log it</button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
           </div>
         )}
       </div>
