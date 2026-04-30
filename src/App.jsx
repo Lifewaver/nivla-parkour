@@ -22,7 +22,8 @@ const RELEASE_NOTES = [
     title: 'One progress dot to rule them all',
     notes: [
       'Status pills on every trick card now show a single filled-circle indicator that fills as you progress: empty → quarter → half → three-quarters → full.',
-      'Replaces the mixed bag of ⚪ 👀 💪 🤾 🛬 ✅ emojis that were doing double duty as decoration and meaning.',
+      'The trick modal also uses the same dot — each status button shows the level it represents, so the four options read at a glance.',
+      'Landing checkpoints in the modal swap 🤾 🛬 🪨 for plain numbered circles (1, 2, 3) with a check when complete. Labels Trampoline / Soft mat / Hard ground stay underneath.',
       'Color escalates with progress (slate → purple → yellow → green) so the state still pops at a glance.',
     ],
   },
@@ -2159,17 +2160,19 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
               if (onUpdateProgress) onUpdateProgress(trick.id, next);
             };
 
+            const STATUS_PREVIEW_LEVEL = { not_started: 0, want_to_learn: 1, training: 2, got_it: 4 };
             return (
               <div>
                 <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Status</div>
                 <div className="grid grid-cols-4 gap-2">
                   {STATUS_LEVELS.map(s => {
                     const active = trick.status === s.id;
+                    const previewLevel = STATUS_PREVIEW_LEVEL[s.id] ?? 0;
                     return (
                       <button key={s.id} onClick={() => setStatus(s.id)}
                         title={s.id === 'got_it' && active ? 'Click to revert to Training' : undefined}
-                        className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border transition ${active ? `${s.color} border-white/40` : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
-                        <span className="text-2xl">{s.emoji}</span>
+                        className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl border transition ${active ? `${s.color} border-white/40` : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
+                        <ProgressDot level={previewLevel} size={26} color={active ? '#ffffff' : undefined} />
                         <span className={`text-[11px] font-bold leading-tight text-center ${active ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
                       </button>
                     );
@@ -2191,13 +2194,13 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
                           })(),
                         }}
                       />
-                      {LANDING_LEVELS.map(ls => {
+                      {LANDING_LEVELS.map((ls, idx) => {
                         const checked = progressArr.includes(ls.id);
                         return (
                           <button key={ls.id} onClick={() => toggleLanding(ls.id)}
                             className="relative z-10 flex flex-col items-center gap-1.5 flex-1">
-                            <span className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-xl transition ${checked ? `${ls.color} border-white` : 'bg-slate-800 border-slate-600 hover:border-slate-400'}`}>
-                              {checked ? <Check className="w-5 h-5 text-white" /> : ls.emoji}
+                            <span className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition ${checked ? 'bg-green-500 border-white' : 'bg-slate-800 border-slate-600 hover:border-slate-400'}`}>
+                              {checked ? <Check className="w-5 h-5 text-white" /> : <span className="text-sm font-bold text-slate-400">{idx + 1}</span>}
                             </span>
                             <span className={`text-xs font-semibold ${checked ? 'text-white' : 'text-slate-400'}`}>{ls.label}</span>
                           </button>
