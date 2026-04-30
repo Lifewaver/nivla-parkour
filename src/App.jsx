@@ -17,6 +17,20 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.31',
+    date: '2026-04-30',
+    title: 'Sessions browser',
+    notes: [
+      'New Sessions screen reachable from the week strip footer (Sessions →), the Coming up card (View all →) or the Journal card (All sessions →).',
+      'Search bar across trick names, focus tags and notes.',
+      'Quick filter chips: All · 🔥 Hard · top 1–2 most-practiced tricks · top focus tag · 90+ min · ★ Milestones.',
+      'Stats card: This month · Avg RPE (last 8) · Top focus tag.',
+      'Sessions grouped by month with sticky headers, paginated 6 at a time per month.',
+      'Tap a session card → full detail modal with RPE/Min/Tricks tiles, trick rows showing the new from → to status arrows when status was advanced in-session, focus tag chips, full note in a highlighted block, and a × Delete button.',
+      'Mastered-this-session pill (★ Mastered) highlights milestone sessions with a soft green border.',
+    ],
+  },
+  {
     version: '1.30',
     date: '2026-04-30',
     title: 'Today\'s session as five phases',
@@ -2635,37 +2649,46 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
 
   return (
     <div className="max-w-2xl mx-auto">
-      <TrainingLogSection
-        trainingDays={trainingDays}
-        trainingSessions={trainingSessions}
-        saveTrainingSessions={saveTrainingSessions}
-        markDayTrained={markDayTrained}
-        plannedDays={plannedDays}
-        savePlannedDays={savePlannedDays}
-        plannedMonths={plannedMonths}
-        savePlannedMonths={savePlannedMonths}
-        plannedWeeks={plannedWeeks}
-        savePlannedWeeks={savePlannedWeeks}
-        plannedSessionFocus={plannedSessionFocus}
-        savePlannedSessionFocus={savePlannedSessionFocus}
-        plannedSessionDismissed={plannedSessionDismissed}
-        savePlannedSessionDismissed={savePlannedSessionDismissed}
-        plannedSessionIntents={plannedSessionIntents}
-        savePlannedSessionIntents={savePlannedSessionIntents}
-        streak={streak}
-        tricks={tricks}
-        weeklyGoals={weeklyGoals}
-        completedWarmups={completedWarmups}
-        toggleWarmup={toggleWarmup}
-        resetWarmups={resetWarmups}
-        completedConditioning={completedConditioning}
-        toggleConditioning={toggleConditioning}
-        resetConditioning={resetConditioning}
-        section={section}
-        setSection={setSection}
-        onOpenTrick={onOpenTrick}
-        onUpdateTrickStatus={onUpdateTrickStatus}
-      />
+      {section === 'sessions' ? (
+        <SessionsBrowser
+          trainingSessions={trainingSessions}
+          saveTrainingSessions={saveTrainingSessions}
+          tricks={tricks}
+          onOpenTrick={onOpenTrick}
+          onClose={() => setSection('log')} />
+      ) : (
+        <TrainingLogSection
+          trainingDays={trainingDays}
+          trainingSessions={trainingSessions}
+          saveTrainingSessions={saveTrainingSessions}
+          markDayTrained={markDayTrained}
+          plannedDays={plannedDays}
+          savePlannedDays={savePlannedDays}
+          plannedMonths={plannedMonths}
+          savePlannedMonths={savePlannedMonths}
+          plannedWeeks={plannedWeeks}
+          savePlannedWeeks={savePlannedWeeks}
+          plannedSessionFocus={plannedSessionFocus}
+          savePlannedSessionFocus={savePlannedSessionFocus}
+          plannedSessionDismissed={plannedSessionDismissed}
+          savePlannedSessionDismissed={savePlannedSessionDismissed}
+          plannedSessionIntents={plannedSessionIntents}
+          savePlannedSessionIntents={savePlannedSessionIntents}
+          streak={streak}
+          tricks={tricks}
+          weeklyGoals={weeklyGoals}
+          completedWarmups={completedWarmups}
+          toggleWarmup={toggleWarmup}
+          resetWarmups={resetWarmups}
+          completedConditioning={completedConditioning}
+          toggleConditioning={toggleConditioning}
+          resetConditioning={resetConditioning}
+          section={section}
+          setSection={setSection}
+          onOpenTrick={onOpenTrick}
+          onUpdateTrickStatus={onUpdateTrickStatus}
+        />
+      )}
     </div>
   );
 }
@@ -3127,15 +3150,21 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                 );
               })}
             </div>
-            <div className="text-[10px] text-slate-400 mt-2 text-center">
-              {weekStateCounts.done > 0 && <span>{weekStateCounts.done} done</span>}
-              {weekStateCounts.done > 0 && weekStateCounts.today > 0 && <span> · </span>}
-              {weekStateCounts.today > 0 && <span>{weekStateCounts.today} today</span>}
-              {(weekStateCounts.done + weekStateCounts.today) > 0 && weekStateCounts.planned > 0 && <span> · </span>}
-              {weekStateCounts.planned > 0 && <span>{weekStateCounts.planned} planned</span>}
-              {(weekStateCounts.done + weekStateCounts.today + weekStateCounts.planned) > 0 && weekStateCounts.unplanned > 0 && <span> · </span>}
-              {weekStateCounts.unplanned > 0 && <span>{weekStateCounts.unplanned} open</span>}
-              {(weekStateCounts.done + weekStateCounts.today + weekStateCounts.planned + weekStateCounts.unplanned) === 0 && <span>All rest this week</span>}
+            <div className="text-[10px] mt-2 flex items-center justify-between gap-2">
+              <div className="text-slate-400">
+                {weekStateCounts.done > 0 && <span>{weekStateCounts.done} done</span>}
+                {weekStateCounts.done > 0 && weekStateCounts.today > 0 && <span> · </span>}
+                {weekStateCounts.today > 0 && <span>{weekStateCounts.today} today</span>}
+                {(weekStateCounts.done + weekStateCounts.today) > 0 && weekStateCounts.planned > 0 && <span> · </span>}
+                {weekStateCounts.planned > 0 && <span>{weekStateCounts.planned} planned</span>}
+                {(weekStateCounts.done + weekStateCounts.today + weekStateCounts.planned) > 0 && weekStateCounts.unplanned > 0 && <span> · </span>}
+                {weekStateCounts.unplanned > 0 && <span>{weekStateCounts.unplanned} open</span>}
+                {(weekStateCounts.done + weekStateCounts.today + weekStateCounts.planned + weekStateCounts.unplanned) === 0 && <span>All rest this week</span>}
+              </div>
+              <button onClick={() => setSection && setSection('sessions')}
+                className="text-purple-300 hover:text-purple-200 font-bold flex-shrink-0">
+                Sessions →
+              </button>
             </div>
           </div>
         );
@@ -3693,7 +3722,10 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
 
       {upcomingSummaries.length > 0 && (
         <div className="bg-slate-800/40 border border-purple-500/30 rounded-2xl p-3">
-          <div className="text-[10px] font-black uppercase tracking-wider text-purple-300 mb-2">Coming up</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">Coming up</div>
+            <button onClick={() => setSection && setSection('sessions')} className="text-[10px] font-bold text-purple-300 hover:text-purple-200">View all →</button>
+          </div>
           <div className="space-y-1.5">
             {upcomingSummaries.map(({ date: ds, state }) => {
               const d = new Date(ds + 'T00:00:00');
@@ -3729,11 +3761,16 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
       )}
 
       <div id="training-journal" className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
-        <button onClick={() => setJournalOpen(o => !o)} className="w-full flex items-center gap-2 text-left">
-          <ScrollText className="w-5 h-5 text-purple-400 flex-shrink-0" />
-          <span className="font-bold flex-1">Journal — logged sessions ({safeSessions.length})</span>
-          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${journalOpen ? 'rotate-180' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setJournalOpen(o => !o)} className="flex items-center gap-2 text-left flex-1">
+            <ScrollText className="w-5 h-5 text-purple-400 flex-shrink-0" />
+            <span className="font-bold flex-1">Journal — logged sessions ({safeSessions.length})</span>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${journalOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {setSection && (
+            <button onClick={() => setSection('sessions')} className="text-[10px] font-bold text-purple-300 hover:text-purple-200 flex-shrink-0">All sessions →</button>
+          )}
+        </div>
         {journalOpen && (
           <div className="mt-3">
             <SessionJournalSection
@@ -3745,6 +3782,320 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function SessionDetailModal({ session, tricks = [], onClose, onDelete, onOpenTrick }) {
+  if (!session) return null;
+  const d = new Date(session.date + 'T00:00:00');
+  const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+  const practiced = (session.practicedTricks || []).map(id => tricks.find(t => t.id === id)).filter(Boolean);
+  const changes = Array.isArray(session.trickStatusChanges) ? session.trickStatusChanges : [];
+  const changeForTrick = (tid) => changes.find(c => c.trickId === tid);
+  const tagList = Array.isArray(session.focusTags) ? session.focusTags : [];
+  const masteredHere = changes.filter(c => c.toStatus === 'got_it').length;
+  const rpeColor = (rpe) => rpe >= 9 ? 'bg-red-500/20 text-red-200 border-red-500/40' : rpe >= 7 ? 'bg-orange-500/20 text-orange-200 border-orange-500/40' : 'bg-amber-500/20 text-amber-200 border-amber-500/40';
+
+  return (
+    <div className="fixed inset-x-0 top-0 bottom-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-t sm:border border-purple-500/30 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-full sm:max-h-[85vh] overflow-y-auto">
+        <div className="sticky top-0 bg-slate-900 border-b border-slate-700 px-5 py-4 flex items-center justify-between">
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">Session details</div>
+            <div className="font-black text-base">{dayLabel}</div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-3 gap-2">
+            <div className={`rounded-xl p-3 text-center border ${rpeColor(session.rpe || 0)}`}>
+              <div className="text-[10px] font-bold uppercase opacity-80">RPE</div>
+              <div className="text-2xl font-black">{session.rpe ?? '—'}</div>
+            </div>
+            <div className="rounded-xl p-3 text-center bg-slate-800 border border-slate-700">
+              <div className="text-[10px] text-slate-400 uppercase font-bold">Min</div>
+              <div className="text-2xl font-black">{session.durationMinutes || 0}</div>
+            </div>
+            <div className="rounded-xl p-3 text-center bg-slate-800 border border-slate-700">
+              <div className="text-[10px] text-slate-400 uppercase font-bold">Tricks</div>
+              <div className="text-2xl font-black">{practiced.length}</div>
+            </div>
+          </div>
+
+          {practiced.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold uppercase text-slate-400 mb-2">Tricks practiced</div>
+              <div className="space-y-1.5">
+                {practiced.map(t => {
+                  const change = changeForTrick(t.id);
+                  const masteredHere = change?.toStatus === 'got_it';
+                  return (
+                    <button key={t.id} onClick={() => { onOpenTrick && onOpenTrick(t); onClose && onClose(); }}
+                      className="w-full flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg p-2 text-left transition">
+                      <CategoryIcon category={t.category} size={18} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold truncate">{t.name}</div>
+                        {change && change.fromStatus !== change.toStatus && (
+                          <div className="text-[10px] mt-0.5 flex items-center gap-1">
+                            <span className="text-slate-500">{change.fromStatus.replace(/_/g, ' ')}</span>
+                            <span className="text-green-400">→</span>
+                            <span className="text-green-300 font-bold">{change.toStatus.replace(/_/g, ' ')}</span>
+                          </div>
+                        )}
+                      </div>
+                      {masteredHere && <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-200 border border-yellow-500/40 flex-shrink-0">★ MASTERED</span>}
+                      <StatusPill trick={t} size="sm" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {tagList.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold uppercase text-slate-400 mb-2">Felt like</div>
+              <div className="flex flex-wrap gap-1.5">
+                {tagList.map(tag => (
+                  <span key={tag} className="text-[10px] font-bold px-2 py-1 rounded bg-purple-500/20 text-purple-200 border border-purple-500/30">#{tag}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {session.notes && (
+            <div>
+              <div className="text-[10px] font-bold uppercase text-slate-400 mb-2">Note</div>
+              <div className="text-sm text-slate-200 bg-slate-800/60 border-l-4 border-purple-500/40 rounded-r-lg p-3 whitespace-pre-wrap">{session.notes}</div>
+            </div>
+          )}
+
+          {masteredHere > 0 && (
+            <div className="bg-gradient-to-br from-yellow-500/15 to-orange-500/10 border border-yellow-500/40 rounded-xl p-3 text-center">
+              <div className="text-2xl mb-1">🏆</div>
+              <div className="text-sm font-black text-yellow-200">Milestone session</div>
+              <div className="text-[10px] text-slate-300 mt-0.5">{masteredHere} {masteredHere === 1 ? 'trick' : 'tricks'} mastered today</div>
+            </div>
+          )}
+
+          <div className="pt-2 border-t border-slate-800">
+            {onDelete && (
+              <button onClick={() => { if (window.confirm('Delete this session?')) { onDelete(session.id); onClose && onClose(); } }}
+                className="w-full py-2 rounded-lg text-xs font-bold bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30">
+                × Delete session
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SessionsBrowser({ trainingSessions = [], saveTrainingSessions, tricks = [], onClose, onOpenTrick }) {
+  const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [monthLimits, setMonthLimits] = useState({});
+
+  const totalSessions = safeSessions.length;
+  const totalMinutes = safeSessions.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0);
+  const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+
+  const allTags = safeSessions.flatMap(s => Array.isArray(s.focusTags) ? s.focusTags : []);
+  const tagCounts = allTags.reduce((m, t) => { m[t] = (m[t] || 0) + 1; return m; }, {});
+  const topTag = Object.entries(tagCounts).sort((a, b) => b[1] - a[1])[0];
+
+  const trickCounts = safeSessions.flatMap(s => Array.isArray(s.practicedTricks) ? s.practicedTricks : [])
+    .reduce((m, id) => { m[id] = (m[id] || 0) + 1; return m; }, {});
+  const topTricks = Object.entries(trickCounts).sort((a, b) => b[1] - a[1]).slice(0, 2)
+    .map(([id]) => tricks.find(t => t.id === parseInt(id, 10))).filter(Boolean);
+
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const sessionsThisMonth = safeSessions.filter(s => s.date && s.date.startsWith(thisMonth)).length;
+
+  const recent8 = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 8);
+  const avgRpe = recent8.length > 0
+    ? Math.round((recent8.reduce((sum, s) => sum + (Number(s.rpe) || 0), 0) / recent8.length) * 10) / 10
+    : 0;
+
+  const filterChips = [
+    { id: 'all', label: 'All', count: totalSessions, match: () => true },
+    { id: 'hard', label: '🔥 Hard', match: (s) => (Number(s.rpe) || 0) >= 7 },
+    ...topTricks.map(t => ({ id: `trick_${t.id}`, label: t.name, match: (s) => Array.isArray(s.practicedTricks) && s.practicedTricks.includes(t.id) })),
+    ...(topTag ? [{ id: `tag_${topTag[0]}`, label: `#${topTag[0]}`, match: (s) => Array.isArray(s.focusTags) && s.focusTags.includes(topTag[0]) }] : []),
+    { id: 'long', label: '90+ min', match: (s) => (Number(s.durationMinutes) || 0) >= 90 },
+    { id: 'milestones', label: '★ Milestones', match: (s) => Array.isArray(s.trickStatusChanges) && s.trickStatusChanges.some(c => c.toStatus === 'got_it') },
+  ];
+  const activeMatch = filterChips.find(c => c.id === activeFilter)?.match || (() => true);
+
+  const matchesSearch = (s) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    if ((s.notes || '').toLowerCase().includes(q)) return true;
+    if (Array.isArray(s.focusTags) && s.focusTags.some(t => t.toLowerCase().includes(q))) return true;
+    const trickNames = (Array.isArray(s.practicedTricks) ? s.practicedTricks : [])
+      .map(id => tricks.find(t => t.id === id)?.name || '').join(' ').toLowerCase();
+    return trickNames.includes(q);
+  };
+
+  const filtered = safeSessions.filter(s => activeMatch(s) && matchesSearch(s))
+    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
+
+  const byMonth = {};
+  filtered.forEach(s => {
+    if (!s.date) return;
+    const monthKey = s.date.slice(0, 7);
+    if (!byMonth[monthKey]) byMonth[monthKey] = [];
+    byMonth[monthKey].push(s);
+  });
+  const monthKeys = Object.keys(byMonth).sort().reverse();
+
+  const formatMonthLabel = (key) => {
+    const [y, m] = key.split('-');
+    const d = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  const rpePillClass = (rpe) => {
+    if (rpe >= 9) return 'bg-red-500/25 text-red-200 border-red-500/40';
+    if (rpe >= 7) return 'bg-orange-500/25 text-orange-200 border-orange-500/40';
+    return 'bg-amber-500/20 text-amber-200 border-amber-500/40';
+  };
+
+  const removeSession = async (id) => {
+    if (!saveTrainingSessions) return;
+    await saveTrainingSessions(safeSessions.filter(s => s.id !== id));
+  };
+
+  const selectedSession = selectedSessionId ? safeSessions.find(s => s.id === selectedSessionId) : null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <button onClick={onClose} className="flex items-center gap-1 text-sm font-semibold text-purple-300 hover:text-purple-200">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        <div className="flex-1">
+          <h2 className="font-black text-lg">Sessions</h2>
+          <div className="text-[10px] text-slate-400">{totalSessions} logged · {totalHours} hours total</div>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by trick or note…"
+          className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-purple-500" />
+      </div>
+
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {filterChips.map(c => {
+          const matchCount = c.id === 'all' ? totalSessions : safeSessions.filter(c.match).length;
+          if (c.id !== 'all' && matchCount === 0) return null;
+          const active = activeFilter === c.id;
+          return (
+            <button key={c.id} onClick={() => setActiveFilter(c.id)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition border ${active ? 'bg-slate-100 text-slate-900 border-slate-100' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+              {c.label} <span className={`ml-1 ${active ? 'text-slate-500' : 'text-slate-500'}`}>{matchCount}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-3 bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden">
+        <div className="p-3 text-center">
+          <div className="text-[10px] text-slate-400 uppercase font-bold">This month</div>
+          <div className="text-xl font-black mt-0.5">{sessionsThisMonth}</div>
+          <div className="text-[10px] text-slate-500">sessions</div>
+        </div>
+        <div className="p-3 text-center border-l border-slate-700">
+          <div className="text-[10px] text-slate-400 uppercase font-bold">Avg RPE</div>
+          <div className="text-xl font-black mt-0.5 text-amber-300">{avgRpe || '—'}</div>
+          <div className="text-[10px] text-slate-500">last 8</div>
+        </div>
+        <div className="p-3 text-center border-l border-slate-700">
+          <div className="text-[10px] text-slate-400 uppercase font-bold">Top focus</div>
+          <div className="text-sm font-black mt-0.5 truncate">{topTag ? `#${topTag[0]}` : '—'}</div>
+          <div className="text-[10px] text-slate-500">{topTag ? `${topTag[1]} ${topTag[1] === 1 ? 'session' : 'sessions'}` : 'no tags yet'}</div>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-slate-800/40 border border-dashed border-slate-700 rounded-2xl p-6 text-center">
+          <div className="text-3xl mb-1">📭</div>
+          <div className="text-sm font-bold text-slate-200">No sessions match</div>
+          <div className="text-xs text-slate-400 mt-1">{totalSessions === 0 ? 'Log your first session in the Training tab.' : 'Try clearing the search or picking a different filter.'}</div>
+        </div>
+      ) : (
+        monthKeys.map(monthKey => {
+          const monthSessions = byMonth[monthKey];
+          const monthMinutes = monthSessions.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0);
+          const monthHours = Math.round(monthMinutes / 60 * 10) / 10;
+          const limit = monthLimits[monthKey] || 6;
+          const visible = monthSessions.slice(0, limit);
+          const hidden = Math.max(0, monthSessions.length - visible.length);
+          return (
+            <div key={monthKey} className="space-y-2">
+              <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800 py-1.5 -mx-1 px-1 flex items-baseline gap-2">
+                <span className="text-sm font-black uppercase tracking-wider text-slate-200">{formatMonthLabel(monthKey)}</span>
+                <span className="text-[10px] text-slate-400">{monthSessions.length} {monthSessions.length === 1 ? 'session' : 'sessions'} · {monthHours} h</span>
+              </div>
+              {visible.map(s => {
+                const d = new Date(s.date + 'T00:00:00');
+                const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+                const dayNum = d.getDate();
+                const practicedNames = (Array.isArray(s.practicedTricks) ? s.practicedTricks : [])
+                  .map(id => tricks.find(t => t.id === id)?.name || '').filter(Boolean);
+                const isMilestone = Array.isArray(s.trickStatusChanges) && s.trickStatusChanges.some(c => c.toStatus === 'got_it');
+                const tagOne = Array.isArray(s.focusTags) && s.focusTags.length > 0 ? s.focusTags[0] : null;
+                const noteShort = s.notes && s.notes.length <= 80 ? s.notes : null;
+                return (
+                  <button key={s.id} onClick={() => setSelectedSessionId(s.id)}
+                    className={`w-full text-left rounded-xl border p-3 transition hover:bg-slate-800 ${isMilestone ? 'bg-green-500/5 border-green-500/40 shadow-md shadow-green-500/10' : tagOne ? 'bg-slate-800/60 border-purple-500/30' : 'bg-slate-800/60 border-slate-700'}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-8 text-center">
+                        <div className="text-[9px] uppercase font-bold text-slate-400">{weekday}</div>
+                        <div className="text-base font-black">{dayNum}</div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center flex-wrap gap-1 mb-1">
+                          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border ${rpePillClass(Number(s.rpe) || 0)}`}>RPE {s.rpe || '—'}</span>
+                          {(s.durationMinutes || 0) > 0 && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-200">{s.durationMinutes} min</span>}
+                          {tagOne && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/30">#{tagOne}</span>}
+                          {isMilestone && <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-200 border border-yellow-500/40">★ Mastered</span>}
+                        </div>
+                        {practicedNames.length > 0 && (
+                          <div className="text-xs text-slate-300 truncate">{practicedNames.join(', ')}</div>
+                        )}
+                        {noteShort && (
+                          <div className="text-[11px] text-slate-400 italic mt-0.5 truncate">"{noteShort}"</div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {hidden > 0 && (
+                <button onClick={() => setMonthLimits(m => ({ ...m, [monthKey]: (m[monthKey] || 6) + 6 }))}
+                  className="w-full text-[11px] text-slate-400 hover:text-slate-200 py-1.5 italic">
+                  + {hidden} more {hidden === 1 ? 'session' : 'sessions'} in {formatMonthLabel(monthKey)}
+                </button>
+              )}
+            </div>
+          );
+        })
+      )}
+
+      {selectedSession && (
+        <SessionDetailModal session={selectedSession} tricks={tricks}
+          onClose={() => setSelectedSessionId(null)}
+          onDelete={removeSession}
+          onOpenTrick={onOpenTrick} />
+      )}
     </div>
   );
 }
