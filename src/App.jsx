@@ -1897,32 +1897,32 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedS
   const lockedIds = Array.isArray(plannedSessionFocus[today]) ? plannedSessionFocus[today] : [];
   const lockedTricks = lockedIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
 
-  const buildSuggestions = () => {
+  const computedSuggestions = useMemo(() => {
     const seen = new Set();
     const out = [];
     const tryAdd = (t) => {
       if (!t || seen.has(t.id) || out.length >= 3) return;
       seen.add(t.id); out.push(t);
     };
-    // Newly unlocked: prereqs met but trick not yet started — the natural next step.
+    const trickById = new Map(tricks.map(t => [t.id, t]));
     const masteredById = new Map(tricks.map(t => [t.id, t.status === 'got_it']));
     const newlyUnlocked = tricks.filter(t => {
       if (t.status === 'got_it' || t.status === 'training') return false;
       const prereqs = (PREREQUISITES[t.id] || []).filter(p => {
-        const pt = tricks.find(x => x.id === p);
+        const pt = trickById.get(p);
         return pt && pt.category === t.category;
       });
       if (prereqs.length === 0) return false;
       return prereqs.every(p => masteredById.get(p));
     });
     newlyUnlocked.forEach(tryAdd);
-    weeklyGoals.forEach(g => tryAdd(tricks.find(t => t.id === g.trickId)));
+    weeklyGoals.forEach(g => tryAdd(trickById.get(g.trickId)));
     tricks.filter(t => t.status === 'training').forEach(tryAdd);
     tricks.filter(t => t.status === 'want_to_learn' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).forEach(tryAdd);
     tricks.filter(t => t.status === 'not_started' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).forEach(tryAdd);
     return out;
-  };
-  const suggestions = lockedTricks.length > 0 ? lockedTricks.slice(0, 3) : buildSuggestions();
+  }, [tricks, weeklyGoals]);
+  const suggestions = lockedTricks.length > 0 ? lockedTricks.slice(0, 3) : computedSuggestions;
   const isPlanned = lockedTricks.length > 0;
 
   const useTheseForToday = () => {
@@ -3948,59 +3948,65 @@ function SessionsBrowser({ trainingSessions = [], saveTrainingSessions, tricks =
   const [templateSession, setTemplateSession] = useState(null);
   const [monthLimits, setMonthLimits] = useState({});
 
-  const totalSessions = safeSessions.length;
-  const totalMinutes = safeSessions.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0);
-  const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+  const sessionStats = useMemo(() => {
+    let totalSessions = 0, totalMinutes = 0;
+    const tagCounts = {};
+    const trickCounts = {};
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    let sessionsThisMonth = 0;
+    for (const s of safeSessions) {
+      totalSessions += 1;
+      totalMinutes += Number(s.durationMinutes) || 0;
+      if (s.date && s.date.startsWith(thisMonth)) sessionsThisMonth += 1;
+      if (Array.isArray(s.focusTags)) for (const t of s.focusTags) tagCounts[t] = (tagCounts[t] || 0) + 1;
+      if (Array.isArray(s.practicedTricks)) for (const id of s.practicedTricks) trickCounts[id] = (trickCounts[id] || 0) + 1;
+    }
+    const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+    const topTag = Object.entries(tagCounts).sort((a, b) => b[1] - a[1])[0];
+    const topTricks = Object.entries(trickCounts).sort((a, b) => b[1] - a[1]).slice(0, 2)
+      .map(([id]) => tricks.find(t => t.id === parseInt(id, 10))).filter(Boolean);
+    const recent8 = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 8);
+    const avgRpe = recent8.length > 0
+      ? Math.round((recent8.reduce((sum, s) => sum + (Number(s.rpe) || 0), 0) / recent8.length) * 10) / 10
+      : 0;
+    return { totalSessions, totalHours, sessionsThisMonth, topTag, topTricks, avgRpe };
+  }, [safeSessions, tricks]);
+  const { totalSessions, totalHours, sessionsThisMonth, topTag, topTricks, avgRpe } = sessionStats;
 
-  const allTags = safeSessions.flatMap(s => Array.isArray(s.focusTags) ? s.focusTags : []);
-  const tagCounts = allTags.reduce((m, t) => { m[t] = (m[t] || 0) + 1; return m; }, {});
-  const topTag = Object.entries(tagCounts).sort((a, b) => b[1] - a[1])[0];
-
-  const trickCounts = safeSessions.flatMap(s => Array.isArray(s.practicedTricks) ? s.practicedTricks : [])
-    .reduce((m, id) => { m[id] = (m[id] || 0) + 1; return m; }, {});
-  const topTricks = Object.entries(trickCounts).sort((a, b) => b[1] - a[1]).slice(0, 2)
-    .map(([id]) => tricks.find(t => t.id === parseInt(id, 10))).filter(Boolean);
-
-  const now = new Date();
-  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const sessionsThisMonth = safeSessions.filter(s => s.date && s.date.startsWith(thisMonth)).length;
-
-  const recent8 = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 8);
-  const avgRpe = recent8.length > 0
-    ? Math.round((recent8.reduce((sum, s) => sum + (Number(s.rpe) || 0), 0) / recent8.length) * 10) / 10
-    : 0;
-
-  const filterChips = [
+  const filterChips = useMemo(() => ([
     { id: 'all', label: 'All', count: totalSessions, match: () => true },
     { id: 'hard', label: '🔥 Hard', match: (s) => (Number(s.rpe) || 0) >= 7 },
     ...topTricks.map(t => ({ id: `trick_${t.id}`, label: t.name, match: (s) => Array.isArray(s.practicedTricks) && s.practicedTricks.includes(t.id) })),
     ...(topTag ? [{ id: `tag_${topTag[0]}`, label: `#${topTag[0]}`, match: (s) => Array.isArray(s.focusTags) && s.focusTags.includes(topTag[0]) }] : []),
     { id: 'long', label: '90+ min', match: (s) => (Number(s.durationMinutes) || 0) >= 90 },
     { id: 'milestones', label: '★ Milestones', match: (s) => Array.isArray(s.trickStatusChanges) && s.trickStatusChanges.some(c => c.toStatus === 'got_it') },
-  ];
+  ]), [totalSessions, topTricks, topTag]);
   const activeMatch = filterChips.find(c => c.id === activeFilter)?.match || (() => true);
 
-  const matchesSearch = (s) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    if ((s.notes || '').toLowerCase().includes(q)) return true;
-    if (Array.isArray(s.focusTags) && s.focusTags.some(t => t.toLowerCase().includes(q))) return true;
-    const trickNames = (Array.isArray(s.practicedTricks) ? s.practicedTricks : [])
-      .map(id => tricks.find(t => t.id === id)?.name || '').join(' ').toLowerCase();
-    return trickNames.includes(q);
-  };
-
-  const filtered = safeSessions.filter(s => activeMatch(s) && matchesSearch(s))
-    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
-
-  const byMonth = {};
-  filtered.forEach(s => {
-    if (!s.date) return;
-    const monthKey = s.date.slice(0, 7);
-    if (!byMonth[monthKey]) byMonth[monthKey] = [];
-    byMonth[monthKey].push(s);
-  });
-  const monthKeys = Object.keys(byMonth).sort().reverse();
+  const { filtered, byMonth, monthKeys } = useMemo(() => {
+    const trickNameById = new Map(tricks.map(t => [t.id, t.name || '']));
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch = (s) => {
+      if (!q) return true;
+      if ((s.notes || '').toLowerCase().includes(q)) return true;
+      if (Array.isArray(s.focusTags) && s.focusTags.some(t => t.toLowerCase().includes(q))) return true;
+      const names = (Array.isArray(s.practicedTricks) ? s.practicedTricks : [])
+        .map(id => trickNameById.get(id) || '').join(' ').toLowerCase();
+      return names.includes(q);
+    };
+    const f = safeSessions.filter(s => activeMatch(s) && matchesSearch(s))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
+    const bm = {};
+    for (const s of f) {
+      if (!s.date) continue;
+      const k = s.date.slice(0, 7);
+      if (!bm[k]) bm[k] = [];
+      bm[k].push(s);
+    }
+    const mk = Object.keys(bm).sort().reverse();
+    return { filtered: f, byMonth: bm, monthKeys: mk };
+  }, [safeSessions, activeFilter, searchQuery, tricks, activeMatch]);
 
   const formatMonthLabel = (key) => {
     const [y, m] = key.split('-');
@@ -4501,10 +4507,12 @@ const QUEST_TYPE_LABEL = {
 };
 
 function QuestsPanel({ tricks, weeklyGoals, trainingSessions, streak, onQuestComplete }) {
-  const ctx = { tricks, weeklyGoals, trainingSessions, streak };
-  const items = QUESTS.map(q => ({ ...q, progress: computeQuestProgress(q, ctx) }));
-  const active = items.filter(q => q.progress < q.target);
-  const completed = items.filter(q => q.progress >= q.target);
+  const items = useMemo(() => {
+    const ctx = { tricks, weeklyGoals, trainingSessions, streak };
+    return QUESTS.map(q => ({ ...q, progress: computeQuestProgress(q, ctx) }));
+  }, [tricks, weeklyGoals, trainingSessions, streak]);
+  const active = useMemo(() => items.filter(q => q.progress < q.target), [items]);
+  const completed = useMemo(() => items.filter(q => q.progress >= q.target), [items]);
 
   const prevProgressRef = React.useRef(null);
   useEffect(() => {
@@ -4520,7 +4528,7 @@ function QuestsPanel({ tricks, weeklyGoals, trainingSessions, streak, onQuestCom
       });
     }
     prevProgressRef.current = next;
-  });
+  }, [items, onQuestComplete]);
 
   const QuestRow = ({ q }) => {
     const pct = Math.min(100, Math.round((q.progress / q.target) * 100));
