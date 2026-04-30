@@ -2463,8 +2463,8 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
             <div className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-1">📹 Reference Videos</div>
             <div className="space-y-2">
               {referenceVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No reference videos yet. Add inspiration clips below.</div>}
-              {referenceVideos.map((v, i) => (
-                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
+              {referenceVideos.map(v => (
+                <VideoCard key={`${v._global ? 'g' : 'p'}-${v.url}-${v.type || ''}`} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
                   autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null}
                   isGlobal={!!v._global} canEdit={!v._global || isAdmin} />
               ))}
@@ -2474,8 +2474,8 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
             <div className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-1">🎓 Tutorial Videos</div>
             <div className="space-y-2">
               {tutorialVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No tutorials yet. Add one below to learn how to do this trick.</div>}
-              {tutorialVideos.map((v, i) => (
-                <VideoCard key={i} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
+              {tutorialVideos.map(v => (
+                <VideoCard key={`${v._global ? 'g' : 'p'}-${v.url}-${v.type || ''}`} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
                   autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null}
                   isGlobal={!!v._global} canEdit={!v._global || isAdmin} />
               ))}
