@@ -1507,19 +1507,25 @@ function MainApp({ user }) {
   };
 
   const streak = computeStreakFor(trainingDays);
-  const mastered = tricks.filter(t => t.status === 'got_it').length;
+  const trickCounts = useMemo(() => {
+    let mastered = 0, easy = 0, medium = 0, hard = 0, sup = 0, vault = 0, flip = 0;
+    for (const t of tricks) {
+      if (t.status !== 'got_it') continue;
+      mastered += 1;
+      if (t.difficulty === 'Easy') easy += 1;
+      else if (t.difficulty === 'Medium') medium += 1;
+      else if (t.difficulty === 'Hard') hard += 1;
+      else if (t.difficulty === 'Super') sup += 1;
+      if (t.category === 'Vaults') vault += 1;
+      else if (t.category === 'Flips') flip += 1;
+    }
+    return { mastered, easyMastered: easy, mediumMastered: medium, hardMastered: hard, superMastered: sup, vaultMastered: vault, flipMastered: flip };
+  }, [tricks]);
+  const mastered = trickCounts.mastered;
 
-  const stats = {
-    mastered, streak,
-    easyMastered: tricks.filter(t => t.status === 'got_it' && t.difficulty === 'Easy').length,
-    mediumMastered: tricks.filter(t => t.status === 'got_it' && t.difficulty === 'Medium').length,
-    hardMastered: tricks.filter(t => t.status === 'got_it' && t.difficulty === 'Hard').length,
-    superMastered: tricks.filter(t => t.status === 'got_it' && t.difficulty === 'Super').length,
-    vaultMastered: tricks.filter(t => t.status === 'got_it' && t.category === 'Vaults').length,
-    flipMastered: tricks.filter(t => t.status === 'got_it' && t.category === 'Flips').length,
-  };
+  const stats = useMemo(() => ({ ...trickCounts, streak }), [trickCounts, streak]);
 
-  const earnedBadges = BADGES.filter(b => b.check(stats));
+  const earnedBadges = useMemo(() => BADGES.filter(b => b.check(stats)), [stats]);
 
   if (loading) {
     return (
