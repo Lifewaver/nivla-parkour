@@ -751,6 +751,17 @@ const BADGES = [
   { id: 'flip_master', name: 'Flip Master', desc: 'Master 5 Flips', icon: '🤸', check: (s) => s.flipMastered >= 5 },
 ];
 
+// Format a Date in LOCAL time as YYYY-MM-DD. Avoids the UTC shift you get from
+// .toISOString() which made e.g. Saturday-after-local-midnight render as Friday
+// in any timezone east of UTC.
+const formatLocalDate = (d) => {
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+};
+const todayLocal = () => formatLocalDate(new Date());
+
 // =================================================================
 // FIRESTORE HELPERS
 // =================================================================
@@ -1517,8 +1528,8 @@ function MainApp({ user }) {
   const computeStreakFor = (days) => {
     if (!Array.isArray(days) || days.length === 0) return 0;
     const sorted = [...days].sort().reverse();
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const today = todayLocal();
+    const yesterday = formatLocalDate(new Date(Date.now() - 86400000));
     if (sorted[0] !== today && sorted[0] !== yesterday) return 0;
     let streak = 1;
     let prev = new Date(sorted[0]);
@@ -1589,7 +1600,7 @@ function MainApp({ user }) {
   }
 
   const finishOnboarding = async ({ trickIds, weekdays }) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
     if (Array.isArray(trickIds) && trickIds.length > 0) {
       const idSet = new Set(trickIds);
       await saveTricks(tricks.map(t => idSet.has(t.id) && t.status === 'not_started' ? { ...t, status: 'want_to_learn' } : t));
@@ -1686,7 +1697,7 @@ function MainApp({ user }) {
         {activeTab === 'home' && (
           <TodayTab streak={streak} weeklyGoals={weeklyGoals} tricks={displayTricks} onOpenTrick={openTrick}
             plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
-            hasTrainedToday={trainingDays.includes(new Date().toISOString().split('T')[0])}
+            hasTrainedToday={trainingDays.includes(todayLocal())}
             fireCelebration={fireCelebration}
             goToWarmup={() => { setTrainingSection('warmup'); setActiveTab('training'); }}
             goToStrength={() => { setTrainingSection('conditioning'); setActiveTab('training'); }}
@@ -1943,7 +1954,7 @@ function NavButton({ icon: Icon, label, active, onClick }) {
 }
 
 function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedSessionFocus = {}, savePlannedSessionFocus, hasTrainedToday, fireCelebration, goToWarmup, goToStrength, goToLog }) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocal();
   const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
   const lockedIds = Array.isArray(plannedSessionFocus[today]) ? plannedSessionFocus[today] : [];
   const lockedTricks = lockedIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
@@ -2596,7 +2607,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
 }
 
 function TrainingTab({ weeklyGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal = [], onOpenTrick, trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], plannedWeeks = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, plannedSessionIntents = {}, savePlannedSessionIntents, templates = [], saveTemplates, streak = 0, section, setSection, onUpdateTrickStatus }) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocal();
   const safeWarmups = completedWarmups || {};
   const safeConditioning = completedConditioning || {};
 
@@ -2667,7 +2678,7 @@ function TrainingTab({ weeklyGoals, tricks, completedWarmups, saveWarmups, compl
 
 function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, markDayTrained, plannedDays = [], plannedMonths = [], plannedWeeks = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, plannedSessionIntents = {}, savePlannedSessionIntents, streak, tricks = [], weeklyGoals = [], completedWarmups = {}, toggleWarmup, resetWarmups, completedConditioning = {}, toggleConditioning, resetConditioning, section, setSection, onOpenTrick, onUpdateTrickStatus }) {
   const FOCUS_TAGS = ['landning', 'flow', 'vips', 'strength', 'precision', 'flips', 'jump', 'tricks', 'leap', 'swings', 'vaults', 'gymnastics'];
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocal();
   const [date, setDate] = useState(today);
   const [tags, setTags] = useState([]);
   const [rpe, setRpe] = useState(6);
@@ -2759,7 +2770,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     for (let i = 0; i < 28 && result.length < 4; i++) {
       const d = new Date(todayD);
       d.setDate(todayD.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(d);
       if (isPlannedDay(dateStr)) {
         result.push({ date: dateStr, dayOfWeek: d.getDay(), loggedSession: sessionsByDate[dateStr] || null });
       }
@@ -2876,7 +2887,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     for (let i = 0; i < 7; i++) {
       const d = new Date(currentWeekStart);
       d.setDate(currentWeekStart.getDate() + i);
-      out.push(d.toISOString().split('T')[0]);
+      out.push(formatLocalDate(d));
     }
     return out;
   })();
@@ -2942,7 +2953,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     for (let i = 1; i <= 14 && out.length < 2; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-      const ds = d.toISOString().split('T')[0];
+      const ds = formatLocalDate(d);
       const st = dayState(ds);
       if (st === 'planned' || st === 'unplanned') {
         out.push({ date: ds, state: st });
@@ -3568,7 +3579,7 @@ function UseAsTemplateModal({ sourceSession, tricks = [], plannedDays = [], plan
   const [savedTemplateId, setSavedTemplateId] = useState(null);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = formatLocalDate(today);
   const sourceDate = sourceSession?.date;
   const sourceWeekday = sourceDate ? new Date(sourceDate + 'T00:00:00').getDay() : null;
 
@@ -3586,13 +3597,13 @@ function UseAsTemplateModal({ sourceSession, tricks = [], plannedDays = [], plan
   const dateHasSession = (ds) => safeSessions.some(s => s.date === ds);
 
   const tomorrowD = new Date(today); tomorrowD.setDate(today.getDate() + 1);
-  const tomorrowStr = tomorrowD.toISOString().split('T')[0];
+  const tomorrowStr = formatLocalDate(tomorrowD);
   const tomorrowTrainable = isPlannedDay(tomorrowStr);
 
   const findNextOpenDay = () => {
     for (let i = 1; i <= 7; i++) {
       const d = new Date(today); d.setDate(today.getDate() + i);
-      const ds = d.toISOString().split('T')[0];
+      const ds = formatLocalDate(d);
       if (!isPlannedDay(ds)) continue;
       if (dateHasSession(ds)) continue;
       const focus = plannedSessionFocus[ds];
@@ -3607,7 +3618,7 @@ function UseAsTemplateModal({ sourceSession, tricks = [], plannedDays = [], plan
   if (sourceDate) {
     const next = new Date(sourceDate + 'T00:00:00');
     next.setDate(next.getDate() + 7);
-    if (next > today) sameWeekdayStr = next.toISOString().split('T')[0];
+    if (next > today) sameWeekdayStr = formatLocalDate(next);
   }
 
   const fmtDateLabel = (ds) => {
@@ -4572,7 +4583,7 @@ const getMondayOf = (d) => {
 
 const computeQuestProgress = (quest, ctx) => {
   const { tricks = [], weeklyGoals = [], trainingSessions = [], streak = 0 } = ctx;
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocal();
   if (quest.type === 'streak') return Math.min(streak, quest.target);
   if (quest.type === 'totalMastered') return Math.min(tricks.filter(t => t.status === 'got_it').length, quest.target);
   if (quest.type === 'masteredByDiff') return Math.min(tricks.filter(t => t.status === 'got_it' && t.difficulty === quest.diff).length, quest.target);
