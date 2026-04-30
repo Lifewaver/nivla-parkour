@@ -17,6 +17,17 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.17',
+    date: '2026-04-30',
+    title: 'Today is the front door',
+    notes: [
+      'Home replaced with a single-purpose Today screen: tap to know what you\'re training, then go.',
+      'One big card shows today\'s session — your locked focus tricks if planned, otherwise three smart suggestions with a Use these for today button.',
+      'Three chunky buttons below: Warm up · Strength · Log it.',
+      'Streak now lives as a small badge in the top-right; old stats / achievements / new-tricks blocks moved out of the front door (still in Progress and Tricks).',
+    ],
+  },
+  {
     version: '1.16',
     date: '2026-04-30',
     title: 'Add-a-video: collapsed and multi-tag',
@@ -971,15 +982,12 @@ function MainApp({ user }) {
 
       <div className="px-4 py-4">
         {activeTab === 'home' && (
-          <HomeTab stats={stats} streak={streak} mastered={mastered} inProgress={inProgress}
-            total={tricks.length} weeklyGoals={weeklyGoals} tricks={displayTricks} onOpenTrick={openTrick}
-            earnedBadges={earnedBadges} onLogTraining={() => { logTrainingDay(); setTrainingSection('log'); setActiveTab('training'); }}
-            communityTricks={communityTricks}
+          <TodayTab streak={streak} weeklyGoals={weeklyGoals} tricks={displayTricks} onOpenTrick={openTrick}
+            plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
             hasTrainedToday={trainingDays.includes(new Date().toISOString().split('T')[0])}
-            setActiveTab={setActiveTab}
             goToWarmup={() => { setTrainingSection('warmup'); setActiveTab('training'); }}
             goToStrength={() => { setTrainingSection('conditioning'); setActiveTab('training'); }}
-            goToGoals={() => { setActiveTab('skilltree'); }} />
+            goToLog={() => { setTrainingSection('log'); setActiveTab('training'); }} />
         )}
         {activeTab === 'tricks' && (
           <TricksTab tricks={displayTricks} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -1036,7 +1044,7 @@ function MainApp({ user }) {
 
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-lg border-t border-purple-500/20 z-50">
         <div className="flex justify-around items-center py-2 px-2 max-w-2xl mx-auto">
-          <NavButton icon={Home} label="Home" active={activeTab === 'home'} onClick={() => { closeTrick(); setActiveTab('home'); }} />
+          <NavButton icon={Home} label="Today" active={activeTab === 'home'} onClick={() => { closeTrick(); setActiveTab('home'); }} />
           <NavButton icon={Dumbbell} label="Tricks" active={activeTab === 'tricks'} onClick={() => { closeTrick(); setActiveTab('tricks'); }} />
          <NavButton icon={GitBranch} label="Tree" active={activeTab === 'skilltree'} onClick={() => { closeTrick(); setActiveTab('skilltree'); }} />
          <NavButton icon={Calendar} label="Training" active={activeTab === 'training'} onClick={() => { closeTrick(); setActiveTab('training'); }} />
@@ -1226,158 +1234,125 @@ function NavButton({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function HomeTab({ stats, streak, mastered, inProgress, total, weeklyGoals = [], tricks = [], onOpenTrick, earnedBadges, onLogTraining, communityTricks = [], hasTrainedToday, setActiveTab, goToWarmup, goToStrength, goToGoals }) {
-  const progressPct = total > 0 ? Math.round((mastered / total) * 100) : 0;
-  return (
-    <div className="space-y-4 max-w-2xl mx-auto">
-      <div className="bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 rounded-3xl p-6 shadow-2xl shadow-orange-500/30">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-white/80 text-sm font-semibold uppercase tracking-wide">Current streak</div>
-            <div className="flex items-baseline gap-2 mt-1"><span className="text-6xl font-black">{streak}</span><span className="text-xl font-bold">days</span></div>
-            <div className="text-white/90 text-sm mt-2">{streak === 0 ? "Let's start today! 💪" : streak < 3 ? "Keep it going! 🔥" : streak < 7 ? "You're on fire! 🚀" : "Unstoppable! 👑"}</div>
+function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedSessionFocus = {}, savePlannedSessionFocus, hasTrainedToday, goToWarmup, goToStrength, goToLog }) {
+  const today = new Date().toISOString().split('T')[0];
+  const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  const lockedIds = Array.isArray(plannedSessionFocus[today]) ? plannedSessionFocus[today] : [];
+  const lockedTricks = lockedIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
+
+  const buildSuggestions = () => {
+    const seen = new Set();
+    const out = [];
+    const tryAdd = (t) => {
+      if (!t || seen.has(t.id) || out.length >= 3) return;
+      seen.add(t.id); out.push(t);
+    };
+    weeklyGoals.forEach(g => tryAdd(tricks.find(t => t.id === g.trickId)));
+    tricks.filter(t => t.status === 'training').forEach(tryAdd);
+    tricks.filter(t => t.status === 'want_to_learn' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).forEach(tryAdd);
+    return out;
+  };
+  const suggestions = lockedTricks.length > 0 ? lockedTricks.slice(0, 3) : buildSuggestions();
+  const isPlanned = lockedTricks.length > 0;
+
+  const useTheseForToday = () => {
+    if (!savePlannedSessionFocus || suggestions.length === 0) return;
+    savePlannedSessionFocus({ ...plannedSessionFocus, [today]: suggestions.map(t => t.id) });
+  };
+
+  const renderTrickRow = (t) => {
+    const diff = DIFFICULTY_COLORS[t.difficulty];
+    const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
+    const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
+    const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
+    const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
+    return (
+      <div key={t.id} className="w-full bg-slate-800/70 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
+        <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+          <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
+          <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="font-bold truncate">{t.name}</div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
+              {t.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {t.videos.length}</span>}
+            </div>
           </div>
-          <div className="text-7xl">🔥</div>
-        </div>
-        <button onClick={onLogTraining} className={`mt-4 w-full py-3 rounded-xl font-bold transition hover:scale-[1.02] active:scale-95 shadow-lg ${hasTrainedToday ? 'bg-white/20 text-white' : 'bg-white text-orange-600'}`}>
-          {hasTrainedToday ? '✅ Trained today! Open today\'s session →' : '💪 Log training today'}
         </button>
+        {referenceVideo && (
+          <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
+            <Play className="w-4 h-4 fill-current" />
+          </button>
+        )}
+        {tutorialVideo && (
+          <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
+            <span className="text-base">🎓</span>
+          </button>
+        )}
+        <button onClick={() => onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Mastered" value={mastered} icon="🏆" color="from-green-500 to-emerald-600" />
-        <StatCard label="Training" value={inProgress} icon="💪" color="from-blue-500 to-cyan-600" />
-        <StatCard label="Progress" value={`${progressPct}%`} icon="📈" color="from-purple-500 to-pink-600" />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <QuickLink label="Warm Up" icon="🔥" onClick={goToWarmup} color="from-red-500/30 to-orange-500/30" />
-        <QuickLink label="Strength" icon="💪" onClick={goToStrength} color="from-blue-500/30 to-purple-500/30" />
-      </div>
-      <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Target className="w-5 h-5 text-purple-400" />
-          <h2 className="font-bold text-lg">In Focus</h2>
-          {goToGoals && <button onClick={goToGoals} className="ml-auto text-xs text-purple-300 hover:text-purple-200 font-semibold">Manage →</button>}
+    );
+  };
+
+  return (
+    <div className="space-y-5 max-w-2xl mx-auto">
+      <div className="flex items-end justify-between">
+        <div>
+          <div className="text-3xl font-black">Today</div>
+          <div className="text-xs text-slate-400 mt-0.5">{todayLabel}</div>
         </div>
-        {weeklyGoals.length === 0 ? (
-          <div className="text-sm text-slate-500 text-center py-4">No goals yet. Pick some tricks to focus on in Training!</div>
+        <div className="flex items-center gap-1.5 bg-orange-500/15 border border-orange-500/40 rounded-full px-3 py-1.5">
+          <span className="text-base">🔥</span>
+          <span className="text-sm font-black text-orange-200">{streak}</span>
+          <span className="text-[10px] font-semibold text-orange-300 uppercase">day{streak === 1 ? '' : 's'}</span>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-purple-600/20 via-slate-900 to-pink-600/20 border border-purple-500/40 rounded-3xl p-5 shadow-xl shadow-purple-500/10">
+        <div className="flex items-center gap-2 mb-3">
+          <Target className="w-5 h-5 text-purple-300" />
+          <div className="font-black text-lg">{isPlanned ? "Today's session" : 'Want to train? Pick 3 tricks'}</div>
+        </div>
+        {suggestions.length === 0 ? (
+          <div className="text-sm text-slate-400 italic">No tricks to suggest yet. Browse the Tricks tab to mark some as 👀 Want to learn or 💪 Training.</div>
         ) : (
-          <div className="space-y-2">
-            {weeklyGoals.map(g => {
-              const trick = tricks.find(t => t.id === g.trickId); if (!trick) return null;
-              const diff = DIFFICULTY_COLORS[trick.difficulty];
-              const status = STATUS_LEVELS.find(s => s.id === trick.status) || STATUS_LEVELS[0];
-              const tutorialVideo = trick.videos?.find(v => isTutorialVideo(v) && v.primary) || trick.videos?.find(v => isTutorialVideo(v));
-              const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary) || trick.videos?.find(v => v.type !== 'tutorial');
-              const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(trick, normalizeUrl(video.url)); };
-              return (
-                <div key={g.trickId} className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
-                  <button onClick={() => onOpenTrick(trick)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                    <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
-                    <CategoryIcon category={trick.category} size={20} className="text-slate-300 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold truncate">{trick.name}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{trick.difficulty}</span>
-                        {trick.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {trick.videos.length}</span>}
-                      </div>
-                    </div>
-                  </button>
-                  {referenceVideo && (
-                    <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
-                      <Play className="w-4 h-4 fill-current" />
-                    </button>
-                  )}
-                  {tutorialVideo && (
-                    <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
-                      <span className="text-base">🎓</span>
-                    </button>
-                  )}
-                  <button onClick={() => onOpenTrick(trick)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
-                </div>
-              );
-            })}
-          </div>
+          <>
+            <div className="space-y-2">
+              {suggestions.map(renderTrickRow)}
+            </div>
+            {!isPlanned && savePlannedSessionFocus && (
+              <button onClick={useTheseForToday}
+                className="mt-3 w-full py-2.5 rounded-xl font-bold text-sm bg-purple-500 hover:bg-purple-400 text-white transition">
+                Use these for today →
+              </button>
+            )}
+            {isPlanned && (
+              <div className="mt-3 text-[11px] text-purple-300/80 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Locked in for today {hasTrainedToday && '· you trained today!'}
+              </div>
+            )}
+          </>
         )}
       </div>
-      {earnedBadges.length > 0 && (
-        <div className="bg-slate-800/50 backdrop-blur border border-yellow-500/30 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2"><Award className="w-5 h-5 text-yellow-400" /><h2 className="font-bold text-lg">Achievements</h2></div>
-            <button onClick={() => setActiveTab('progress')} className="text-sm text-yellow-400 font-semibold">See all →</button>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {earnedBadges.slice(-5).map(b => (
-              <div key={b.id} className="flex-shrink-0 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/50 rounded-xl p-3 min-w-[110px]">
-                <div className="text-3xl mb-1">{b.icon}</div>
-                <div className="text-xs font-bold text-yellow-300 leading-tight">{b.name}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {communityTricks.length > 0 && (
-        <div className="bg-slate-800/50 backdrop-blur border border-cyan-500/30 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Plus className="w-5 h-5 text-cyan-400" />
-            <h2 className="font-bold text-lg">New Tricks</h2>
-            <button onClick={() => setActiveTab('tricks')} className="ml-auto text-sm text-cyan-300 hover:text-cyan-200 font-semibold">All →</button>
-          </div>
-          <div className="space-y-2">
-            {communityTricks.slice(-5).reverse().map(ct => {
-              const trick = tricks.find(t => t.id === ct.id) || ct;
-              const diff = DIFFICULTY_COLORS[trick.difficulty] || DIFFICULTY_COLORS.Medium;
-              const tutorialVideo = trick.videos?.find(v => isTutorialVideo(v) && v.primary) || trick.videos?.find(v => isTutorialVideo(v));
-              const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary) || trick.videos?.find(v => v.type !== 'tutorial');
-              const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(trick, normalizeUrl(video.url)); };
-              return (
-                <div key={ct.id} className="relative w-full bg-gradient-to-r from-slate-800 via-cyan-950/60 to-slate-800 hover:from-slate-700 hover:via-cyan-900/50 hover:to-slate-700 border border-cyan-400/40 shadow-lg shadow-cyan-500/20 rounded-xl p-3 flex items-center gap-2 transition overflow-hidden">
-                  <span className="pointer-events-none absolute -top-1 -left-1 text-base animate-pulse">✨</span>
-                  <button onClick={() => onOpenTrick(trick)} className="relative flex items-center gap-3 flex-1 min-w-0 text-left">
-                    <div className={`w-1 h-12 ${diff.strip} rounded-full flex-shrink-0`} />
-                    <CategoryIcon category={trick.category} size={20} className="text-slate-300 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold truncate">{trick.name}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff.bg} ${diff.text}`}>{trick.difficulty}</span>
-                        {trick.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {trick.videos.length}</span>}
-                        {ct.suggestedBy && <span className="text-[10px] text-slate-500 truncate">by {ct.suggestedBy}</span>}
-                      </div>
-                    </div>
-                  </button>
-                  {referenceVideo && (
-                    <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
-                      <Play className="w-4 h-4 fill-current" />
-                    </button>
-                  )}
-                  {tutorialVideo && (
-                    <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
-                      <span className="text-base">🎓</span>
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
-function StatCard({ label, value, icon, color }) {
-  return (
-    <div className={`bg-gradient-to-br ${color} rounded-2xl p-4 text-center shadow-lg`}>
-      <div className="text-2xl mb-1">{icon}</div><div className="text-2xl font-black">{value}</div>
-      <div className="text-xs font-semibold text-white/80 uppercase">{label}</div>
+      <div className="grid grid-cols-3 gap-2">
+        <button onClick={goToWarmup}
+          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-red-500/30 to-orange-500/30 border border-orange-500/40 hover:scale-[1.02] active:scale-95 transition">
+          <span className="text-3xl">🔥</span>
+          <span className="font-bold text-sm">Warm up</span>
+        </button>
+        <button onClick={goToStrength}
+          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-blue-500/30 to-purple-500/30 border border-blue-500/40 hover:scale-[1.02] active:scale-95 transition">
+          <span className="text-3xl">💪</span>
+          <span className="font-bold text-sm">Strength</span>
+        </button>
+        <button onClick={goToLog}
+          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-green-500/30 to-emerald-500/30 border border-green-500/40 hover:scale-[1.02] active:scale-95 transition">
+          <span className="text-3xl">{hasTrainedToday ? '✅' : '📝'}</span>
+          <span className="font-bold text-sm">Log it</span>
+        </button>
+      </div>
     </div>
-  );
-}
-
-function QuickLink({ label, icon, onClick, color }) {
-  return (
-    <button onClick={onClick} className={`bg-gradient-to-br ${color} border border-white/10 rounded-2xl p-4 text-left hover:scale-[1.02] active:scale-95 transition`}>
-      <div className="text-3xl mb-2">{icon}</div><div className="font-bold">{label}</div>
-    </button>
   );
 }
 
