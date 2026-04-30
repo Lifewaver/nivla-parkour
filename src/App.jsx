@@ -17,6 +17,18 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.22',
+    date: '2026-04-30',
+    title: 'Skill Tree, for real now',
+    notes: [
+      'Tree tab now shows an actual skill graph per category — nodes connected by glowing paths instead of a flat tier list.',
+      'Tricks with prerequisites stay locked (🔒, faded) until the previous trick is mastered. Tap a node to open it; locked nodes are still readable so you can preview what\'s next.',
+      'Edges light up green once both endpoints are mastered, purple once the prereq is done.',
+      'Per-category mastered progress bar at the top, tinted by category color.',
+      'Phase 1 of a bigger redesign — XP, boss tricks, world-select landing and quests still coming.',
+    ],
+  },
+  {
     version: '1.21',
     date: '2026-04-30',
     title: 'One progress dot to rule them all',
@@ -489,6 +501,82 @@ const CONDITIONING = [
   { id: 11, name: 'Pistol squats', reps: '3 x 5 each leg', desc: 'Single leg strength', seconds: 60 },
   { id: 12, name: 'Bridge hold', reps: '3 x 20 sec', desc: 'Back flexibility for flips', seconds: 20 },
 ];
+
+// Trick prerequisites: trickId → [prereqIds]. Only the obvious within-category
+// chains — most tricks stand alone with no prereq.
+const PREREQUISITES = {
+  // Flips
+  8: [1],   // Gainer ← Front Flip
+  9: [8],   // Cork ← Gainer
+  6: [5],   // Double backflip ← Backflip
+  4: [3],   // Double sideflip ← Side Flips
+  7: [5],   // Side Roll Back Flip ← Backflip
+
+  // Jump · Tic Tac chain
+  12: [11], // Tic Tac Kong ← Tic Tac
+  13: [11], // Tic Tac Dash ← Tic Tac
+  14: [11], // 270 Tic Tak ← Tic Tac
+  15: [14], // 180 Tic Tak Handspring ← 270 Tic Tak
+  16: [14], // 181 Tic Tac Cart ← 270 Tic Tak
+  17: [12], // Kong 180 Tac Tak ← Tic Tac Kong
+  // Jump · Roll chain
+  28: [27], // Dive Roll ← Roll
+  29: [28], // 360 Dive Roll ← Dive Roll
+  30: [28], // High Dive Roll ← Dive Roll
+  31: [30], // High Dive Roll Cart ← High Dive Roll
+  32: [28], // Dive Roll Gap ← Dive Roll
+  33: [28], // Cartwheel in Roll out ← Dive Roll
+  // Jump · Cork
+  22: [21], // Cork Olley ← Cork (Jump)
+  23: [21], // Cork Swipe ← Cork (Jump)
+  // Jump · misc
+  20: [19], // Climb up ← Jump Up
+
+  // Tricks
+  40: [39], // Windmill ← Helicoptero
+  41: [40], // Flare ← Windmill
+
+  // Leap
+  44: [43], // Kong to Cat Leap ← 180 Cat to Cat
+  45: [43], // 360 Cat Leap ← 180 Cat to Cat
+
+  // Swings
+  46: [47], // Swing to cat leap ← Lache Catch
+  48: [47], // Swing gainer ← Lache Catch
+  49: [47], // Swing press ← Lache Catch
+  50: [47], // Swing to Lazy Vault ← Lache Catch
+  51: [47], // Swing reverse ← Lache Catch
+
+  // Vaults
+  56: [55], // Step Through reverse ← Step Through
+  58: [57], // Kong Press ← Kong Vaults
+  59: [57], // Kong gainer ← Kong Vaults
+  61: [60], // Dash press ← Dash Vaults
+  62: [57], // Double Kong ← Kong Vaults
+  63: [57], // Kong Dive Roll ← Kong Vaults
+  68: [67], // Wall Spin ← Palm Spin
+
+  // Gymnastics · Tucked → PIK → Straight
+  70: [69], // PIK ← Tucked
+  71: [70], // Straight ← PIK
+  72: [69], // Tucked 180 ← Tucked
+  73: [70], // PIK 180 ← PIK
+  74: [71], // Straight 180 ← Straight
+  75: [72], // Tucked 360 ← Tucked 180
+  76: [73], // PIK 360 ← PIK 180
+  77: [74], // Straight 360 ← Straight 180
+  // Gymnastics · Cartwheel chain
+  79: [80], // Round-off ← Cartwheel
+  81: [80], // One-hand Cartwheel ← Cartwheel
+  82: [81], // No-hand Cartwheel ← One-hand Cartwheel
+  83: [79], // Round-off Back Handspring ← Round-off
+  84: [83], // Round-off Back Handspring x2 ← Round-off Back Handspring
+  85: [79], // Round-off Handspring ← Round-off
+  86: [79], // Round-off Salto ← Round-off
+  87: [83], // Round-off Back Handspring - Salto ← Round-off Back Handspring
+  88: [79], // Round-off Front Salto ← Round-off
+  89: [88], // Round-off Front Salto - Handspring ← Round-off Front Salto
+};
 
 const BADGES = [
   { id: 'first_trick', name: 'First Steps', desc: 'Master your first trick', icon: '🌟', check: (s) => s.mastered >= 1 },
@@ -3408,6 +3496,183 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
   );
 }
 
+function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onRemoveFocus }) {
+  const idsInCategory = useMemo(() => new Set(tricks.map(t => t.id)), [tricks]);
+
+  // Compute depth (longest prereq chain ending at each node, restricted to this category).
+  const depthByTrick = useMemo(() => {
+    const cache = new Map();
+    const visiting = new Set();
+    const compute = (id) => {
+      if (cache.has(id)) return cache.get(id);
+      if (visiting.has(id)) return 0;
+      visiting.add(id);
+      const prereqs = (PREREQUISITES[id] || []).filter(p => idsInCategory.has(p));
+      const d = prereqs.length === 0 ? 0 : 1 + Math.max(...prereqs.map(compute));
+      visiting.delete(id);
+      cache.set(id, d);
+      return d;
+    };
+    tricks.forEach(t => compute(t.id));
+    return cache;
+  }, [tricks, idsInCategory]);
+
+  // Group tricks by depth and order each row deterministically.
+  const rows = useMemo(() => {
+    const byDepth = {};
+    const tierOrder = { Easy: 0, Medium: 1, Hard: 2, Super: 3 };
+    tricks.forEach(t => {
+      const d = depthByTrick.get(t.id) || 0;
+      if (!byDepth[d]) byDepth[d] = [];
+      byDepth[d].push(t);
+    });
+    Object.keys(byDepth).forEach(d => {
+      byDepth[d].sort((a, b) => (tierOrder[a.difficulty] || 0) - (tierOrder[b.difficulty] || 0) || a.name.localeCompare(b.name));
+    });
+    const depths = Object.keys(byDepth).map(Number).sort((a, b) => a - b);
+    return depths.map(d => byDepth[d]);
+  }, [tricks, depthByTrick]);
+
+  const ROW_H = 130;
+  const NODE_R = 28;
+  const PAD_TOP = 24;
+  const PAD_BOTTOM = 24;
+  const MIN_NODE_SPACING = 86;
+
+  const maxRowLen = rows.reduce((m, r) => Math.max(m, r.length), 1);
+  const svgWidth = Math.max(320, maxRowLen * MIN_NODE_SPACING + 32);
+  const svgHeight = PAD_TOP + rows.length * ROW_H + PAD_BOTTOM;
+
+  const positions = useMemo(() => {
+    const out = {};
+    rows.forEach((row, rIdx) => {
+      const n = row.length;
+      row.forEach((t, i) => {
+        const x = ((i + 1) / (n + 1)) * svgWidth;
+        const y = PAD_TOP + rIdx * ROW_H + NODE_R + 8;
+        out[t.id] = { x, y };
+      });
+    });
+    return out;
+  }, [rows, svgWidth]);
+
+  const masteredSet = useMemo(() => new Set(tricks.filter(t => t.status === 'got_it').map(t => t.id)), [tricks]);
+  const trainingSet = useMemo(() => new Set(tricks.filter(t => t.status === 'training').map(t => t.id)), [tricks]);
+
+  const isLocked = (t) => {
+    const prereqs = (PREREQUISITES[t.id] || []).filter(p => idsInCategory.has(p));
+    if (prereqs.length === 0) return false;
+    if (masteredSet.has(t.id) || trainingSet.has(t.id)) return false;
+    return !prereqs.every(p => masteredSet.has(p));
+  };
+
+  const edges = [];
+  tricks.forEach(t => {
+    const prereqs = (PREREQUISITES[t.id] || []).filter(p => idsInCategory.has(p));
+    prereqs.forEach(pid => {
+      if (positions[pid] && positions[t.id]) edges.push({ from: positions[pid], to: positions[t.id], pid, tid: t.id });
+    });
+  });
+
+  if (tricks.length === 0) return null;
+
+  return (
+    <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-2 overflow-x-auto">
+      <div className="relative" style={{ width: svgWidth, height: svgHeight }}>
+        <svg width={svgWidth} height={svgHeight} className="absolute inset-0 pointer-events-none">
+          <defs>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          {edges.map((e, i) => {
+            const lit = masteredSet.has(e.pid) && (masteredSet.has(e.tid) || trainingSet.has(e.tid));
+            const partial = masteredSet.has(e.pid) && !masteredSet.has(e.tid);
+            const stroke = lit ? '#22c55e' : partial ? '#a855f7' : '#475569';
+            const opacity = lit ? 0.95 : partial ? 0.8 : 0.4;
+            const midY = (e.from.y + e.to.y) / 2;
+            const d = `M ${e.from.x} ${e.from.y + NODE_R} C ${e.from.x} ${midY}, ${e.to.x} ${midY}, ${e.to.x} ${e.to.y - NODE_R}`;
+            return (
+              <path key={i} d={d} fill="none" stroke={stroke} strokeWidth="3" strokeOpacity={opacity}
+                strokeLinecap="round" filter={lit ? 'url(#glow)' : undefined} />
+            );
+          })}
+        </svg>
+        {tricks.map(t => {
+          const pos = positions[t.id];
+          if (!pos) return null;
+          const mastered = masteredSet.has(t.id);
+          const training = trainingSet.has(t.id);
+          const wantToLearn = t.status === 'want_to_learn';
+          const locked = isLocked(t);
+          const inFocus = weeklyGoals.some(g => g.trickId === t.id);
+          const diff = DIFFICULTY_COLORS[t.difficulty];
+          const catColor = CATEGORY_COLORS[t.category];
+
+          const ringClass = mastered
+            ? 'bg-green-500 border-green-200 shadow-lg shadow-green-500/40'
+            : training
+            ? 'bg-yellow-500 border-yellow-200 shadow-md shadow-yellow-500/30'
+            : wantToLearn
+            ? 'bg-purple-500/40 border-purple-300'
+            : locked
+            ? 'bg-slate-900 border-slate-700'
+            : 'bg-slate-800 border-slate-500';
+
+          return (
+            <div key={t.id}
+              className="absolute flex flex-col items-center"
+              style={{
+                left: pos.x,
+                top: pos.y,
+                transform: 'translate(-50%, -50%)',
+                width: MIN_NODE_SPACING - 8,
+                opacity: locked ? 0.55 : 1,
+              }}>
+              <button onClick={() => onOpenTrick(t)}
+                className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center transition hover:scale-105 active:scale-95 ${ringClass}`}>
+                {mastered ? (
+                  <Check className="w-7 h-7 text-white" strokeWidth={3} />
+                ) : locked ? (
+                  <span className="text-xl">🔒</span>
+                ) : (
+                  <CategoryIcon category={t.category} size={26} />
+                )}
+                {inFocus && !mastered && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-yellow-400 border-2 border-slate-900 flex items-center justify-center" title="In focus">
+                    <span className="text-[8px]">🎯</span>
+                  </span>
+                )}
+                {!locked && !mastered && t._unread && (
+                  <span className="absolute -top-1 -left-1 text-sm pointer-events-none animate-pulse">✨</span>
+                )}
+              </button>
+              <div className="mt-1.5 text-[10px] font-semibold text-center leading-tight px-0.5"
+                style={catColor ? { color: catColor.hex } : undefined}>
+                {t.name}
+              </div>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty[0]}</span>
+                {!mastered && !locked && onAddFocus && (
+                  <button onClick={(e) => { e.stopPropagation(); inFocus ? onRemoveFocus(t.id) : onAddFocus(t.id); }}
+                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition ${inFocus ? 'bg-green-500/30 text-green-300' : 'bg-yellow-500/80 text-slate-900 hover:bg-yellow-400'}`}
+                    title={inFocus ? 'Remove from In Focus' : 'Add to In Focus'}>
+                    {inFocus ? '✓' : '+'}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
   const FOCUS_KEY = '__focus__';
   const TIERS = ['Easy', 'Medium', 'Hard', 'Super'];
@@ -3641,78 +3906,37 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
           <div className="text-5xl mb-2">🌱</div>
           <div>No tricks in this category yet.</div>
         </div>
-      ) : !isFocus && (
-        <>
-          <div className="text-sm text-slate-400 text-center">
-            <span className="font-bold text-white">{totalMastered}</span> / {inCategory.length} mastered in {selectedCategory}
-          </div>
-
-          <div className="space-y-2">
-            {TIERS.map((tier, idx) => {
-              const tricksAtTier = inCategory.filter(t => t.difficulty === tier);
-              if (tricksAtTier.length === 0) return null;
-              const masteredCount = tricksAtTier.filter(t => t.status === 'got_it').length;
-              const allMastered = masteredCount === tricksAtTier.length;
-              const col = DIFFICULTY_COLORS[tier];
-              const nextHasContent = TIERS.slice(idx + 1).some(t => inCategory.some(tr => tr.difficulty === t));
-              return (
-                <React.Fragment key={tier}>
-                  <div className={`bg-slate-800/50 border ${allMastered ? 'border-green-500/50' : col.border + '/40'} rounded-2xl p-4`}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className={`text-xs font-black px-2 py-1 rounded ${col.strip} text-white`}>{tier.toUpperCase()}</span>
-                      <span className="text-sm font-bold text-slate-200">{masteredCount} / {tricksAtTier.length}</span>
-                      {allMastered && <span className="ml-auto text-xs font-bold text-green-300">✅ Tier complete</span>}
-                    </div>
-                    <div className="space-y-2">
-                      {tricksAtTier.map(t => {
-                        const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-                        const mastered = t.status === 'got_it';
-                        const inProgress = t.status === 'training';
-                        const inFocus = weeklyGoals.some(g => g.trickId === t.id);
-                        const unread = !!t._unread;
-                        return (
-                          <div
-                            key={t.id}
-                            className={`relative w-full flex items-center gap-2 rounded-lg p-2.5 transition border ${
-                              mastered
-                                ? 'bg-green-500/10 border-green-500/40 hover:bg-green-500/20'
-                                : inProgress
-                                  ? 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20'
-                                  : 'bg-slate-900 border-transparent hover:bg-slate-800'
-                            }`}
-                          >
-                            {unread && <span className="pointer-events-none absolute -top-1 -left-1 text-sm animate-pulse">✨</span>}
-                            <button onClick={() => onOpenTrick(t)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
-                              <StatusPill trick={t} />
-                              <CategoryIcon category={t.category} size={16} className="text-slate-300 flex-shrink-0" />
-                              <span className="flex-1 truncate font-medium text-sm">{t.name}</span>
-                              <span className={`text-xs flex-shrink-0 ${mastered ? 'text-green-300' : inProgress ? 'text-yellow-300' : 'text-slate-500'}`}>
-                                {status.label}
-                              </span>
-                            </button>
-                            {!mastered && (
-                              <button onClick={(e) => { e.stopPropagation(); inFocus ? removeGoal(t.id) : addSuggestion(t.id); }}
-                                className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition ${inFocus ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-yellow-500 text-slate-900 hover:bg-yellow-400'}`}
-                                title={inFocus ? 'Remove from In Focus' : 'Add to In Focus'}>
-                                {inFocus ? '✓ Added' : '+ Add'}
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  {nextHasContent && (
-                    <div className="flex justify-center py-1">
-                      <ChevronDown className="w-6 h-6 text-slate-600" />
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </>
-      )}
+      ) : !isFocus && (() => {
+        const masteredPct = inCategory.length > 0 ? Math.round((totalMastered / inCategory.length) * 100) : 0;
+        const catColor = CATEGORY_COLORS[selectedCategory];
+        return (
+          <>
+            <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2 font-bold" style={catColor ? { color: catColor.hex } : undefined}>
+                  <CategoryIcon category={selectedCategory} size={20} />
+                  <span>{selectedCategory}</span>
+                </div>
+                <div className="text-sm text-slate-300">{totalMastered} / {inCategory.length} · {masteredPct}%</div>
+              </div>
+              <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full transition-all duration-500"
+                  style={{ width: `${masteredPct}%`, backgroundColor: catColor?.hex || '#a855f7' }} />
+              </div>
+            </div>
+            <SkillTreeGraph
+              tricks={inCategory}
+              onOpenTrick={onOpenTrick}
+              weeklyGoals={weeklyGoals}
+              onAddFocus={addSuggestion}
+              onRemoveFocus={removeGoal}
+            />
+            <div className="text-[11px] text-slate-500 text-center px-2 leading-relaxed">
+              Locked tricks (🔒) unlock once you master their prerequisite. Tap any node to open its details.
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
