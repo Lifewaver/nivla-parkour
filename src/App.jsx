@@ -1022,11 +1022,15 @@ function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
   const [pickedTrickIds, setPickedTrickIds] = useState([]);
   const [pickedWeekdays, setPickedWeekdays] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [pickedDifficulty, setPickedDifficulty] = useState('Easy');
 
-  const easyTricks = useMemo(
-    () => tricks.filter(t => t.difficulty === 'Easy').slice().sort((a, b) => a.name.localeCompare(b.name)),
-    [tricks]
-  );
+  const filteredTricks = useMemo(() => {
+    const base = pickedDifficulty === 'All'
+      ? tricks
+      : tricks.filter(t => t.difficulty === pickedDifficulty);
+    return base.slice().sort((a, b) => a.name.localeCompare(b.name));
+  }, [tricks, pickedDifficulty]);
+  const difficultyOptions = ['Easy', 'Medium', 'Hard', 'Super', 'All'];
 
   const WEEKDAYS = [
     { num: 1, label: 'Mon' }, { num: 2, label: 'Tue' }, { num: 3, label: 'Wed' },
@@ -1081,32 +1085,53 @@ function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
             <div>
               <div className="text-xs font-bold uppercase tracking-wide text-purple-300 mb-1">Welcome, {firstName} 👋</div>
               <h1 className="text-3xl font-black leading-tight">Pick up to 3 tricks you want to learn first</h1>
-              <p className="text-sm text-slate-400 mt-2">Easy ones to get rolling — you can always change your mind later.</p>
+              <p className="text-sm text-slate-400 mt-2">Already a flyer? Bump the difficulty up. You can always change your mind later.</p>
             </div>
-            <div className="text-xs text-slate-400">{pickedTrickIds.length} / 3 picked</div>
-            <div className="grid grid-cols-2 gap-2">
-              {easyTricks.map(t => {
-                const picked = pickedTrickIds.includes(t.id);
-                const diff = DIFFICULTY_COLORS[t.difficulty];
-                const disabled = !picked && pickedTrickIds.length >= 3;
-                return (
-                  <button key={t.id} onClick={() => toggleTrick(t.id)} disabled={disabled}
-                    className={`relative text-left rounded-xl p-3 border transition ${picked ? 'bg-purple-500/30 border-purple-400 ring-2 ring-purple-400' : disabled ? 'bg-slate-900/40 border-slate-800 opacity-50 cursor-not-allowed' : 'bg-slate-800/70 border-slate-700 hover:bg-slate-800'}`}>
-                    {picked && (
-                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-purple-400 flex items-center justify-center">
-                        <Check className="w-4 h-4 text-white" />
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Difficulty</div>
+              <div className="flex gap-1.5 overflow-x-auto pb-1">
+                {difficultyOptions.map(d => {
+                  const on = pickedDifficulty === d;
+                  const col = d !== 'All' ? DIFFICULTY_COLORS[d] : null;
+                  return (
+                    <button key={d} onClick={() => setPickedDifficulty(d)}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition border ${on ? (col ? `${col.strip} text-white border-transparent` : 'bg-slate-100 text-slate-900 border-slate-100') : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="text-xs text-slate-400">{pickedTrickIds.length} / 3 picked · {filteredTricks.length} {filteredTricks.length === 1 ? 'trick' : 'tricks'} at this level</div>
+            {filteredTricks.length === 0 ? (
+              <div className="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-4 text-center">
+                <div className="text-xs text-slate-400">No tricks at this difficulty.</div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {filteredTricks.map(t => {
+                  const picked = pickedTrickIds.includes(t.id);
+                  const diff = DIFFICULTY_COLORS[t.difficulty];
+                  const disabled = !picked && pickedTrickIds.length >= 3;
+                  return (
+                    <button key={t.id} onClick={() => toggleTrick(t.id)} disabled={disabled}
+                      className={`relative text-left rounded-xl p-3 border transition ${picked ? 'bg-purple-500/30 border-purple-400 ring-2 ring-purple-400' : disabled ? 'bg-slate-900/40 border-slate-800 opacity-50 cursor-not-allowed' : 'bg-slate-800/70 border-slate-700 hover:bg-slate-800'}`}>
+                      {picked && (
+                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-purple-400 flex items-center justify-center">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                      <CategoryIcon category={t.category} size={32} className="text-slate-200 mb-2" />
+                      <div className="font-bold text-sm leading-tight pr-8">{t.name}</div>
+                      <div className="flex items-center gap-1 mt-1.5">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
+                        <span className="text-[10px] text-slate-500">{t.category}</span>
                       </div>
-                    )}
-                    <CategoryIcon category={t.category} size={32} className="text-slate-200 mb-2" />
-                    <div className="font-bold text-sm leading-tight pr-8">{t.name}</div>
-                    <div className="flex items-center gap-1 mt-1.5">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
-                      <span className="text-[10px] text-slate-500">{t.category}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
