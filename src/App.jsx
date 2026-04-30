@@ -1380,7 +1380,11 @@ function MainApp({ user }) {
             || (Array.isArray(plannedWeeksData) && plannedWeeksData.length > 0);
           if (hasData) {
             setOnboardingComplete(true);
-            saveUserData(user.uid, 'onboardingComplete', true).catch(e => console.error('Onboarding flag save error', e));
+            try {
+              await saveUserData(user.uid, 'onboardingComplete', true);
+            } catch (e) {
+              console.error('Onboarding flag save error', e);
+            }
           } else {
             setOnboardingComplete(false);
           }
@@ -1414,10 +1418,23 @@ function MainApp({ user }) {
     }
   };
 
+  // Race-safe update via functional setter. Guards capture against StrictMode's
+  // double-invocation so oldTrick reflects the *first* prev (the original).
+  const mutateTrick = (id, mutator) => {
+    let oldTrick = null;
+    let nextArr = null;
+    setTricks(prev => {
+      if (oldTrick === null) oldTrick = prev.find(t => t.id === id) || null;
+      const next = prev.map(t => t.id === id ? mutator(t) : t);
+      nextArr = next;
+      return next;
+    });
+    if (nextArr) saveUserData(user.uid, 'tricks', nextArr).catch(e => console.error('Save tricks error', e));
+    return oldTrick;
+  };
+
   const updateTrickStatus = (id, status) => {
-    const oldTrick = tricks.find(t => t.id === id);
-    const newTricks = tricks.map(t => t.id === id ? { ...t, status } : t);
-    saveTricks(newTricks);
+    const oldTrick = mutateTrick(id, t => ({ ...t, status }));
     if (status === 'got_it' && oldTrick?.status !== 'got_it') {
       setCelebrationTrick(oldTrick);
       setTimeout(() => setCelebrationTrick(null), 2500);
@@ -1427,15 +1444,12 @@ function MainApp({ user }) {
   };
 
   const updateTrickProgress = (id, progress) => {
-    const oldTrick = tricks.find(t => t.id === id);
-    saveTricks(tricks.map(t => t.id === id ? { ...t, progress } : t));
+    const oldTrick = mutateTrick(id, t => ({ ...t, progress }));
     celebrateLanding(oldTrick?.progress, progress, oldTrick);
   };
-  const updateTrickCoolness = (id, coolness) => saveTricks(tricks.map(t => t.id === id ? { ...t, coolness } : t));
+  const updateTrickCoolness = (id, coolness) => mutateTrick(id, t => ({ ...t, coolness }));
   const updateTrickStatusAndProgress = (id, status, progress) => {
-    const oldTrick = tricks.find(t => t.id === id);
-    const newTricks = tricks.map(t => t.id === id ? { ...t, status, progress } : t);
-    saveTricks(newTricks);
+    const oldTrick = mutateTrick(id, t => ({ ...t, status, progress }));
     if (status === 'got_it' && oldTrick?.status !== 'got_it') {
       setCelebrationTrick(oldTrick);
       setTimeout(() => setCelebrationTrick(null), 2500);
@@ -1445,8 +1459,8 @@ function MainApp({ user }) {
       celebrateLanding(oldTrick?.progress, progress, oldTrick);
     }
   };
-  const updateTrickVideos = (id, videos) => saveTricks(tricks.map(t => t.id === id ? { ...t, videos } : t));
-  const updateTrickNotes = (id, notes) => saveTricks(tricks.map(t => t.id === id ? { ...t, notes } : t));
+  const updateTrickVideos = (id, videos) => { mutateTrick(id, t => ({ ...t, videos })); };
+  const updateTrickNotes = (id, notes) => { mutateTrick(id, t => ({ ...t, notes })); };
   const updateGlobalVideos = async (id, videos) => {
     const next = { ...globalVideos, [String(id)]: videos };
     setGlobalVideos(next);
@@ -1471,7 +1485,13 @@ function MainApp({ user }) {
 
   const addTrick = (trick, globalVideoList = []) => {
     const newTrick = { status: 'not_started', videos: [], notes: '', progress: [], coolness: 0, ...trick, id: Date.now() };
-    saveTricks([...tricks, newTrick]);
+    let nextArr = null;
+    setTricks(prev => {
+      const next = [...prev, newTrick];
+      nextArr = next;
+      return next;
+    });
+    if (nextArr) saveUserData(user.uid, 'tricks', nextArr).catch(e => console.error('Save tricks error', e));
     if (globalVideoList.length > 0) updateGlobalVideos(newTrick.id, globalVideoList);
   };
 
