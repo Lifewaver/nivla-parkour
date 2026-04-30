@@ -17,6 +17,16 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.21',
+    date: '2026-04-30',
+    title: 'One progress dot to rule them all',
+    notes: [
+      'Status pills on every trick card now show a single filled-circle indicator that fills as you progress: empty → quarter → half → three-quarters → full.',
+      'Replaces the mixed bag of ⚪ 👀 💪 🤾 🛬 ✅ emojis that were doing double duty as decoration and meaning.',
+      'Color escalates with progress (slate → purple → yellow → green) so the state still pops at a glance.',
+    ],
+  },
+  {
     version: '1.20',
     date: '2026-04-30',
     title: 'Not started is back',
@@ -277,6 +287,69 @@ function CategoryIcon({ category, size = 22, className = '', tint = true }) {
   const style = color ? { color } : undefined;
   if (!Icon) return <span className={className} style={style}>{CATEGORY_ICONS[category]}</span>;
   return <Icon size={size} className={className} style={style} />;
+}
+
+// Maps status + landing progress to a 0..4 fill level for the progress dot.
+// 0 = not_started · 1 = want_to_learn · 2 = training (<2 landings) · 3 = training (≥2 landings) · 4 = got_it
+function progressLevelFor(trick) {
+  if (!trick) return 0;
+  if (trick.status === 'got_it') return 4;
+  if (trick.status === 'training') {
+    const checked = (Array.isArray(trick.progress) ? trick.progress : []).filter(p => LANDING_IDS.includes(p)).length;
+    return checked >= 2 ? 3 : 2;
+  }
+  if (trick.status === 'want_to_learn') return 1;
+  return 0;
+}
+
+const PROGRESS_TONES = [
+  { fg: '#64748b', bg: 'bg-slate-700/60',  border: 'border-slate-600' },     // not_started
+  { fg: '#a855f7', bg: 'bg-purple-500/20', border: 'border-purple-500/50' }, // want_to_learn
+  { fg: '#eab308', bg: 'bg-yellow-500/20', border: 'border-yellow-500/50' }, // training
+  { fg: '#eab308', bg: 'bg-yellow-500/20', border: 'border-yellow-500/50' }, // training + landings
+  { fg: '#22c55e', bg: 'bg-green-500/20',  border: 'border-green-500/50' },  // got_it
+];
+
+function ProgressDot({ level = 0, size = 16, color }) {
+  const lv = Math.max(0, Math.min(4, level));
+  const fg = color || PROGRESS_TONES[lv].fg;
+  const r = 6.4;
+  const cx = 8;
+  const cy = 8;
+  const fillFraction = lv / 4;
+  let fillPath = null;
+  if (fillFraction >= 1) {
+    fillPath = <circle cx={cx} cy={cy} r={r} fill={fg} />;
+  } else if (fillFraction > 0) {
+    const angle = fillFraction * 2 * Math.PI;
+    const startX = cx;
+    const startY = cy - r;
+    const endX = cx + r * Math.sin(angle);
+    const endY = cy - r * Math.cos(angle);
+    const largeArc = fillFraction > 0.5 ? 1 : 0;
+    fillPath = <path d={`M ${cx} ${cy} L ${startX} ${startY} A ${r} ${r} 0 ${largeArc} 1 ${endX} ${endY} Z`} fill={fg} />;
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={fg} strokeWidth="1.4" />
+      {fillPath}
+    </svg>
+  );
+}
+
+function StatusPill({ trick, onClick, title, size = 'md' }) {
+  const level = progressLevelFor(trick);
+  const tone = PROGRESS_TONES[level];
+  const status = STATUS_LEVELS.find(s => s.id === trick?.status) || STATUS_LEVELS[0];
+  const dotSize = size === 'sm' ? 12 : 14;
+  const ringClass = size === 'sm' ? 'w-6 h-6' : 'w-7 h-7';
+  const Comp = onClick ? 'button' : 'span';
+  return (
+    <Comp onClick={onClick} title={title || status.label}
+      className={`inline-flex flex-shrink-0 items-center justify-center ${ringClass} rounded-full border ${tone.bg} ${tone.border}`}>
+      <ProgressDot level={level} size={dotSize} />
+    </Comp>
+  );
 }
 
 const LOADING_ICONS = [
@@ -1643,7 +1716,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedS
             <span className="text-base">🎓</span>
           </button>
         )}
-        <button onClick={() => onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
+        <StatusPill trick={t} onClick={() => onOpenTrick(t)} />
       </div>
     );
   };
@@ -1890,7 +1963,7 @@ function TrickCard({ trick, onOpen, isGymnastics }) {
             <span className="text-base">🎓</span>
           </button>
         )}
-        <button onClick={openCard} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
+        <StatusPill trick={trick} onClick={openCard} />
       </div>
     </div>
   );
@@ -2847,7 +2920,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                                   <span className="text-base">🎓</span>
                                 </button>
                               )}
-                              <button onClick={() => onOpenTrick && onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${tStatus.color} ${tStatus.textColor}`}>{tStatus.emoji}</button>
+                              <StatusPill trick={t} onClick={() => onOpenTrick && onOpenTrick(t)} />
                               <button onClick={() => unlockFocusTrick(us.date, t.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove from focus"><X className="w-4 h-4" /></button>
                             </div>
                           );
@@ -2894,7 +2967,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                                     <span className="text-base">🎓</span>
                                   </button>
                                 )}
-                                <button onClick={() => onOpenTrick && onOpenTrick(s.trick)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${tStatus.color} ${tStatus.textColor}`}>{tStatus.emoji}</button>
+                                <StatusPill trick={s.trick} onClick={() => onOpenTrick && onOpenTrick(s.trick)} />
                                 <button onClick={() => lockFocusTrick(us.date, s.trick.id)} className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition" title="Lock in for this session">+ Add</button>
                                 {canDismiss && (
                                   <button onClick={() => dismissSuggestion(us.date, s.trick.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Dismiss this suggestion"><X className="w-3.5 h-3.5" /></button>
@@ -3015,7 +3088,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                         <span className="text-base">🎓</span>
                       </button>
                     )}
-                    <button onClick={() => onOpenTrick && onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
+                    <StatusPill trick={t} onClick={() => onOpenTrick && onOpenTrick(t)} />
                     <button onClick={() => setPracticedTricks(arr => arr.filter(x => x !== id))} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove"><X className="w-4 h-4" /></button>
                   </div>
                 );
@@ -3193,7 +3266,7 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
       <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
         <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
         <span className="flex-1 truncate">{t.name}</span>
-        <span className="text-base flex-shrink-0">{status.emoji}</span>
+        <StatusPill trick={t} size="sm" />
       </div>
     );
   };
@@ -3448,7 +3521,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                             <span className="text-base">🎓</span>
                           </button>
                         )}
-                        <button onClick={() => onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
+                        <StatusPill trick={t} onClick={() => onOpenTrick(t)} />
                         <button onClick={() => removeGoal(g.trickId)} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove from focus"><X className="w-4 h-4" /></button>
                       </div>
                     );
@@ -3524,7 +3597,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                   <span className="text-base">🎓</span>
                 </button>
               )}
-              <button onClick={() => onOpenTrick(t)} className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${status.color} ${status.textColor}`}>{status.emoji}</button>
+              <StatusPill trick={t} onClick={() => onOpenTrick(t)} />
               <button onClick={() => addSuggestion(t.id)}
                 className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400 transition">
                 + Add
@@ -3607,7 +3680,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                           >
                             {unread && <span className="pointer-events-none absolute -top-1 -left-1 text-sm animate-pulse">✨</span>}
                             <button onClick={() => onOpenTrick(t)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
-                              <span className="text-lg flex-shrink-0">{status.emoji}</span>
+                              <StatusPill trick={t} />
                               <CategoryIcon category={t.category} size={16} className="text-slate-300 flex-shrink-0" />
                               <span className="flex-1 truncate font-medium text-sm">{t.name}</span>
                               <span className={`text-xs flex-shrink-0 ${mastered ? 'text-green-300' : inProgress ? 'text-yellow-300' : 'text-slate-500'}`}>
@@ -4343,7 +4416,7 @@ service cloud.firestore {
                                 <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
                                   <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
                                   <span className="flex-1 truncate">{t.name}</span>
-                                  <span className="text-base flex-shrink-0">{status.emoji}</span>
+                                  <StatusPill trick={t} size="sm" />
                                 </div>
                               );
                             })}
@@ -4393,7 +4466,7 @@ service cloud.firestore {
                                 <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
                                   <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
                                   <span className="flex-1 truncate">{t.name}</span>
-                                  <span className="text-base flex-shrink-0">{status.emoji}</span>
+                                  <StatusPill trick={t} size="sm" />
                                 </div>
                               );
                             })}
@@ -4440,7 +4513,7 @@ service cloud.firestore {
                                 <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
                                   <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
                                   <span className="flex-1 truncate">{t.name}</span>
-                                  <span className="text-base flex-shrink-0">{status.emoji}</span>
+                                  <StatusPill trick={t} size="sm" />
                                 </div>
                               );
                             })}
@@ -4467,8 +4540,8 @@ service cloud.firestore {
                   <div key={g.trickId} className="text-sm flex items-center gap-2">
                     <CategoryIcon category={trick.category} size={16} className="text-slate-300 flex-shrink-0" />
                     <span>{trick.name}</span>
-                    <span className="text-xs text-slate-400 ml-auto">
-                      {STATUS_LEVELS.find(s => s.id === trick.status)?.emoji}
+                    <span className="ml-auto">
+                      <StatusPill trick={trick} size="sm" />
                     </span>
                   </div>
                 );
