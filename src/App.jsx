@@ -17,6 +17,16 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.20',
+    date: '2026-04-30',
+    title: 'Not started is back',
+    notes: [
+      'Added a 4th status: ⚪ Not started — the new default for tricks you haven\'t engaged with yet.',
+      'New users start with all tricks at Not started; the three picks they make in onboarding move to 👀 Want to learn.',
+      'Existing tricks get a one-time cleanup: any Want to learn trick with no progress, notes, videos, coolness, goal or focus assignment moves back to Not started so you can curate your interest list properly.',
+    ],
+  },
+  {
     version: '1.19',
     date: '2026-04-30',
     title: 'More wins, more color',
@@ -199,6 +209,7 @@ const RELEASE_NOTES = [
 ];
 
 const STATUS_LEVELS = [
+  { id: 'not_started', label: 'Not started', color: 'bg-slate-700', textColor: 'text-slate-200', emoji: '⚪' },
   { id: 'want_to_learn', label: 'Want to learn', color: 'bg-purple-500', textColor: 'text-purple-100', emoji: '👀' },
   { id: 'training', label: 'Training', color: 'bg-yellow-500', textColor: 'text-yellow-100', emoji: '💪' },
   { id: 'got_it', label: 'Got it', color: 'bg-green-500', textColor: 'text-green-100', emoji: '✅' },
@@ -221,10 +232,11 @@ const computeVideoType = (isReference, isTutorial) => {
 };
 
 const migrateStatus = (s) => {
-  if (s === 'got_it' || s === 'training' || s === 'want_to_learn') return s;
+  if (s === 'got_it' || s === 'training' || s === 'want_to_learn' || s === 'not_started') return s;
   if (s === 'yes_i_can' || s === 'hard_landing') return 'got_it';
   if (s === 'training_hard' || s === 'trampoline_landing' || s === 'soft_landing' || s === 'training_like_hell') return 'training';
-  return 'want_to_learn';
+  if (s === 'looking_into') return 'want_to_learn';
+  return 'not_started';
 };
 
 const DIFFICULTY_COLORS = {
@@ -996,14 +1008,35 @@ function MainApp({ user }) {
           const existingIds = new Set(existing.map(t => t.id));
           const additions = loadedCommunity
             .filter(ct => ct && ct.id != null && !existingIds.has(ct.id) && !deletedSet.has(ct.id))
-            .map(ct => applyOverrides({ ...ct, status: 'want_to_learn', videos: [], notes: '', progress: [], coolness: 0 }));
+            .map(ct => applyOverrides({ ...ct, status: 'not_started', videos: [], notes: '', progress: [], coolness: 0 }));
           return additions.length > 0 ? [...existing, ...additions] : existing;
         };
 
         if (tricksData) {
           const filtered = tricksData.filter(t => !deletedSet.has(t.id));
           const migrated = filtered.map(applyOverrides).map(migrateTrickStatus);
-          const merged = mergeCommunity(migrated);
+
+          // One-time reclassification: untouched want_to_learn → not_started.
+          // Idempotent — once a trick is at not_started it won't be revisited.
+          const goalIds = new Set((Array.isArray(goalsData) ? goalsData : []).map(g => g.trickId));
+          const focusIds = new Set();
+          if (plannedFocusData && typeof plannedFocusData === 'object') {
+            Object.values(plannedFocusData).forEach(arr => {
+              if (Array.isArray(arr)) arr.forEach(id => focusIds.add(id));
+            });
+          }
+          const reclassified = migrated.map(t => {
+            if (t.status !== 'want_to_learn') return t;
+            const hasProgress = Array.isArray(t.progress) && t.progress.length > 0;
+            const hasNotes = typeof t.notes === 'string' && t.notes.trim().length > 0;
+            const hasUserVideos = Array.isArray(t.videos) && t.videos.length > 0;
+            const hasCoolness = (t.coolness || 0) > 0;
+            if (hasProgress || hasNotes || hasUserVideos || hasCoolness) return t;
+            if (goalIds.has(t.id) || focusIds.has(t.id)) return t;
+            return { ...t, status: 'not_started' };
+          });
+
+          const merged = mergeCommunity(reclassified);
           const changed = merged.length !== tricksData.length
             || merged.some((t, i) => i < tricksData.length && (t.category !== tricksData[i].category || t.status !== tricksData[i].status));
           setTricks(merged);
@@ -1011,7 +1044,7 @@ function MainApp({ user }) {
         } else {
           const seed = INITIAL_TRICKS
             .filter(t => !deletedSet.has(t.id))
-            .map(t => applyOverrides({ ...t, status: 'want_to_learn', videos: [], notes: '', progress: [] }));
+            .map(t => applyOverrides({ ...t, status: 'not_started', videos: [], notes: '', progress: [] }));
           const initial = mergeCommunity(seed);
           setTricks(initial);
           await saveUserData(user.uid, 'tricks', initial);
@@ -1128,7 +1161,7 @@ function MainApp({ user }) {
   }, [tricks, globalVideos, viewedTricks]);
 
   const addTrick = (trick, globalVideoList = []) => {
-    const newTrick = { status: 'want_to_learn', videos: [], notes: '', progress: [], coolness: 0, ...trick, id: Date.now() };
+    const newTrick = { status: 'not_started', videos: [], notes: '', progress: [], coolness: 0, ...trick, id: Date.now() };
     saveTricks([...tricks, newTrick]);
     if (globalVideoList.length > 0) updateGlobalVideos(newTrick.id, globalVideoList);
   };
@@ -1208,6 +1241,8 @@ function MainApp({ user }) {
   const finishOnboarding = async ({ trickIds, weekdays }) => {
     const today = new Date().toISOString().split('T')[0];
     if (Array.isArray(trickIds) && trickIds.length > 0) {
+      const idSet = new Set(trickIds);
+      await saveTricks(tricks.map(t => idSet.has(t.id) && t.status === 'not_started' ? { ...t, status: 'want_to_learn' } : t));
       const goals = trickIds.map(id => ({ trickId: id, addedAt: Date.now() }));
       await saveGoals(goals);
       await savePlannedSessionFocus({ ...plannedSessionFocus, [today]: trickIds });
@@ -1568,6 +1603,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedS
     weeklyGoals.forEach(g => tryAdd(tricks.find(t => t.id === g.trickId)));
     tricks.filter(t => t.status === 'training').forEach(tryAdd);
     tricks.filter(t => t.status === 'want_to_learn' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).forEach(tryAdd);
+    tricks.filter(t => t.status === 'not_started' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).forEach(tryAdd);
     return out;
   };
   const suggestions = lockedTricks.length > 0 ? lockedTricks.slice(0, 3) : buildSuggestions();
@@ -2053,15 +2089,15 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
             return (
               <div>
                 <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Status</div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {STATUS_LEVELS.map(s => {
                     const active = trick.status === s.id;
                     return (
                       <button key={s.id} onClick={() => setStatus(s.id)}
                         title={s.id === 'got_it' && active ? 'Click to revert to Training' : undefined}
-                        className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border transition ${active ? `${s.color} border-white/40` : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
+                        className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border transition ${active ? `${s.color} border-white/40` : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
                         <span className="text-2xl">{s.emoji}</span>
-                        <span className={`text-xs font-bold leading-tight text-center ${active ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
+                        <span className={`text-[11px] font-bold leading-tight text-center ${active ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
                       </button>
                     );
                   })}
@@ -2220,7 +2256,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
       }
     }
     if (suggestions.length < 3) {
-      const fallback = tricks.filter(t => t.status === 'want_to_learn' && (t.difficulty === 'Easy' || t.difficulty === 'Medium'));
+      const fallback = tricks.filter(t => (t.status === 'want_to_learn' || t.status === 'not_started') && (t.difficulty === 'Easy' || t.difficulty === 'Medium'));
       for (const f of fallback) { if (suggestions.length >= 3) break; tryAdd(f, 'Good one to add to your training', '🌟', 7); }
     }
     return suggestions.sort((a, b) => a.priority - b.priority).slice(0, 3);
@@ -3148,7 +3184,7 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
   const [expandedLanding, setExpandedLanding] = useState(null);
   const [achievementsOpen, setAchievementsOpen] = useState(true);
   const sortByStatus = (a, b) => {
-    const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : 2;
+    const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : t.status === 'want_to_learn' ? 2 : 3;
     return order(a) - order(b) || a.name.localeCompare(b.name);
   };
   const TrickRow = ({ t }) => {
@@ -3337,7 +3373,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
     tricks.filter(t => t.status === 'training' && hasLanding(t, 'trampoline_landing') && !hasLanding(t, 'soft_landing')).slice(0, 2).forEach(t => tryAdd(t, 'Got it on trampoline — try soft mat next', '🤾', 2));
     tricks.filter(t => t.status === 'training' && (!Array.isArray(t.progress) || t.progress.length === 0)).slice(0, 2).forEach(t => tryAdd(t, 'Already training — stay consistent', '💪', 3));
     if (list.length < 3) {
-      tricks.filter(t => t.status === 'want_to_learn' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).slice(0, 5).forEach(t => tryAdd(t, 'Good one to add', '🌟', 7));
+      tricks.filter(t => (t.status === 'want_to_learn' || t.status === 'not_started') && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).slice(0, 5).forEach(t => tryAdd(t, 'Good one to add', '🌟', 7));
     }
     return list.sort((a, b) => a.priority - b.priority).slice(0, 3);
   })();
@@ -4280,7 +4316,7 @@ service cloud.firestore {
                   {difficultyData.map(d => {
                     const open = expandedUserDifficulty === d.label;
                     const sortByStatus = (a, b) => {
-                      const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : 2;
+                      const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : t.status === 'want_to_learn' ? 2 : 3;
                       return order(a) - order(b) || a.name.localeCompare(b.name);
                     };
                     const rows = userData.tricks.filter(t => t.difficulty === d.label).slice().sort(sortByStatus);
@@ -4324,7 +4360,7 @@ service cloud.firestore {
                   {LANDING_LEVELS.map(l => {
                     const open = expandedUserLanding === l.id;
                     const sortByStatus = (a, b) => {
-                      const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : 2;
+                      const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : t.status === 'want_to_learn' ? 2 : 3;
                       return order(a) - order(b) || a.name.localeCompare(b.name);
                     };
                     const matched = userData.tricks.filter(t => Array.isArray(t.progress) && t.progress.includes(l.id));
@@ -4374,7 +4410,7 @@ service cloud.firestore {
                   {categoryData.map(c => {
                     const open = expandedUserCategory === c.cat;
                     const sortByStatus = (a, b) => {
-                      const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : 2;
+                      const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : t.status === 'want_to_learn' ? 2 : 3;
                       return order(a) - order(b) || a.name.localeCompare(b.name);
                     };
                     const rows = userData.tricks.filter(t => t.category === c.cat).slice().sort(sortByStatus);
