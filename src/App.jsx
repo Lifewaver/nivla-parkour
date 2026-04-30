@@ -17,6 +17,17 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.19',
+    date: '2026-04-30',
+    title: 'More wins, more color',
+    notes: [
+      'Smaller celebrations now fire when you hit a new landing checkpoint (trampoline, soft mat) — not just at full mastery.',
+      'Streak milestones (3, 7, 14, 30, 50, 100 days) trigger a flame toast when you log a session.',
+      'Logging a training session now actually bumps your streak (was a quiet bug).',
+      'Category icons are tinted by category — orange means Flips, cyan means Jump, pink means Tricks, and so on.',
+    ],
+  },
+  {
     version: '1.18',
     date: '2026-04-30',
     title: 'First-run onboarding',
@@ -238,10 +249,22 @@ const CATEGORY_ICON_COMPONENTS = {
   Gymnastics: MdSportsGymnastics,
 };
 
-function CategoryIcon({ category, size = 22, className = '' }) {
+const CATEGORY_COLORS = {
+  Flips:      { hex: '#fb923c', text: 'text-orange-300',  border: 'border-orange-500/40',  bg: 'bg-orange-500/10'  },
+  Jump:       { hex: '#22d3ee', text: 'text-cyan-300',    border: 'border-cyan-500/40',    bg: 'bg-cyan-500/10'    },
+  Tricks:     { hex: '#f472b6', text: 'text-pink-300',    border: 'border-pink-500/40',    bg: 'bg-pink-500/10'    },
+  Leap:       { hex: '#34d399', text: 'text-emerald-300', border: 'border-emerald-500/40', bg: 'bg-emerald-500/10' },
+  Swings:     { hex: '#fbbf24', text: 'text-amber-300',   border: 'border-amber-500/40',   bg: 'bg-amber-500/10'   },
+  Vaults:     { hex: '#fb7185', text: 'text-rose-300',    border: 'border-rose-500/40',    bg: 'bg-rose-500/10'    },
+  Gymnastics: { hex: '#7dd3fc', text: 'text-sky-300',     border: 'border-sky-500/40',     bg: 'bg-sky-500/10'     },
+};
+
+function CategoryIcon({ category, size = 22, className = '', tint = true }) {
   const Icon = CATEGORY_ICON_COMPONENTS[category];
-  if (!Icon) return <span>{CATEGORY_ICONS[category]}</span>;
-  return <Icon size={size} className={className} />;
+  const color = tint ? CATEGORY_COLORS[category]?.hex : undefined;
+  const style = color ? { color } : undefined;
+  if (!Icon) return <span className={className} style={style}>{CATEGORY_ICONS[category]}</span>;
+  return <Icon size={size} className={className} style={style} />;
 }
 
 const LOADING_ICONS = [
@@ -889,6 +912,12 @@ function MainApp({ user }) {
   const [filterVideo, setFilterVideo] = useState('all');
   const [filterStars, setFilterStars] = useState('all');
   const [celebrationTrick, setCelebrationTrick] = useState(null);
+  const [celebrationToast, setCelebrationToast] = useState(null);
+
+  const fireCelebration = (toast) => {
+    setCelebrationToast(toast);
+    setTimeout(() => setCelebrationToast(t => (t && t._id === toast._id ? null : t)), 1800);
+  };
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [showImprovementModal, setShowImprovementModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1037,6 +1066,16 @@ function MainApp({ user }) {
   const savePlannedSessionFocus = async (f) => { setPlannedSessionFocus(f); await saveUserData(user.uid, 'plannedSessionFocus', f); };
   const savePlannedSessionDismissed = async (d) => { setPlannedSessionDismissed(d); await saveUserData(user.uid, 'plannedSessionDismissed', d); };
 
+  const celebrateLanding = (oldProgress, newProgress, trick) => {
+    const oldSet = new Set(Array.isArray(oldProgress) ? oldProgress : []);
+    const newSet = new Set(Array.isArray(newProgress) ? newProgress : []);
+    if (!oldSet.has('trampoline_landing') && newSet.has('trampoline_landing')) {
+      fireCelebration({ _id: Date.now(), kind: 'small', icon: '🤾', title: 'Trampoline landing!', subtitle: trick ? `${trick.name} · soft mat next` : 'Soft mat next', tone: 'cyan' });
+    } else if (!oldSet.has('soft_landing') && newSet.has('soft_landing')) {
+      fireCelebration({ _id: Date.now(), kind: 'small', icon: '🛬', title: 'Soft mat — almost there!', subtitle: trick ? `${trick.name} · hard ground left` : 'Hard ground left', tone: 'blue' });
+    }
+  };
+
   const updateTrickStatus = (id, status) => {
     const oldTrick = tricks.find(t => t.id === id);
     const newTricks = tricks.map(t => t.id === id ? { ...t, status } : t);
@@ -1047,7 +1086,11 @@ function MainApp({ user }) {
     }
   };
 
-  const updateTrickProgress = (id, progress) => saveTricks(tricks.map(t => t.id === id ? { ...t, progress } : t));
+  const updateTrickProgress = (id, progress) => {
+    const oldTrick = tricks.find(t => t.id === id);
+    saveTricks(tricks.map(t => t.id === id ? { ...t, progress } : t));
+    celebrateLanding(oldTrick?.progress, progress, oldTrick);
+  };
   const updateTrickCoolness = (id, coolness) => saveTricks(tricks.map(t => t.id === id ? { ...t, coolness } : t));
   const updateTrickStatusAndProgress = (id, status, progress) => {
     const oldTrick = tricks.find(t => t.id === id);
@@ -1056,6 +1099,8 @@ function MainApp({ user }) {
     if (status === 'got_it' && oldTrick?.status !== 'got_it') {
       setCelebrationTrick(oldTrick);
       setTimeout(() => setCelebrationTrick(null), 2500);
+    } else {
+      celebrateLanding(oldTrick?.progress, progress, oldTrick);
     }
   };
   const updateTrickVideos = (id, videos) => saveTricks(tricks.map(t => t.id === id ? { ...t, videos } : t));
@@ -1088,14 +1133,9 @@ function MainApp({ user }) {
     if (globalVideoList.length > 0) updateGlobalVideos(newTrick.id, globalVideoList);
   };
 
-  const logTrainingDay = () => {
-    const today = new Date().toISOString().split('T')[0];
-    if (!trainingDays.includes(today)) saveTrainingDays([...trainingDays, today]);
-  };
-
-  const calculateStreak = () => {
-    if (trainingDays.length === 0) return 0;
-    const sorted = [...trainingDays].sort().reverse();
+  const computeStreakFor = (days) => {
+    if (!Array.isArray(days) || days.length === 0) return 0;
+    const sorted = [...days].sort().reverse();
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
     if (sorted[0] !== today && sorted[0] !== yesterday) return 0;
@@ -1109,7 +1149,27 @@ function MainApp({ user }) {
     return streak;
   };
 
-  const streak = calculateStreak();
+  const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100];
+
+  const markDayTrained = async (dateStr) => {
+    if (!dateStr || trainingDays.includes(dateStr)) return;
+    const next = [...trainingDays, dateStr];
+    const oldStreak = computeStreakFor(trainingDays);
+    const newStreak = computeStreakFor(next);
+    await saveTrainingDays(next);
+    const crossed = STREAK_MILESTONES.find(m => oldStreak < m && newStreak >= m);
+    if (crossed) {
+      const subtitle = crossed >= 30 ? 'Unstoppable!' : crossed >= 7 ? 'On fire!' : 'Keep it going!';
+      fireCelebration({ _id: Date.now(), kind: 'small', icon: '🔥', title: `${crossed}-day streak!`, subtitle, tone: 'orange' });
+    }
+  };
+
+  const logTrainingDay = () => {
+    const today = new Date().toISOString().split('T')[0];
+    markDayTrained(today);
+  };
+
+  const streak = computeStreakFor(trainingDays);
   const mastered = tricks.filter(t => t.status === 'got_it').length;
   const inProgress = tricks.filter(t => t.status === 'training').length;
 
@@ -1184,6 +1244,26 @@ function MainApp({ user }) {
         </div>
       )}
 
+      {celebrationToast && (() => {
+        const TONE = {
+          cyan:   { ring: 'border-cyan-400',   from: 'from-cyan-500/30',   to: 'to-cyan-700/30',   accent: 'text-cyan-100' },
+          blue:   { ring: 'border-blue-400',   from: 'from-blue-500/30',   to: 'to-blue-700/30',   accent: 'text-blue-100' },
+          orange: { ring: 'border-orange-400', from: 'from-orange-500/40', to: 'to-red-600/40',    accent: 'text-orange-100' },
+        };
+        const tone = TONE[celebrationToast.tone] || TONE.cyan;
+        return (
+          <div className="fixed top-3 inset-x-0 z-[60] flex justify-center pointer-events-none px-4">
+            <div className={`pointer-events-auto bg-gradient-to-br ${tone.from} ${tone.to} backdrop-blur-md border-2 ${tone.ring} rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 max-w-sm w-full animate-bounce`} style={{ animationDuration: '0.6s', animationIterationCount: 1 }}>
+              <div className="text-3xl flex-shrink-0">{celebrationToast.icon}</div>
+              <div className="min-w-0 flex-1">
+                <div className={`font-black text-base leading-tight ${tone.accent}`}>{celebrationToast.title}</div>
+                {celebrationToast.subtitle && <div className="text-xs text-white/80 truncate mt-0.5">{celebrationToast.subtitle}</div>}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-lg border-b border-purple-500/20 px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
@@ -1244,6 +1324,7 @@ function MainApp({ user }) {
             journal={journal} saveJournal={saveJournal} onOpenTrick={openTrick}
             weeklyFocus={weeklyFocus}
             trainingDays={trainingDays} trainingSessions={trainingSessions} saveTrainingSessions={saveTrainingSessions}
+            markDayTrained={markDayTrained}
             plannedDays={plannedDays} savePlannedDays={savePlannedDays}
             plannedMonths={plannedMonths} savePlannedMonths={savePlannedMonths}
             plannedWeeks={plannedWeeks} savePlannedWeeks={savePlannedWeeks}
@@ -1698,13 +1779,14 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
       <div className="text-sm text-slate-400">{filtered.length} tricks</div>
       {sortedCategories.map(cat => {
         const isGymnastics = GYMNASTICS_CATEGORIES.includes(cat);
+        const catColor = CATEGORY_COLORS[cat];
         return (
           <div key={cat}>
             <div className="flex items-center gap-2 mb-2 mt-4">
-              <CategoryIcon category={cat} size={28} className="text-slate-200" />
-              <h3 className={`font-black text-lg uppercase tracking-wide ${isGymnastics ? 'text-cyan-300' : 'text-slate-200'}`}>{cat}</h3>
+              <span className="w-1 h-7 rounded-full" style={catColor ? { backgroundColor: catColor.hex } : undefined} />
+              <CategoryIcon category={cat} size={28} />
+              <h3 className="font-black text-lg uppercase tracking-wide" style={catColor ? { color: catColor.hex } : undefined}>{cat}</h3>
               <span className="text-sm text-slate-500">({grouped[cat].length})</span>
-              {isGymnastics && <span className="text-xs font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Gymnastics</span>}
             </div>
             <div className={`space-y-2 ${isGymnastics ? 'bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-2' : ''}`}>
               {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} isGymnastics={isGymnastics} />)}
@@ -2096,7 +2178,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, streak = 0, section, setSection }) {
+function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, streak = 0, section, setSection }) {
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const [newJournalEntry, setNewJournalEntry] = useState('');
   const [expandedWeek, setExpandedWeek] = useState(null);
@@ -2204,6 +2286,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           trainingDays={trainingDays}
           trainingSessions={trainingSessions}
           saveTrainingSessions={saveTrainingSessions}
+          markDayTrained={markDayTrained}
           plannedDays={plannedDays}
           savePlannedDays={savePlannedDays}
           plannedMonths={plannedMonths}
@@ -2285,7 +2368,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   );
 }
 
-function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
+function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
   const FOCUS_TAGS = ['landning', 'flow', 'vips', 'strength', 'precision', 'flips', 'jump', 'tricks', 'leap', 'swings', 'vaults', 'gymnastics'];
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
@@ -2538,6 +2621,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
       createdAt: Date.now(),
     };
     await saveTrainingSessions([entry, ...safeSessions]);
+    if (markDayTrained) await markDayTrained(date);
     setTags([]); setDuration(''); setNotes(''); setRpe(6); setDate(today); setPracticedTricks([]);
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 2000);
