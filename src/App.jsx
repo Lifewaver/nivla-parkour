@@ -17,6 +17,19 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.26',
+    date: '2026-04-30',
+    title: 'Tree polish',
+    notes: [
+      'Path memory: the Tree tab remembers the last category you were viewing.',
+      'New "🗝️ Newly unlocked" widget shows up to 3 tricks whose prerequisites you just met, ready to start.',
+      'Newly unlocked nodes pulse with a yellow ring inside the graph itself.',
+      'Tapping a node now opens a quick popover (name, difficulty, ▶ Reference / 🎓 Tutorial / 🎯 Focus / Open →) instead of jumping straight to the modal — keeps you in the climb-the-tree flow.',
+      'Quest completion fires a celebration toast.',
+      'Today suggestions now prioritize tricks you just unlocked over generic fallbacks.',
+    ],
+  },
+  {
     version: '1.25',
     date: '2026-04-30',
     title: 'Quests in In Focus',
@@ -1606,7 +1619,7 @@ function MainApp({ user }) {
         )}
         {activeTab === 'skilltree' && (
           <SkillTreeTab tricks={displayTricks} onOpenTrick={openTrick} weeklyGoals={weeklyGoals} saveGoals={saveGoals}
-            trainingSessions={trainingSessions} streak={streak} />
+            trainingSessions={trainingSessions} streak={streak} fireCelebration={fireCelebration} />
         )}
         {activeTab === 'add' && (
           <AddTab user={user} setActiveTab={setActiveTab} />
@@ -1834,6 +1847,18 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedS
       if (!t || seen.has(t.id) || out.length >= 3) return;
       seen.add(t.id); out.push(t);
     };
+    // Newly unlocked: prereqs met but trick not yet started — the natural next step.
+    const masteredById = new Map(tricks.map(t => [t.id, t.status === 'got_it']));
+    const newlyUnlocked = tricks.filter(t => {
+      if (t.status === 'got_it' || t.status === 'training') return false;
+      const prereqs = (PREREQUISITES[t.id] || []).filter(p => {
+        const pt = tricks.find(x => x.id === p);
+        return pt && pt.category === t.category;
+      });
+      if (prereqs.length === 0) return false;
+      return prereqs.every(p => masteredById.get(p));
+    });
+    newlyUnlocked.forEach(tryAdd);
     weeklyGoals.forEach(g => tryAdd(tricks.find(t => t.id === g.trickId)));
     tricks.filter(t => t.status === 'training').forEach(tryAdd);
     tricks.filter(t => t.status === 'want_to_learn' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).forEach(tryAdd);
@@ -3627,11 +3652,27 @@ const QUEST_TYPE_LABEL = {
   masteredByDiff: 'Milestone',
 };
 
-function QuestsPanel({ tricks, weeklyGoals, trainingSessions, streak, onOpenFocusManage }) {
+function QuestsPanel({ tricks, weeklyGoals, trainingSessions, streak, onQuestComplete }) {
   const ctx = { tricks, weeklyGoals, trainingSessions, streak };
   const items = QUESTS.map(q => ({ ...q, progress: computeQuestProgress(q, ctx) }));
   const active = items.filter(q => q.progress < q.target);
   const completed = items.filter(q => q.progress >= q.target);
+
+  const prevProgressRef = React.useRef(null);
+  useEffect(() => {
+    if (!onQuestComplete) return;
+    const prev = prevProgressRef.current;
+    const next = {};
+    items.forEach(q => { next[q.id] = q.progress; });
+    if (prev) {
+      items.forEach(q => {
+        const wasDone = (prev[q.id] || 0) >= q.target;
+        const isDone = q.progress >= q.target;
+        if (isDone && !wasDone) onQuestComplete(q);
+      });
+    }
+    prevProgressRef.current = next;
+  });
 
   const QuestRow = ({ q }) => {
     const pct = Math.min(100, Math.round((q.progress / q.target) * 100));
@@ -3684,7 +3725,8 @@ function QuestsPanel({ tricks, weeklyGoals, trainingSessions, streak, onOpenFocu
   );
 }
 
-function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onRemoveFocus }) {
+function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onRemoveFocus, newlyUnlockedIds = [] }) {
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
   const idsInCategory = useMemo(() => new Set(tricks.map(t => t.id)), [tricks]);
 
   // Compute depth (longest prereq chain ending at each node, restricted to this category).
@@ -3764,8 +3806,17 @@ function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onR
 
   if (tricks.length === 0) return null;
 
+  const newlyUnlockedSet = new Set(newlyUnlockedIds);
+  const selected = selectedNodeId ? tricks.find(t => t.id === selectedNodeId) : null;
+  const selectedPos = selected ? positions[selected.id] : null;
+  const selectedTutorial = selected?.videos?.find(v => isTutorialVideo(v) && v.primary) || selected?.videos?.find(v => isTutorialVideo(v));
+  const selectedRefVideo = selected?.videos?.find(v => v.type !== 'tutorial' && v.primary) || selected?.videos?.find(v => v.type !== 'tutorial');
+  const selectedInFocus = selected ? weeklyGoals.some(g => g.trickId === selected.id) : false;
+  const popoverAbove = selectedPos ? selectedPos.y > svgHeight / 2 : true;
+
   return (
-    <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-2 overflow-x-auto">
+    <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-2 overflow-x-auto"
+      onClick={(e) => { if (e.target === e.currentTarget) setSelectedNodeId(null); }}>
       <div className="relative" style={{ width: svgWidth, height: svgHeight }}>
         <svg width={svgWidth} height={svgHeight} className="absolute inset-0 pointer-events-none">
           <defs>
@@ -3811,6 +3862,7 @@ function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onR
             ? 'bg-slate-900 border-slate-700'
             : 'bg-slate-800 border-slate-500';
 
+          const newlyUnlocked = newlyUnlockedSet.has(t.id);
           return (
             <div key={t.id}
               className="absolute flex flex-col items-center"
@@ -3821,8 +3873,8 @@ function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onR
                 width: MIN_NODE_SPACING - 8,
                 opacity: locked ? 0.55 : 1,
               }}>
-              <button onClick={() => onOpenTrick(t)}
-                className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center transition hover:scale-105 active:scale-95 ${ringClass}`}>
+              <button onClick={() => setSelectedNodeId(prev => prev === t.id ? null : t.id)}
+                className={`relative w-14 h-14 rounded-full border-2 flex items-center justify-center transition hover:scale-105 active:scale-95 ${ringClass} ${newlyUnlocked ? 'ring-4 ring-yellow-400/60 animate-pulse' : ''}`}>
                 {mastered ? (
                   <Check className="w-7 h-7 text-white" strokeWidth={3} />
                 ) : locked ? (
@@ -3856,12 +3908,61 @@ function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onR
             </div>
           );
         })}
+        {selected && selectedPos && (() => {
+          const popW = 220;
+          const popH = 120;
+          let popLeft = selectedPos.x - popW / 2;
+          popLeft = Math.max(8, Math.min(svgWidth - popW - 8, popLeft));
+          const popTop = popoverAbove ? selectedPos.y - NODE_R - popH - 12 : selectedPos.y + NODE_R + 12;
+          const playRef = (e) => { e.stopPropagation(); setSelectedNodeId(null); if (selectedRefVideo?.url) onOpenTrick(selected, normalizeUrl(selectedRefVideo.url)); };
+          const playTut = (e) => { e.stopPropagation(); setSelectedNodeId(null); if (selectedTutorial?.url) onOpenTrick(selected, normalizeUrl(selectedTutorial.url)); };
+          return (
+            <div className="absolute z-20 bg-slate-900 border border-purple-500/60 rounded-xl shadow-2xl p-3"
+              style={{ left: popLeft, top: popTop, width: popW }}
+              onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start gap-2 mb-2">
+                <div className="flex-1 min-w-0">
+                  <div className="font-black text-sm leading-tight">{selected.name}</div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[selected.difficulty]?.bg} ${DIFFICULTY_COLORS[selected.difficulty]?.text}`}>{selected.difficulty}</span>
+                    <span className="text-[9px] text-slate-400">{XP_PER_DIFFICULTY[selected.difficulty] || 0} XP</span>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedNodeId(null)} className="w-5 h-5 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-xs text-slate-300">×</button>
+              </div>
+              <div className="flex gap-1.5 mb-2">
+                {selectedRefVideo && (
+                  <button onClick={playRef} className="flex-1 text-[10px] font-bold py-1.5 rounded bg-purple-500/20 hover:bg-purple-500/40 text-purple-200 flex items-center justify-center gap-1">
+                    <Play className="w-3 h-3 fill-current" /> Reference
+                  </button>
+                )}
+                {selectedTutorial && (
+                  <button onClick={playTut} className="flex-1 text-[10px] font-bold py-1.5 rounded bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-200 flex items-center justify-center gap-1">
+                    🎓 Tutorial
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-1.5">
+                {onAddFocus && selected.status !== 'got_it' && (
+                  <button onClick={(e) => { e.stopPropagation(); selectedInFocus ? onRemoveFocus(selected.id) : onAddFocus(selected.id); }}
+                    className={`flex-1 text-[10px] font-bold py-1.5 rounded transition ${selectedInFocus ? 'bg-green-500/30 text-green-300 hover:bg-green-500/40' : 'bg-yellow-500 text-slate-900 hover:bg-yellow-400'}`}>
+                    {selectedInFocus ? '✓ In focus' : '🎯 Focus'}
+                  </button>
+                )}
+                <button onClick={() => { setSelectedNodeId(null); onOpenTrick(selected); }}
+                  className="flex-1 text-[10px] font-bold py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-100">
+                  Open →
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
 }
 
-function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, trainingSessions = [], streak = 0 }) {
+function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, trainingSessions = [], streak = 0, fireCelebration }) {
   const FOCUS_KEY = '__focus__';
   const TIERS = ['Easy', 'Medium', 'Hard', 'Super'];
   const trickCategories = [...new Set(tricks.map(t => t.category))].sort((a, b) => {
@@ -3869,7 +3970,16 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
     if (b === 'Gymnastics') return -1;
     return a.localeCompare(b);
   });
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategory, setSelectedCategoryState] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    try { return JSON.parse(window.localStorage.getItem('skillTreeLastCategory') || 'null'); } catch { return null; }
+  });
+  const setSelectedCategory = (cat) => {
+    setSelectedCategoryState(cat);
+    if (typeof window !== 'undefined') {
+      try { window.localStorage.setItem('skillTreeLastCategory', JSON.stringify(cat)); } catch {}
+    }
+  };
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const isFocus = selectedCategory === FOCUS_KEY;
   const isMap = selectedCategory === null;
@@ -3985,7 +4095,15 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
       )}
 
       {isFocus && (
-        <QuestsPanel tricks={tricks} weeklyGoals={weeklyGoals} trainingSessions={trainingSessions} streak={streak} />
+        <QuestsPanel tricks={tricks} weeklyGoals={weeklyGoals} trainingSessions={trainingSessions} streak={streak}
+          onQuestComplete={(q) => fireCelebration && fireCelebration({
+            _id: Date.now(),
+            kind: 'small',
+            icon: q.icon,
+            title: 'Quest complete!',
+            subtitle: q.title,
+            tone: 'orange',
+          })} />
       )}
 
       {isFocus && (() => {
@@ -4159,6 +4277,14 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
         const bossMastered = boss?.status === 'got_it';
         const bossDiff = boss ? DIFFICULTY_COLORS[boss.difficulty] : null;
         const bossTutorial = boss?.videos?.find(v => isTutorialVideo(v) && v.primary) || boss?.videos?.find(v => isTutorialVideo(v));
+        const idsInCat = new Set(inCategory.map(t => t.id));
+        const masteredInCat = new Set(inCategory.filter(t => t.status === 'got_it').map(t => t.id));
+        const nextUnlockable = inCategory.filter(t => {
+          if (t.status === 'got_it' || t.status === 'training') return false;
+          const prereqs = (PREREQUISITES[t.id] || []).filter(p => idsInCat.has(p));
+          if (prereqs.length === 0) return false;
+          return prereqs.every(p => masteredInCat.has(p));
+        }).slice(0, 3);
         return (
           <>
             <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-3">
@@ -4204,15 +4330,47 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
               </button>
             )}
 
+            {nextUnlockable.length > 0 && (
+              <div className="bg-slate-800/40 border border-yellow-500/40 rounded-2xl p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-base">🗝️</span>
+                  <h3 className="text-[10px] font-black uppercase tracking-wider text-yellow-300">Newly unlocked · ready to start</h3>
+                </div>
+                <div className="space-y-1.5">
+                  {nextUnlockable.map(t => {
+                    const inFocus = weeklyGoals.some(g => g.trickId === t.id);
+                    const tdiff = DIFFICULTY_COLORS[t.difficulty];
+                    return (
+                      <div key={t.id} className="flex items-center gap-2 bg-slate-900/60 border border-slate-700 rounded-lg p-2">
+                        <CategoryIcon category={t.category} size={18} />
+                        <button onClick={() => onOpenTrick(t)} className="flex-1 min-w-0 text-left">
+                          <div className="font-bold text-sm truncate">{t.name}</div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${tdiff?.bg} ${tdiff?.text}`}>{t.difficulty}</span>
+                            <span className="text-[9px] text-slate-500">{XP_PER_DIFFICULTY[t.difficulty] || 0} XP</span>
+                          </div>
+                        </button>
+                        <button onClick={() => inFocus ? removeGoal(t.id) : addSuggestion(t.id)}
+                          className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition ${inFocus ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-yellow-500 text-slate-900 hover:bg-yellow-400'}`}>
+                          {inFocus ? '✓' : '+ Start'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <SkillTreeGraph
               tricks={inCategory}
               onOpenTrick={onOpenTrick}
               weeklyGoals={weeklyGoals}
               onAddFocus={addSuggestion}
               onRemoveFocus={removeGoal}
+              newlyUnlockedIds={nextUnlockable.map(t => t.id)}
             />
             <div className="text-[11px] text-slate-500 text-center px-2 leading-relaxed">
-              Locked tricks (🔒) unlock once you master their prerequisite. Tap any node to open its details.
+              Tap a node for quick actions or to open details. Locked tricks (🔒) unlock when you master their prerequisite.
             </div>
           </>
         );
