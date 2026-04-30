@@ -17,6 +17,17 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.23',
+    date: '2026-04-30',
+    title: 'XP, levels, and a boss to beat',
+    notes: [
+      'Each category now has its own XP and level. Easy = 10 XP, Medium = 25, Hard = 60, Super = 150. Partial XP for tricks in Training based on landing checkpoints.',
+      'Levels go 1 → 6 as you fill the category: 0% = LVL 1, 10% = LVL 2, 25% = LVL 3, 50% = LVL 4, 75% = LVL 5, 100% = LVL 6.',
+      'One Boss trick per category sits at the top of the tree with a flame border. Beat it (master it) to claim the category. Bosses: Double Backflip · Kong 180 Tac Tak · Atwist Gumbi · 360 Cat Leap · Swing gainer · Kong gainer · No-hand Cartwheel.',
+      'Phase 2 of the Skill Tree redesign — world-select landing and quests still coming.',
+    ],
+  },
+  {
     version: '1.22',
     date: '2026-04-30',
     title: 'Skill Tree, for real now',
@@ -576,6 +587,43 @@ const PREREQUISITES = {
   87: [83], // Round-off Back Handspring - Salto ← Round-off Back Handspring
   88: [79], // Round-off Front Salto ← Round-off
   89: [88], // Round-off Front Salto - Handspring ← Round-off Front Salto
+};
+
+// XP awarded per mastered trick by difficulty.
+const XP_PER_DIFFICULTY = { Easy: 10, Medium: 25, Hard: 60, Super: 150 };
+// Partial XP for in-progress states (landings count toward training XP).
+const TRAINING_LANDING_XP = 3;
+
+const computeTrickXp = (t) => {
+  if (!t) return 0;
+  const full = XP_PER_DIFFICULTY[t.difficulty] || 0;
+  if (t.status === 'got_it') return full;
+  if (t.status === 'training') {
+    const landings = (Array.isArray(t.progress) ? t.progress : []).filter(p => LANDING_IDS.includes(p)).length;
+    return Math.min(full * 0.4, landings * TRAINING_LANDING_XP);
+  }
+  return 0;
+};
+
+// Level thresholds as fraction of category's max possible XP.
+const LEVEL_THRESHOLDS = [0, 0.10, 0.25, 0.50, 0.75, 1.0];
+const xpToLevel = (earned, max) => {
+  if (max <= 0) return 1;
+  const frac = earned / max;
+  let lv = 1;
+  for (let i = 0; i < LEVEL_THRESHOLDS.length; i++) if (frac >= LEVEL_THRESHOLDS[i]) lv = i + 1;
+  return lv;
+};
+
+// One headline "boss" trick per category — render above the tree.
+const BOSS_TRICKS = {
+  Flips: 6,        // Double backflip
+  Jump: 17,        // Kong 180 Tac Tak
+  Tricks: 35,      // Atwist Gumbi
+  Leap: 45,        // 360 Cat Leap
+  Swings: 48,      // Swing gainer
+  Vaults: 59,      // Kong gainer
+  Gymnastics: 82,  // No-hand Cartwheel
 };
 
 const BADGES = [
@@ -3909,6 +3957,14 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
       ) : !isFocus && (() => {
         const masteredPct = inCategory.length > 0 ? Math.round((totalMastered / inCategory.length) * 100) : 0;
         const catColor = CATEGORY_COLORS[selectedCategory];
+        const earnedXp = Math.round(inCategory.reduce((sum, t) => sum + computeTrickXp(t), 0));
+        const maxXp = inCategory.reduce((sum, t) => sum + (XP_PER_DIFFICULTY[t.difficulty] || 0), 0);
+        const level = xpToLevel(earnedXp, maxXp);
+        const bossId = BOSS_TRICKS[selectedCategory];
+        const boss = bossId ? inCategory.find(t => t.id === bossId) : null;
+        const bossMastered = boss?.status === 'got_it';
+        const bossDiff = boss ? DIFFICULTY_COLORS[boss.difficulty] : null;
+        const bossTutorial = boss?.videos?.find(v => isTutorialVideo(v) && v.primary) || boss?.videos?.find(v => isTutorialVideo(v));
         return (
           <>
             <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-3">
@@ -3916,14 +3972,44 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                 <div className="flex items-center gap-2 font-bold" style={catColor ? { color: catColor.hex } : undefined}>
                   <CategoryIcon category={selectedCategory} size={20} />
                   <span>{selectedCategory}</span>
+                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-700 text-slate-200">LVL {level}</span>
                 </div>
-                <div className="text-sm text-slate-300">{totalMastered} / {inCategory.length} · {masteredPct}%</div>
+                <div className="text-xs text-slate-300">
+                  <span className="font-bold text-white">{earnedXp}</span>
+                  <span className="text-slate-500"> / {maxXp} XP</span>
+                </div>
               </div>
               <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
                 <div className="h-full transition-all duration-500"
                   style={{ width: `${masteredPct}%`, backgroundColor: catColor?.hex || '#a855f7' }} />
               </div>
+              <div className="text-[10px] text-slate-400 mt-1">{totalMastered} / {inCategory.length} mastered · {masteredPct}%</div>
             </div>
+
+            {boss && (
+              <button onClick={() => onOpenTrick(boss)}
+                className={`w-full text-left rounded-2xl p-4 transition border-2 relative overflow-hidden ${bossMastered ? 'border-yellow-400 bg-gradient-to-br from-yellow-500/20 via-orange-500/10 to-red-500/20 shadow-lg shadow-orange-500/20' : 'border-orange-500/60 bg-gradient-to-br from-orange-500/10 to-red-500/10 hover:from-orange-500/20 hover:to-red-500/20'}`}>
+                <span className="absolute -top-2 -right-2 text-4xl opacity-20 pointer-events-none">🔥</span>
+                <div className="flex items-center gap-3">
+                  <div className={`flex-shrink-0 w-14 h-14 rounded-full border-2 flex items-center justify-center ${bossMastered ? 'bg-yellow-400 border-yellow-200' : 'bg-slate-900 border-orange-400'}`}>
+                    {bossMastered ? <Check className="w-7 h-7 text-slate-900" strokeWidth={3} /> : <span className="text-3xl">🔥</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-orange-300">Category Boss</div>
+                    <div className="font-black text-lg leading-tight truncate">{boss.name}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${bossDiff?.bg} ${bossDiff?.text}`}>{boss.difficulty}</span>
+                      <span className="text-[10px] text-slate-400">{XP_PER_DIFFICULTY[boss.difficulty] || 0} XP</span>
+                      {bossMastered && <span className="text-[10px] font-bold text-yellow-300">✓ Defeated</span>}
+                    </div>
+                  </div>
+                  {bossTutorial && !bossMastered && (
+                    <span className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 text-yellow-300 flex items-center justify-center text-base">🎓</span>
+                  )}
+                </div>
+              </button>
+            )}
+
             <SkillTreeGraph
               tricks={inCategory}
               onOpenTrick={onOpenTrick}
