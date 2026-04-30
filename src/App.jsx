@@ -1412,7 +1412,6 @@ function MainApp({ user }) {
 
   const saveTricks = async (newTricks) => { setTricks(newTricks); await saveUserData(user.uid, 'tricks', newTricks); };
   const saveTrainingDays = async (days) => { setTrainingDays(days); await saveUserData(user.uid, 'trainingDays', days); };
-  const saveJournal = async (j) => { setJournal(j); await saveUserData(user.uid, 'journal', j); };
   const saveGoals = async (g) => { setWeeklyGoals(g); await saveUserData(user.uid, 'weeklyGoals', g); };
   const saveWarmups = async (w) => { setCompletedWarmups(w); await saveUserData(user.uid, 'completedWarmups', w); };
   const saveConditioning = async (c) => { setCompletedConditioning(c); await saveUserData(user.uid, 'completedConditioning', c); };
@@ -1525,11 +1524,6 @@ function MainApp({ user }) {
       const subtitle = crossed >= 30 ? 'Unstoppable!' : crossed >= 7 ? 'On fire!' : 'Keep it going!';
       fireCelebration({ _id: Date.now(), kind: 'small', icon: '🔥', title: `${crossed}-day streak!`, subtitle, tone: 'orange' });
     }
-  };
-
-  const logTrainingDay = () => {
-    const today = new Date().toISOString().split('T')[0];
-    markDayTrained(today);
   };
 
   const streak = computeStreakFor(trainingDays);
@@ -1686,7 +1680,7 @@ function MainApp({ user }) {
           <TrainingTab weeklyGoals={weeklyGoals} saveGoals={saveGoals} tricks={tricks}
             completedWarmups={completedWarmups} saveWarmups={saveWarmups}
             completedConditioning={completedConditioning} saveConditioning={saveConditioning}
-            journal={journal} saveJournal={saveJournal} onOpenTrick={openTrick}
+            journal={journal} onOpenTrick={openTrick}
             weeklyFocus={weeklyFocus}
             trainingDays={trainingDays} trainingSessions={trainingSessions} saveTrainingSessions={saveTrainingSessions}
             markDayTrained={markDayTrained}
@@ -2563,14 +2557,11 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, templates = [], saveTemplates, streak = 0, section, setSection, onUpdateTrickStatus }) {
+function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal = [], onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, templates = [], saveTemplates, streak = 0, section, setSection, onUpdateTrickStatus }) {
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
-  const [newJournalEntry, setNewJournalEntry] = useState('');
-  const [expandedWeek, setExpandedWeek] = useState(null);
   const today = new Date().toISOString().split('T')[0];
   const safeWarmups = completedWarmups || {};
   const safeConditioning = completedConditioning || {};
-  const safeJournal = Array.isArray(journal) ? journal : [];
 
   const getSuggestions = () => {
     const suggestions = [];
@@ -2631,38 +2622,8 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
     saveConditioning({ ...safeConditioning, [today]: list.includes(id) ? list.filter(x => x !== id) : [...list, id] });
   };
   const resetConditioning = () => saveConditioning({ ...safeConditioning, [today]: [] });
-  const addJournalEntry = () => { if (!newJournalEntry.trim()) return; saveJournal([{ date: today, text: newJournalEntry.trim(), timestamp: Date.now() }, ...safeJournal]); setNewJournalEntry(''); };
-  const deleteJournalEntry = (ts) => saveJournal(safeJournal.filter(j => j.timestamp !== ts));
   const todayWarmups = safeWarmups[today] || [];
   const todayConditioning = safeConditioning[today] || [];
-
-  const buildHistory = () => {
-    const weekMap = {};
-    Object.keys(safeWarmups).forEach(date => {
-      const arr = safeWarmups[date]; if (!Array.isArray(arr) || arr.length === 0) return;
-      const wk = getWeekKey(date);
-      if (!weekMap[wk]) weekMap[wk] = { days: new Set(), warmups: {}, conditioning: {}, journal: [] };
-      weekMap[wk].days.add(date); weekMap[wk].warmups[date] = arr;
-    });
-    Object.keys(safeConditioning).forEach(date => {
-      const arr = safeConditioning[date]; if (!Array.isArray(arr) || arr.length === 0) return;
-      const wk = getWeekKey(date);
-      if (!weekMap[wk]) weekMap[wk] = { days: new Set(), warmups: {}, conditioning: {}, journal: [] };
-      weekMap[wk].days.add(date); weekMap[wk].conditioning[date] = arr;
-    });
-    safeJournal.forEach(entry => {
-      if (!entry || !entry.date) return;
-      const wk = getWeekKey(entry.date);
-      if (!weekMap[wk]) weekMap[wk] = { days: new Set(), warmups: {}, conditioning: {}, journal: [] };
-      weekMap[wk].days.add(entry.date); weekMap[wk].journal.push(entry);
-    });
-    return Object.keys(weekMap).sort().reverse().map(wk => ({
-      weekStart: wk, range: formatWeekRange(wk), days: [...weekMap[wk].days].sort(),
-      warmups: weekMap[wk].warmups, conditioning: weekMap[wk].conditioning,
-      journal: weekMap[wk].journal.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)),
-    }));
-  };
-  const history = buildHistory();
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -2671,6 +2632,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           trainingSessions={trainingSessions}
           saveTrainingSessions={saveTrainingSessions}
           tricks={tricks}
+          legacyJournal={journal}
           plannedSessionFocus={plannedSessionFocus}
           savePlannedSessionFocus={savePlannedSessionFocus}
           plannedSessionIntents={plannedSessionIntents}
@@ -4195,7 +4157,8 @@ function SessionDetailModal({ session, tricks = [], onClose, onDelete, onOpenTri
   );
 }
 
-function SessionsBrowser({ trainingSessions = [], saveTrainingSessions, tricks = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionIntents = {}, savePlannedSessionIntents, plannedDays = [], plannedMonths = [], plannedWeeks = [], templates = [], saveTemplates, onClose, onOpenTrick }) {
+function SessionsBrowser({ trainingSessions = [], saveTrainingSessions, tricks = [], legacyJournal = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionIntents = {}, savePlannedSessionIntents, plannedDays = [], plannedMonths = [], plannedWeeks = [], templates = [], saveTemplates, onClose, onOpenTrick }) {
+  const [legacyOpen, setLegacyOpen] = useState(false);
   const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
@@ -4391,6 +4354,30 @@ function SessionsBrowser({ trainingSessions = [], saveTrainingSessions, tricks =
             </div>
           );
         })
+      )}
+
+      {legacyJournal.length > 0 && (
+        <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-3">
+          <button onClick={() => setLegacyOpen(o => !o)} className="w-full flex items-center gap-2 text-left">
+            <span className="text-base">📜</span>
+            <span className="text-xs font-bold text-slate-200 flex-1">Notes from earlier journal ({legacyJournal.length})</span>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${legacyOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {legacyOpen && (
+            <div className="mt-3 space-y-1.5">
+              <div className="text-[10px] text-slate-500 italic mb-1">From the old free-text journal — read-only.</div>
+              {[...legacyJournal].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 50).map(entry => (
+                <div key={entry.timestamp} className="bg-slate-900 border border-slate-700 rounded-lg p-2.5">
+                  <div className="text-[10px] text-slate-500 mb-1">{entry.date}</div>
+                  <div className="text-xs text-slate-200 whitespace-pre-wrap">{entry.text}</div>
+                </div>
+              ))}
+              {legacyJournal.length > 50 && (
+                <div className="text-[10px] text-slate-500 text-center italic">+ {legacyJournal.length - 50} older entries</div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {selectedSession && (
