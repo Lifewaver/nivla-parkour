@@ -3023,24 +3023,47 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
 
   return (
     <div className="space-y-4">
-      <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-2xl p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold text-orange-300 uppercase">Streak</div>
-            <div className="flex items-baseline gap-2"><span className="text-4xl font-black">{streak}</span><span className="text-sm font-bold text-orange-200">days</span></div>
+      {(() => {
+        // Soft companion to the strict consecutive streak: count distinct
+        // trainingDays that fall inside this calendar week (currentWeekStart
+        // is already this Monday for the week strip). Survives a missed day
+        // without resetting to 0.
+        const weekStartStr = formatLocalDate(currentWeekStart);
+        const weekEnd = new Date(currentWeekStart);
+        weekEnd.setDate(currentWeekStart.getDate() + 6);
+        const weekEndStr = formatLocalDate(weekEnd);
+        const safeDays = Array.isArray(trainingDays) ? trainingDays : [];
+        const daysThisWeek = new Set(safeDays.filter(d => d >= weekStartStr && d <= weekEndStr)).size;
+        const weekTone = daysThisWeek >= 5 ? 'text-green-300' : daysThisWeek >= 3 ? 'text-amber-200' : 'text-orange-200';
+        return (
+          <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs font-semibold text-orange-300 uppercase">Streak</div>
+                <div className="flex items-baseline gap-2"><span className="text-4xl font-black">{streak}</span><span className="text-sm font-bold text-orange-200">days</span></div>
+                <div className={`text-[11px] font-bold mt-1 ${weekTone}`}>
+                  {daysThisWeek > 0 ? `🔥 ${daysThisWeek} of 7 this week` : 'No days yet this week'}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs font-semibold text-orange-300 uppercase">Total</div>
+                <div className="text-2xl font-black">{totalSessions} <span className="text-sm font-bold text-orange-200">sessions</span></div>
+                <div className="text-xs text-slate-300">{totalHours} h logged · avg RPE {avgRpe || '—'}</div>
+              </div>
+            </div>
+            {nextMilestone && (
+              <div className="mt-3 text-xs text-orange-200">
+                Next milestone: <span className="font-bold">{nextMilestone.label}</span> ({nextMilestone.count - totalSessions} to go)
+              </div>
+            )}
+            {streak === 0 && daysThisWeek > 0 && (
+              <div className="mt-3 text-[11px] text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-1.5">
+                Streak reset, but you've still trained {daysThisWeek} {daysThisWeek === 1 ? 'day' : 'days'} this week — keep going.
+              </div>
+            )}
           </div>
-          <div className="text-right">
-            <div className="text-xs font-semibold text-orange-300 uppercase">Total</div>
-            <div className="text-2xl font-black">{totalSessions} <span className="text-sm font-bold text-orange-200">sessions</span></div>
-            <div className="text-xs text-slate-300">{totalHours} h logged · avg RPE {avgRpe || '—'}</div>
-          </div>
-        </div>
-        {nextMilestone && (
-          <div className="mt-3 text-xs text-orange-200">
-            Next milestone: <span className="font-bold">{nextMilestone.label}</span> ({nextMilestone.count - totalSessions} to go)
-          </div>
-        )}
-      </div>
+        );
+      })()}
 
       {(() => {
         const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
