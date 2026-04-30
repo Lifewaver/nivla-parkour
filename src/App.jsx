@@ -17,6 +17,18 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.28',
+    date: '2026-04-30',
+    title: 'Plan your week, in line',
+    notes: [
+      'New week strip at the top of the Training log: 7 day cells showing each day\'s state — done (green ✓), today (orange glow), planned (dashed purple + focus count), open (+ plan), or rest.',
+      'Tap any day to expand a focused sheet right above the session: completed days show a recap (RPE / minutes / tricks / note + Open in journal); today links to the log form; planned/open days let you Suggest 3, add tricks, remove with ×, and write a "Why this session?" note.',
+      'New per-day session intent saved as plannedSessionIntents — captures your reason for the session before it happens.',
+      'Week navigation ‹ prev / next › with a one-line summary: "2 done · 1 today · 2 planned · 1 open".',
+      'Coming up footer card surfaces the next 1–2 upcoming days as one-tap shortcuts back to the day sheet.',
+    ],
+  },
+  {
     version: '1.27',
     date: '2026-04-30',
     title: 'Edges that draw themselves',
@@ -1158,6 +1170,7 @@ function MainApp({ user }) {
   const [plannedWeeks, setPlannedWeeks] = useState([]);
   const [plannedSessionFocus, setPlannedSessionFocus] = useState({});
   const [plannedSessionDismissed, setPlannedSessionDismissed] = useState({});
+  const [plannedSessionIntents, setPlannedSessionIntents] = useState({});
   const [globalVideos, setGlobalVideos] = useState({});
   const [communityTricks, setCommunityTricks] = useState([]);
   const [viewedTricks, setViewedTricks] = useState([]);
@@ -1196,7 +1209,7 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData, viewedData, onboardingData] =
+        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData, plannedIntentsData, viewedData, onboardingData] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
@@ -1210,6 +1223,7 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'plannedWeeks'),
             loadUserData(user.uid, 'plannedSessionFocus'),
             loadUserData(user.uid, 'plannedSessionDismissed'),
+            loadUserData(user.uid, 'plannedSessionIntents'),
             loadUserData(user.uid, 'viewedTricks'),
             loadUserData(user.uid, 'onboardingComplete'),
           ]);
@@ -1318,6 +1332,7 @@ function MainApp({ user }) {
         if (plannedWeeksData) setPlannedWeeks(plannedWeeksData);
         if (plannedFocusData) setPlannedSessionFocus(plannedFocusData);
         if (plannedDismissedData) setPlannedSessionDismissed(plannedDismissedData);
+        if (plannedIntentsData) setPlannedSessionIntents(plannedIntentsData);
         if (viewedData) setViewedTricks(viewedData);
 
         if (onboardingData === true) {
@@ -1356,6 +1371,7 @@ function MainApp({ user }) {
   const savePlannedWeeks = async (w) => { setPlannedWeeks(w); await saveUserData(user.uid, 'plannedWeeks', w); };
   const savePlannedSessionFocus = async (f) => { setPlannedSessionFocus(f); await saveUserData(user.uid, 'plannedSessionFocus', f); };
   const savePlannedSessionDismissed = async (d) => { setPlannedSessionDismissed(d); await saveUserData(user.uid, 'plannedSessionDismissed', d); };
+  const savePlannedSessionIntents = async (i) => { setPlannedSessionIntents(i); await saveUserData(user.uid, 'plannedSessionIntents', i); };
 
   const celebrateLanding = (oldProgress, newProgress, trick) => {
     const oldSet = new Set(Array.isArray(oldProgress) ? oldProgress : []);
@@ -1627,6 +1643,7 @@ function MainApp({ user }) {
             plannedWeeks={plannedWeeks} savePlannedWeeks={savePlannedWeeks}
             plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
             plannedSessionDismissed={plannedSessionDismissed} savePlannedSessionDismissed={savePlannedSessionDismissed}
+            plannedSessionIntents={plannedSessionIntents} savePlannedSessionIntents={savePlannedSessionIntents}
             streak={streak}
             section={trainingSection} setSection={setTrainingSection} />
         )}
@@ -2492,7 +2509,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, streak = 0, section, setSection }) {
+function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, streak = 0, section, setSection }) {
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const [newJournalEntry, setNewJournalEntry] = useState('');
   const [expandedWeek, setExpandedWeek] = useState(null);
@@ -2611,6 +2628,8 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           savePlannedSessionFocus={savePlannedSessionFocus}
           plannedSessionDismissed={plannedSessionDismissed}
           savePlannedSessionDismissed={savePlannedSessionDismissed}
+          plannedSessionIntents={plannedSessionIntents}
+          savePlannedSessionIntents={savePlannedSessionIntents}
           streak={streak}
           tricks={tricks}
           weeklyGoals={weeklyGoals}
@@ -2682,7 +2701,7 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
   );
 }
 
-function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
+function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
   const FOCUS_TAGS = ['landning', 'flow', 'vips', 'strength', 'precision', 'flips', 'jump', 'tricks', 'leap', 'swings', 'vaults', 'gymnastics'];
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
@@ -2949,8 +2968,287 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const weeks = [];
   for (let i = 0; i < heatmapDays.length; i += 7) weeks.push(heatmapDays.slice(i, i + 7));
 
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const m = new Date();
+    m.setHours(0, 0, 0, 0);
+    const day = m.getDay();
+    const diff = m.getDate() - day + (day === 0 ? -6 : 1);
+    m.setDate(diff);
+    return m;
+  });
+  const [selectedDayDate, setSelectedDayDate] = useState(null);
+
+  const weekDates = (() => {
+    const out = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(currentWeekStart);
+      d.setDate(currentWeekStart.getDate() + i);
+      out.push(d.toISOString().split('T')[0]);
+    }
+    return out;
+  })();
+
+  const sessionByDate = (dateStr) => safeSessions.find(s => s.date === dateStr);
+
+  const dayState = (dateStr) => {
+    if (sessionByDate(dateStr)) return 'done';
+    if (dateStr === today) return 'today';
+    const focus = plannedSessionFocus[dateStr];
+    const hasFocus = Array.isArray(focus) && focus.length > 0;
+    if (hasFocus) return 'planned';
+    if (!isPlannedDay(dateStr)) return 'rest';
+    if (dateStr < today) return 'rest';
+    return 'unplanned';
+  };
+
+  const weekStates = weekDates.map(dayState);
+  const weekStateCounts = {
+    done: weekStates.filter(s => s === 'done').length,
+    today: weekStates.filter(s => s === 'today').length,
+    planned: weekStates.filter(s => s === 'planned').length,
+    unplanned: weekStates.filter(s => s === 'unplanned').length,
+    rest: weekStates.filter(s => s === 'rest').length,
+  };
+
+  const formatWeekLabel = () => {
+    const start = new Date(currentWeekStart);
+    const end = new Date(currentWeekStart);
+    end.setDate(start.getDate() + 6);
+    const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const todayMonday = (() => {
+      const m = new Date();
+      m.setHours(0, 0, 0, 0);
+      const day = m.getDay();
+      const diff = m.getDate() - day + (day === 0 ? -6 : 1);
+      m.setDate(diff);
+      return m;
+    })();
+    const isThisWeek = currentWeekStart.getTime() === todayMonday.getTime();
+    return isThisWeek ? `This week · ${fmt(start)} – ${fmt(end)}` : `${fmt(start)} – ${fmt(end)}`;
+  };
+
+  const shiftWeek = (deltaWeeks) => {
+    const next = new Date(currentWeekStart);
+    next.setDate(next.getDate() + deltaWeeks * 7);
+    setCurrentWeekStart(next);
+    setSelectedDayDate(null);
+  };
+
+  const setIntentForDate = (dateStr, text) => {
+    if (!savePlannedSessionIntents) return;
+    const next = { ...plannedSessionIntents };
+    if (text && text.trim()) next[dateStr] = text;
+    else delete next[dateStr];
+    savePlannedSessionIntents(next);
+  };
+
+  const upcomingSummaries = (() => {
+    const out = [];
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    for (let i = 1; i <= 14 && out.length < 2; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const ds = d.toISOString().split('T')[0];
+      const st = dayState(ds);
+      if (st === 'planned' || st === 'unplanned') {
+        out.push({ date: ds, state: st });
+      }
+    }
+    return out;
+  })();
+
   return (
     <div className="space-y-4">
+      {(() => {
+        const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        return (
+          <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <button onClick={() => shiftWeek(-1)} className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300" title="Previous week">‹</button>
+              <span className="text-xs font-bold text-slate-300">{formatWeekLabel()}</span>
+              <button onClick={() => shiftWeek(1)} className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300" title="Next week">›</button>
+            </div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {weekDates.map((ds, i) => {
+                const st = weekStates[i];
+                const d = new Date(ds + 'T00:00:00');
+                const dayNum = d.getDate();
+                const focus = plannedSessionFocus[ds];
+                const focusCount = Array.isArray(focus) ? focus.length : 0;
+                const session = sessionByDate(ds);
+                const selected = selectedDayDate === ds;
+
+                let cellClass = 'bg-slate-900 border-slate-700 text-slate-400';
+                let labelText = null;
+                if (st === 'done') {
+                  cellClass = 'bg-green-600/80 border-green-300 text-white';
+                  labelText = '✓';
+                } else if (st === 'today') {
+                  cellClass = 'bg-orange-500/30 border-orange-400 text-orange-100 ring-2 ring-orange-400/50 shadow-lg shadow-orange-500/20';
+                  labelText = 'TODAY';
+                } else if (st === 'planned') {
+                  cellClass = 'bg-purple-500/15 border-purple-400 border-dashed text-purple-200';
+                  labelText = `${focusCount}🎯`;
+                } else if (st === 'unplanned') {
+                  cellClass = 'bg-slate-900 border-slate-600 border-dashed text-slate-400';
+                  labelText = '+ plan';
+                } else if (st === 'rest') {
+                  cellClass = 'bg-slate-900/60 border-slate-800 text-slate-500';
+                  labelText = 'rest';
+                }
+                if (selected) cellClass += ' ring-2 ring-purple-300';
+
+                return (
+                  <button key={ds} onClick={() => setSelectedDayDate(prev => prev === ds ? null : ds)}
+                    className={`flex flex-col items-center justify-center rounded-lg border-2 px-1 py-2 text-[9px] font-bold transition ${cellClass}`}>
+                    <span className="text-[8px] uppercase opacity-80">{weekdayLabels[i]}</span>
+                    <span className="text-base font-black my-0.5">{dayNum}</span>
+                    <span className="text-[8px] truncate max-w-full">{labelText}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-[10px] text-slate-400 mt-2 text-center">
+              {weekStateCounts.done > 0 && <span>{weekStateCounts.done} done</span>}
+              {weekStateCounts.done > 0 && weekStateCounts.today > 0 && <span> · </span>}
+              {weekStateCounts.today > 0 && <span>{weekStateCounts.today} today</span>}
+              {(weekStateCounts.done + weekStateCounts.today) > 0 && weekStateCounts.planned > 0 && <span> · </span>}
+              {weekStateCounts.planned > 0 && <span>{weekStateCounts.planned} planned</span>}
+              {(weekStateCounts.done + weekStateCounts.today + weekStateCounts.planned) > 0 && weekStateCounts.unplanned > 0 && <span> · </span>}
+              {weekStateCounts.unplanned > 0 && <span>{weekStateCounts.unplanned} open</span>}
+              {(weekStateCounts.done + weekStateCounts.today + weekStateCounts.planned + weekStateCounts.unplanned) === 0 && <span>All rest this week</span>}
+            </div>
+          </div>
+        );
+      })()}
+
+      {selectedDayDate && (() => {
+        const ds = selectedDayDate;
+        const st = dayState(ds);
+        const d = new Date(ds + 'T00:00:00');
+        const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        const session = sessionByDate(ds);
+        const focusIds = Array.isArray(plannedSessionFocus[ds]) ? plannedSessionFocus[ds] : [];
+        const focusTricks = focusIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
+        const intent = plannedSessionIntents[ds] || '';
+        const addable = tricks.filter(t => !focusIds.includes(t.id) && t.status !== 'got_it')
+          .sort((a, b) => a.name.localeCompare(b.name));
+        const suggestThree = () => {
+          const dismissedIds = Array.isArray(plannedSessionDismissed[ds]) ? plannedSessionDismissed[ds] : [];
+          const picks = sessionSuggestions
+            .filter(s => !focusIds.includes(s.trick.id) && !dismissedIds.includes(s.trick.id))
+            .slice(0, 3 - focusIds.length)
+            .map(s => s.trick.id);
+          if (picks.length > 0) setFocusForDate(ds, [...focusIds, ...picks]);
+        };
+
+        return (
+          <div className="bg-slate-900/80 border border-purple-500/40 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">{st === 'done' ? 'Recap' : st === 'today' ? 'Today' : st === 'planned' ? 'Planned' : st === 'rest' ? 'Rest day' : 'Empty day'}</div>
+                <div className="font-black text-base">{dayLabel}</div>
+              </div>
+              <button onClick={() => setSelectedDayDate(null)} className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300">×</button>
+            </div>
+
+            {st === 'done' && session && (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 text-center">
+                    <div className="text-[10px] text-slate-400 uppercase">RPE</div>
+                    <div className="text-lg font-black">{session.rpe ?? '—'}</div>
+                  </div>
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 text-center">
+                    <div className="text-[10px] text-slate-400 uppercase">Min</div>
+                    <div className="text-lg font-black">{session.durationMinutes || 0}</div>
+                  </div>
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 text-center">
+                    <div className="text-[10px] text-slate-400 uppercase">Tricks</div>
+                    <div className="text-lg font-black">{(session.practicedTricks || []).length}</div>
+                  </div>
+                </div>
+                {Array.isArray(session.focusTags) && session.focusTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {session.focusTags.map(tag => <span key={tag} className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/30">#{tag}</span>)}
+                  </div>
+                )}
+                {session.notes && (
+                  <div className="text-xs text-slate-300 bg-slate-800/60 border border-slate-700 rounded-lg p-2 whitespace-pre-wrap">{session.notes}</div>
+                )}
+                <button onClick={() => { setJournalOpen(true); setSelectedDayDate(null); setTimeout(() => { const el = document.getElementById('training-journal'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 50); }}
+                  className="w-full py-2 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200">Open in journal →</button>
+              </>
+            )}
+
+            {st === 'today' && (
+              <>
+                {focusTricks.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase text-slate-400">Focus locked in</div>
+                    {focusTricks.map(t => (
+                      <div key={t.id} className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg p-2">
+                        <CategoryIcon category={t.category} size={16} />
+                        <span className="flex-1 truncate text-sm font-bold">{t.name}</span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text}`}>{t.difficulty}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-400 italic">No focus locked yet — pick tricks below or just train and log.</div>
+                )}
+                {intent && (
+                  <div className="text-xs text-slate-300 bg-slate-800/60 border border-slate-700 rounded-lg p-2 italic">"{intent}"</div>
+                )}
+                <button onClick={() => { setSelectedDayDate(null); setTimeout(() => { const el = document.getElementById('training-log-form'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); }}
+                  className="w-full py-2 rounded-lg text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white">📝 Log this session ↓</button>
+              </>
+            )}
+
+            {(st === 'planned' || st === 'unplanned' || (st === 'rest' && ds >= today)) && (
+              <>
+                {focusTricks.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase text-slate-400">Focus tricks ({focusTricks.length})</div>
+                    {focusTricks.map(t => (
+                      <div key={t.id} className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg p-2">
+                        <CategoryIcon category={t.category} size={16} />
+                        <span className="flex-1 truncate text-sm font-bold">{t.name}</span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text}`}>{t.difficulty}</span>
+                        <button onClick={() => unlockFocusTrick(ds, t.id)} className="text-slate-500 hover:text-red-400" title="Remove"><X className="w-4 h-4" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  {focusIds.length < 6 && sessionSuggestions.some(s => !focusIds.includes(s.trick.id)) && (
+                    <button onClick={suggestThree} className="flex-1 py-2 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400">✨ Suggest {Math.min(3, 6 - focusIds.length)}</button>
+                  )}
+                  {addable.length > 0 && (
+                    <select value="" onChange={(e) => { if (e.target.value) lockFocusTrick(ds, parseInt(e.target.value, 10)); }}
+                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 px-2 py-2">
+                      <option value="">+ Add trick…</option>
+                      {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Why this session?</label>
+                  <textarea value={intent} onChange={(e) => setIntentForDate(ds, e.target.value)}
+                    placeholder="Following up on a goal · trying a new line · just for fun…"
+                    rows={2}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs resize-none" />
+                </div>
+              </>
+            )}
+
+            {st === 'rest' && ds < today && (
+              <div className="text-xs text-slate-400 italic text-center py-3">Rest day. Nothing logged.</div>
+            )}
+          </div>
+        );
+      })()}
       <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-2xl p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -3333,7 +3631,44 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
         </div>
       )}
 
-      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+      {upcomingSummaries.length > 0 && (
+        <div className="bg-slate-800/40 border border-purple-500/30 rounded-2xl p-3">
+          <div className="text-[10px] font-black uppercase tracking-wider text-purple-300 mb-2">Coming up</div>
+          <div className="space-y-1.5">
+            {upcomingSummaries.map(({ date: ds, state }) => {
+              const d = new Date(ds + 'T00:00:00');
+              const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
+              const diff = Math.round((d - todayD) / 86400000);
+              const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+              const md = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              const label = diff === 1 ? 'Tomorrow' : `${weekday} ${md}`;
+              const focusCount = (plannedSessionFocus[ds] || []).length;
+              return (
+                <button key={ds} onClick={() => {
+                  if (!weekDates.includes(ds)) {
+                    const m = new Date(d); m.setHours(0, 0, 0, 0);
+                    const day = m.getDay();
+                    const offset = m.getDate() - day + (day === 0 ? -6 : 1);
+                    m.setDate(offset);
+                    setCurrentWeekStart(m);
+                  }
+                  setSelectedDayDate(ds);
+                  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                  className="w-full flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg p-2 text-left transition">
+                  <span className="text-base flex-shrink-0">{state === 'planned' ? '🎯' : '➕'}</span>
+                  <span className="text-sm font-bold flex-1 truncate">{label}</span>
+                  <span className="text-[10px] text-slate-400">
+                    {state === 'planned' ? `${focusCount} ${focusCount === 1 ? 'trick' : 'tricks'}` : '+ plan'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div id="training-journal" className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
         <button onClick={() => setJournalOpen(o => !o)} className="w-full flex items-center gap-2 text-left">
           <ScrollText className="w-5 h-5 text-purple-400 flex-shrink-0" />
           <span className="font-bold flex-1">Journal — logged sessions ({safeSessions.length})</span>
