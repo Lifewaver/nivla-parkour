@@ -17,6 +17,17 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.15',
+    date: '2026-04-30',
+    title: 'Simpler status: just three',
+    notes: [
+      'Statuses collapsed to three: 👀 Want to learn, 💪 Training, ✅ Got it. Old statuses migrate automatically.',
+      'Inside the trick modal, Training shows a horizontal progress bar with three checkpoints: trampoline → soft mat → hard ground.',
+      'Tapping the Hard ground checkpoint flips status to ✅ Got it and checks the other two.',
+      'Tapping ✅ Got it again reverts to 💪 Training, keeping landings as they are.',
+    ],
+  },
+  {
     version: '1.14',
     date: '2026-04-30',
     title: 'Planing and Log',
@@ -146,15 +157,25 @@ const RELEASE_NOTES = [
 ];
 
 const STATUS_LEVELS = [
-  { id: 'not_started', label: 'Not started', color: 'bg-gray-600', textColor: 'text-gray-300', emoji: '⚪' },
-  { id: 'looking_into', label: 'Looking into', color: 'bg-purple-500', textColor: 'text-purple-100', emoji: '👀' },
-  { id: 'training_hard', label: 'Training hard', color: 'bg-yellow-500', textColor: 'text-yellow-100', emoji: '💪' },
-  { id: 'trampoline_landing', label: 'Trampoline landing', color: 'bg-cyan-500', textColor: 'text-cyan-100', emoji: '🤾' },
-  { id: 'soft_landing', label: 'Soft landing', color: 'bg-blue-500', textColor: 'text-blue-100', emoji: '🛬' },
-  { id: 'training_like_hell', label: 'Training like hell', color: 'bg-orange-500', textColor: 'text-orange-100', emoji: '🔥' },
-  { id: 'hard_landing', label: 'Hard landing', color: 'bg-stone-500', textColor: 'text-stone-100', emoji: '🪨' },
-  { id: 'yes_i_can', label: 'Complete Master', color: 'bg-green-500', textColor: 'text-green-100', emoji: '✅' },
+  { id: 'want_to_learn', label: 'Want to learn', color: 'bg-purple-500', textColor: 'text-purple-100', emoji: '👀' },
+  { id: 'training', label: 'Training', color: 'bg-yellow-500', textColor: 'text-yellow-100', emoji: '💪' },
+  { id: 'got_it', label: 'Got it', color: 'bg-green-500', textColor: 'text-green-100', emoji: '✅' },
 ];
+
+const LANDING_LEVELS = [
+  { id: 'trampoline_landing', label: 'Trampoline', emoji: '🤾', color: 'bg-cyan-500', textColor: 'text-cyan-100' },
+  { id: 'soft_landing', label: 'Soft mat', emoji: '🛬', color: 'bg-blue-500', textColor: 'text-blue-100' },
+  { id: 'hard_landing', label: 'Hard ground', emoji: '🪨', color: 'bg-stone-500', textColor: 'text-stone-100' },
+];
+
+const LANDING_IDS = LANDING_LEVELS.map(l => l.id);
+
+const migrateStatus = (s) => {
+  if (s === 'got_it' || s === 'training' || s === 'want_to_learn') return s;
+  if (s === 'yes_i_can' || s === 'hard_landing') return 'got_it';
+  if (s === 'training_hard' || s === 'trampoline_landing' || s === 'soft_landing' || s === 'training_like_hell') return 'training';
+  return 'want_to_learn';
+};
 
 const DIFFICULTY_COLORS = {
   Easy: { bg: 'bg-green-500/20', border: 'border-green-500', text: 'text-green-400', strip: 'bg-green-500' },
@@ -701,26 +722,44 @@ function MainApp({ user }) {
           return override ? { ...base, ...override } : base;
         };
 
+        const migrateTrickStatus = (t) => {
+          const oldStatus = t.status;
+          const newStatus = migrateStatus(oldStatus);
+          let progress = Array.isArray(t.progress) ? t.progress.slice() : [];
+          if (oldStatus === 'hard_landing' || oldStatus === 'yes_i_can') {
+            progress = LANDING_IDS.slice();
+          } else if (oldStatus === 'soft_landing') {
+            if (!progress.includes('trampoline_landing')) progress.unshift('trampoline_landing');
+            if (!progress.includes('soft_landing')) progress.push('soft_landing');
+          } else if (oldStatus === 'trampoline_landing') {
+            if (!progress.includes('trampoline_landing')) progress.push('trampoline_landing');
+          }
+          if (oldStatus === newStatus && Array.isArray(t.progress) && progress.length === t.progress.length && progress.every((p, i) => p === t.progress[i])) {
+            return t;
+          }
+          return { ...t, status: newStatus, progress };
+        };
+
         const mergeCommunity = (existing) => {
           const existingIds = new Set(existing.map(t => t.id));
           const additions = loadedCommunity
             .filter(ct => ct && ct.id != null && !existingIds.has(ct.id) && !deletedSet.has(ct.id))
-            .map(ct => applyOverrides({ ...ct, status: 'not_started', videos: [], notes: '', progress: [], coolness: 0 }));
+            .map(ct => applyOverrides({ ...ct, status: 'want_to_learn', videos: [], notes: '', progress: [], coolness: 0 }));
           return additions.length > 0 ? [...existing, ...additions] : existing;
         };
 
         if (tricksData) {
           const filtered = tricksData.filter(t => !deletedSet.has(t.id));
-          const migrated = filtered.map(applyOverrides);
+          const migrated = filtered.map(applyOverrides).map(migrateTrickStatus);
           const merged = mergeCommunity(migrated);
           const changed = merged.length !== tricksData.length
-            || merged.some((t, i) => i < tricksData.length && t.category !== tricksData[i].category);
+            || merged.some((t, i) => i < tricksData.length && (t.category !== tricksData[i].category || t.status !== tricksData[i].status));
           setTricks(merged);
           if (changed) await saveUserData(user.uid, 'tricks', merged);
         } else {
           const seed = INITIAL_TRICKS
             .filter(t => !deletedSet.has(t.id))
-            .map(t => applyOverrides({ ...t, status: 'not_started', videos: [], notes: '' }));
+            .map(t => applyOverrides({ ...t, status: 'want_to_learn', videos: [], notes: '', progress: [] }));
           const initial = mergeCommunity(seed);
           setTricks(initial);
           await saveUserData(user.uid, 'tricks', initial);
@@ -762,7 +801,7 @@ function MainApp({ user }) {
     const oldTrick = tricks.find(t => t.id === id);
     const newTricks = tricks.map(t => t.id === id ? { ...t, status } : t);
     saveTricks(newTricks);
-    if (status === 'yes_i_can' && oldTrick?.status !== 'yes_i_can') {
+    if (status === 'got_it' && oldTrick?.status !== 'got_it') {
       setCelebrationTrick(oldTrick);
       setTimeout(() => setCelebrationTrick(null), 2500);
     }
@@ -774,7 +813,7 @@ function MainApp({ user }) {
     const oldTrick = tricks.find(t => t.id === id);
     const newTricks = tricks.map(t => t.id === id ? { ...t, status, progress } : t);
     saveTricks(newTricks);
-    if (status === 'yes_i_can' && oldTrick?.status !== 'yes_i_can') {
+    if (status === 'got_it' && oldTrick?.status !== 'got_it') {
       setCelebrationTrick(oldTrick);
       setTimeout(() => setCelebrationTrick(null), 2500);
     }
@@ -804,7 +843,7 @@ function MainApp({ user }) {
   }, [tricks, globalVideos, viewedTricks]);
 
   const addTrick = (trick, globalVideoList = []) => {
-    const newTrick = { status: 'not_started', videos: [], notes: '', progress: [], coolness: 0, ...trick, id: Date.now() };
+    const newTrick = { status: 'want_to_learn', videos: [], notes: '', progress: [], coolness: 0, ...trick, id: Date.now() };
     saveTricks([...tricks, newTrick]);
     if (globalVideoList.length > 0) updateGlobalVideos(newTrick.id, globalVideoList);
   };
@@ -831,23 +870,23 @@ function MainApp({ user }) {
   };
 
   const streak = calculateStreak();
-  const mastered = tricks.filter(t => t.status === 'yes_i_can').length;
-  const inProgress = tricks.filter(t => t.status !== 'not_started' && t.status !== 'yes_i_can').length;
+  const mastered = tricks.filter(t => t.status === 'got_it').length;
+  const inProgress = tricks.filter(t => t.status === 'training').length;
 
   const stats = {
     mastered, streak,
-    easyMastered: tricks.filter(t => t.status === 'yes_i_can' && t.difficulty === 'Easy').length,
-    mediumMastered: tricks.filter(t => t.status === 'yes_i_can' && t.difficulty === 'Medium').length,
-    hardMastered: tricks.filter(t => t.status === 'yes_i_can' && t.difficulty === 'Hard').length,
-    superMastered: tricks.filter(t => t.status === 'yes_i_can' && t.difficulty === 'Super').length,
-    vaultMastered: tricks.filter(t => t.status === 'yes_i_can' && t.category === 'Vaults').length,
-    flipMastered: tricks.filter(t => t.status === 'yes_i_can' && t.category === 'Flips').length,
+    easyMastered: tricks.filter(t => t.status === 'got_it' && t.difficulty === 'Easy').length,
+    mediumMastered: tricks.filter(t => t.status === 'got_it' && t.difficulty === 'Medium').length,
+    hardMastered: tricks.filter(t => t.status === 'got_it' && t.difficulty === 'Hard').length,
+    superMastered: tricks.filter(t => t.status === 'got_it' && t.difficulty === 'Super').length,
+    vaultMastered: tricks.filter(t => t.status === 'got_it' && t.category === 'Vaults').length,
+    flipMastered: tricks.filter(t => t.status === 'got_it' && t.category === 'Flips').length,
   };
 
   const earnedBadges = BADGES.filter(b => b.check(stats));
 
-  const inProgressTricks = tricks.filter(t => t.status !== 'yes_i_can' && t.status !== 'not_started');
-  const notStartedEasy = tricks.filter(t => t.status === 'not_started' && t.difficulty === 'Easy');
+  const inProgressTricks = tricks.filter(t => t.status === 'training');
+  const notStartedEasy = tricks.filter(t => t.status === 'want_to_learn' && t.difficulty === 'Easy');
   const pool = inProgressTricks.length >= 3 ? inProgressTricks : [...inProgressTricks, ...notStartedEasy];
   const now = new Date();
   const weekNum = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 604800000);
@@ -874,7 +913,7 @@ function MainApp({ user }) {
             <div className="text-8xl mb-4 animate-bounce">🏆</div>
             <div className="text-4xl font-black text-yellow-400 mb-2">LEVEL UP!</div>
             <div className="text-2xl text-white font-bold">{celebrationTrick.name}</div>
-            <div className="text-xl text-green-400 mt-2">Complete Master ✅</div>
+            <div className="text-xl text-green-400 mt-2">Got it ✅</div>
           </div>
         </div>
       )}
@@ -1328,13 +1367,12 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
   const [filtersOpen, setFiltersOpen] = useState(false);
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
-  const trackerStatusIds = ['not_started', 'looking_into', 'training_hard', 'yes_i_can'];
-  const trackerOptions = ['all', ...trackerStatusIds];
-  const progressOptions = ['all', 'not_started', 'trampoline_landing', 'soft_landing', 'hard_landing'];
+  const trackerOptions = ['all', ...STATUS_LEVELS.map(s => s.id)];
+  const progressOptions = ['all', 'none', ...LANDING_IDS];
   const progressLabel = (opt) => {
     if (opt === 'all') return 'All';
-    if (opt === 'not_started') return 'No landing';
-    return STATUS_LEVELS.find(s => s.id === opt)?.label || opt;
+    if (opt === 'none') return 'No landing';
+    return LANDING_LEVELS.find(l => l.id === opt)?.label || opt;
   };
   const filtered = tricks.filter(t => {
     if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -1342,8 +1380,8 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
     if (filterDifficulty !== 'all' && t.difficulty !== filterDifficulty) return false;
     if (filterStatus !== 'all') {
       const progressArr = Array.isArray(t.progress) ? t.progress : [];
-      if (filterStatus === 'not_started' && progressArr.length !== 0) return false;
-      if (filterStatus !== 'not_started' && !progressArr.includes(filterStatus)) return false;
+      if (filterStatus === 'none' && progressArr.length !== 0) return false;
+      if (filterStatus !== 'none' && !progressArr.includes(filterStatus)) return false;
     }
     if (filterTracker !== 'all' && t.status !== filterTracker) return false;
     if (filterVideo !== 'all') {
@@ -1570,7 +1608,6 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   const [newVideoType, setNewVideoType] = useState('reference');
   const [newVideoGlobal, setNewVideoGlobal] = useState(false);
   const [notesInput, setNotesInput] = useState(trick.notes || '');
-  const [landingsCollapsed, setLandingsCollapsed] = useState(false);
   const autoplayRef = React.useRef(null);
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const allVideos = trick.videos || [];
@@ -1650,90 +1687,99 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
         </div>
         <div className="p-5 space-y-5">
           {(() => {
-            const statusIds = ['not_started', 'looking_into', 'training_hard', 'yes_i_can'];
-            const statusSteps = statusIds.map(id => STATUS_LEVELS.find(s => s.id === id)).filter(Boolean);
             const progressArr = Array.isArray(trick.progress) ? trick.progress : [];
-            const REQUIRED_LANDINGS = ['trampoline_landing', 'soft_landing', 'hard_landing'];
-            const allLandingsDone = REQUIRED_LANDINGS.every(id => progressArr.includes(id));
-            const landingSteps = REQUIRED_LANDINGS.map(id => STATUS_LEVELS.find(s => s.id === id)).filter(Boolean);
-            const toggleLanding = (id) => {
-              const isAdding = !progressArr.includes(id);
-              if (id === 'hard_landing' && isAdding) {
-                const next = [...REQUIRED_LANDINGS];
-                if (onUpdateStatusAndProgress) {
-                  onUpdateStatusAndProgress(trick.id, 'yes_i_can', next);
-                } else if (onUpdateProgress) {
-                  onUpdateProgress(trick.id, next);
-                  if (onUpdateStatus) onUpdateStatus(trick.id, 'yes_i_can');
+            const showProgress = trick.status === 'training' || trick.status === 'got_it';
+
+            const setStatus = (id) => {
+              if (id === 'got_it') {
+                if (trick.status === 'got_it') {
+                  if (onUpdateStatus) onUpdateStatus(trick.id, 'training');
+                  return;
+                }
+                if (onUpdateStatusAndProgress) onUpdateStatusAndProgress(trick.id, 'got_it', LANDING_IDS.slice());
+                else {
+                  if (onUpdateProgress) onUpdateProgress(trick.id, LANDING_IDS.slice());
+                  if (onUpdateStatus) onUpdateStatus(trick.id, 'got_it');
                 }
                 return;
               }
-              if (!onUpdateProgress) return;
-              const next = isAdding ? [...progressArr, id] : progressArr.filter(p => p !== id);
-              onUpdateProgress(trick.id, next);
+              if (onUpdateStatus) onUpdateStatus(trick.id, id);
             };
+
+            const toggleLanding = (id) => {
+              const isAdding = !progressArr.includes(id);
+              if (id === 'hard_landing' && isAdding) {
+                if (onUpdateStatusAndProgress) onUpdateStatusAndProgress(trick.id, 'got_it', LANDING_IDS.slice());
+                else {
+                  if (onUpdateProgress) onUpdateProgress(trick.id, LANDING_IDS.slice());
+                  if (onUpdateStatus) onUpdateStatus(trick.id, 'got_it');
+                }
+                return;
+              }
+              const next = isAdding ? [...progressArr, id] : progressArr.filter(p => p !== id);
+              if (id === 'hard_landing' && !isAdding && trick.status === 'got_it') {
+                if (onUpdateStatusAndProgress) onUpdateStatusAndProgress(trick.id, 'training', next);
+                else {
+                  if (onUpdateProgress) onUpdateProgress(trick.id, next);
+                  if (onUpdateStatus) onUpdateStatus(trick.id, 'training');
+                }
+                return;
+              }
+              if (onUpdateProgress) onUpdateProgress(trick.id, next);
+            };
+
             return (
               <div>
                 <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Status</div>
-                <div className="space-y-2">
-                  {statusSteps.map(s => {
-                    const locked = s.id === 'yes_i_can' && !allLandingsDone;
-                    const isTrainingHard = s.id === 'training_hard';
+                <div className="grid grid-cols-3 gap-2">
+                  {STATUS_LEVELS.map(s => {
+                    const active = trick.status === s.id;
                     return (
-                      <React.Fragment key={s.id}>
-                        <button onClick={() => {
-                            if (locked) return;
-                            if (s.id === 'yes_i_can' && trick.status === 'yes_i_can') {
-                              onUpdateStatus(trick.id, 'training_hard');
-                            } else {
-                              onUpdateStatus(trick.id, s.id);
-                            }
-                          }} disabled={locked}
-                          title={locked ? 'Complete all landings first' : (s.id === 'yes_i_can' && trick.status === 'yes_i_can' ? 'Click to revert to Training hard' : undefined)}
-                          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${trick.status === s.id ? `${s.color} border-white/40` : locked ? 'bg-slate-900/40 border-slate-800 cursor-not-allowed opacity-60' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
-                          <span className="text-2xl">{locked ? '🔒' : s.emoji}</span>
-                          <span className={`font-bold ${trick.status === s.id ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
-                          {trick.status === s.id && <Check className="ml-auto w-5 h-5" />}
-                        </button>
-                        {isTrainingHard && (trick.status === 'training_hard' || trick.status === 'yes_i_can') && (
-                          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 ml-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="text-xs font-semibold text-yellow-300 uppercase">Progress · landings</div>
-                              {trick.status === 'yes_i_can' && (
-                                <button onClick={() => setLandingsCollapsed(c => !c)}
-                                  className="text-yellow-300 hover:text-yellow-200 transition"
-                                  title={landingsCollapsed ? 'Show landings' : 'Hide landings'}>
-                                  <ChevronDown className={`w-4 h-4 transition-transform ${landingsCollapsed ? '' : 'rotate-180'}`} />
-                                </button>
-                              )}
-                            </div>
-                            {!(trick.status === 'yes_i_can' && landingsCollapsed) && (
-                              <>
-                                <div className="space-y-2">
-                                  {landingSteps.map(ls => {
-                                    const checked = progressArr.includes(ls.id);
-                                    return (
-                                      <button key={ls.id} onClick={() => toggleLanding(ls.id)}
-                                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition ${checked ? 'bg-green-500 border-white/40' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
-                                        <span className="text-2xl">{checked ? '☑' : '☐'}</span>
-                                        <span className="text-xl">{ls.emoji}</span>
-                                        <span className={`font-bold ${checked ? 'text-white' : 'text-slate-300'}`}>{ls.label}</span>
-                                        {checked && <Check className="ml-auto w-5 h-5" />}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                                {allLandingsDone && (
-                                  <div className="text-xs text-green-300 mt-2 flex items-center gap-1"><Check className="w-3 h-3" /> All landings done — Complete Master unlocked.</div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </React.Fragment>
+                      <button key={s.id} onClick={() => setStatus(s.id)}
+                        title={s.id === 'got_it' && active ? 'Click to revert to Training' : undefined}
+                        className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border transition ${active ? `${s.color} border-white/40` : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
+                        <span className="text-2xl">{s.emoji}</span>
+                        <span className={`text-xs font-bold leading-tight text-center ${active ? 'text-white' : 'text-slate-300'}`}>{s.label}</span>
+                      </button>
                     );
                   })}
                 </div>
+                {showProgress && (
+                  <div className="mt-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+                    <div className="text-xs font-semibold text-yellow-300 uppercase mb-3">Landing progress</div>
+                    <div className="relative flex items-start justify-between">
+                      <div className="absolute top-5 left-[16.67%] right-[16.67%] h-1 bg-slate-700 rounded-full -z-0" />
+                      <div
+                        className="absolute top-5 left-[16.67%] h-1 bg-green-500 rounded-full -z-0 transition-all duration-300"
+                        style={{
+                          width: (() => {
+                            const highest = LANDING_IDS.reduce((max, id, idx) => progressArr.includes(id) ? Math.max(max, idx) : max, -1);
+                            if (highest < 1) return '0%';
+                            if (highest === 1) return '33.33%';
+                            return '66.67%';
+                          })(),
+                        }}
+                      />
+                      {LANDING_LEVELS.map(ls => {
+                        const checked = progressArr.includes(ls.id);
+                        return (
+                          <button key={ls.id} onClick={() => toggleLanding(ls.id)}
+                            className="relative z-10 flex flex-col items-center gap-1.5 flex-1">
+                            <span className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-xl transition ${checked ? `${ls.color} border-white` : 'bg-slate-800 border-slate-600 hover:border-slate-400'}`}>
+                              {checked ? <Check className="w-5 h-5 text-white" /> : ls.emoji}
+                            </span>
+                            <span className={`text-xs font-semibold ${checked ? 'text-white' : 'text-slate-400'}`}>{ls.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {trick.status !== 'got_it' && (
+                      <div className="text-[11px] text-slate-400 mt-3 text-center">
+                        Tap <span className="font-bold text-stone-200">Hard ground</span> when you've stuck the landing for real.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -1806,30 +1852,30 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
       addedIds.add(trick.id);
       return true;
     };
-    tricks.filter(t => t.status === 'training_like_hell').slice(0, 2).forEach(t => tryAdd(t, 'Almost mastered — one more push!', '🎯', 1));
-    tricks.filter(t => t.status === 'soft_landing').slice(0, 2).forEach(t => tryAdd(t, 'Keep building confidence on soft surface', '🛬', 2));
-    tricks.filter(t => t.status === 'trampoline_landing').slice(0, 2).forEach(t => tryAdd(t, 'Got it on trampoline — try soft mat next', '🤾', 3));
-    tricks.filter(t => t.status === 'training_hard').slice(0, 2).forEach(t => tryAdd(t, 'Already training — stay consistent', '💪', 4));
+    const hasLanding = (t, id) => Array.isArray(t.progress) && t.progress.includes(id);
+    tricks.filter(t => t.status === 'training' && hasLanding(t, 'soft_landing')).slice(0, 2).forEach(t => tryAdd(t, 'Almost mastered — one more push!', '🎯', 1));
+    tricks.filter(t => t.status === 'training' && hasLanding(t, 'trampoline_landing') && !hasLanding(t, 'soft_landing')).slice(0, 2).forEach(t => tryAdd(t, 'Got it on trampoline — try soft mat next', '🤾', 2));
+    tricks.filter(t => t.status === 'training' && (!Array.isArray(t.progress) || t.progress.length === 0)).slice(0, 2).forEach(t => tryAdd(t, 'Already training — stay consistent', '💪', 3));
     const categories = [...new Set(tricks.map(t => t.category))];
     const categoryProgress = categories.map(cat => {
       const catTricks = tricks.filter(t => t.category === cat);
-      const mastered = catTricks.filter(t => t.status === 'yes_i_can').length;
+      const mastered = catTricks.filter(t => t.status === 'got_it').length;
       return { cat, pct: catTricks.length > 0 ? mastered / catTricks.length : 0, tricks: catTricks };
     }).sort((a, b) => a.pct - b.pct);
     for (const weakCat of categoryProgress.slice(0, 2)) {
-      const easy = weakCat.tricks.find(t => t.status === 'not_started' && t.difficulty === 'Easy');
+      const easy = weakCat.tricks.find(t => t.status === 'want_to_learn' && t.difficulty === 'Easy');
       if (easy) tryAdd(easy, `Strengthen weak area: ${weakCat.cat}`, '⚖️', 5);
     }
-    const masteredEasy = tricks.filter(t => t.status === 'yes_i_can' && t.difficulty === 'Easy');
+    const masteredEasy = tricks.filter(t => t.status === 'got_it' && t.difficulty === 'Easy');
     const masteredCats = [...new Set(masteredEasy.map(t => t.category))];
     for (const cat of masteredCats) {
       if (masteredEasy.filter(t => t.category === cat).length >= 2) {
-        const next = tricks.find(t => t.category === cat && t.difficulty === 'Medium' && t.status === 'not_started');
+        const next = tricks.find(t => t.category === cat && t.difficulty === 'Medium' && t.status === 'want_to_learn');
         if (next) tryAdd(next, `Ready to level up your ${cat}!`, '🚀', 6);
       }
     }
     if (suggestions.length < 3) {
-      const fallback = tricks.filter(t => t.status === 'not_started' && (t.difficulty === 'Easy' || t.difficulty === 'Medium'));
+      const fallback = tricks.filter(t => t.status === 'want_to_learn' && (t.difficulty === 'Easy' || t.difficulty === 'Medium'));
       for (const f of fallback) { if (suggestions.length >= 3) break; tryAdd(f, 'Good one to add to your training', '🌟', 7); }
     }
     return suggestions.sort((a, b) => a.priority - b.priority).slice(0, 3);
@@ -2119,7 +2165,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
 
   const userMaxMasteredDifficulty = useMemo(() => {
     const order = ['Easy', 'Medium', 'Hard', 'Super'];
-    const masteredLevels = (tricks || []).filter(t => t.status === 'yes_i_can').map(t => order.indexOf(t.difficulty)).filter(i => i >= 0);
+    const masteredLevels = (tricks || []).filter(t => t.status === 'got_it').map(t => order.indexOf(t.difficulty)).filter(i => i >= 0);
     return masteredLevels.length > 0 ? Math.max(...masteredLevels) : -1;
   }, [tricks]);
 
@@ -2139,8 +2185,8 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
       seen.add(trick.id);
     };
     (weeklyGoals || []).forEach(g => add((tricks || []).find(t => t.id === g.trickId), '🎯 Fokus'));
-    (tricks || []).filter(t => t.status === 'training_hard').forEach(t => add(t, '💪 Training hard'));
-    (tricks || []).filter(t => t.status === 'looking_into').forEach(t => add(t, '👀 Looking into'));
+    (tricks || []).filter(t => t.status === 'training').forEach(t => add(t, '💪 Training'));
+    (tricks || []).filter(t => t.status === 'want_to_learn').forEach(t => add(t, '👀 Want to learn'));
     return list;
   }, [tricks, weeklyGoals, allowedDifficulties]);
 
@@ -2363,7 +2409,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
               const lockedTricks = lockedIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
               const dismissedIds = dismissedForDate(us.date);
               const remainingSuggestions = sessionSuggestions.filter(s => !lockedIds.includes(s.trick.id) && !dismissedIds.includes(s.trick.id));
-              const addable = tricks.filter(t => !lockedIds.includes(t.id) && t.status !== 'yes_i_can')
+              const addable = tricks.filter(t => !lockedIds.includes(t.id) && t.status !== 'got_it')
                 .sort((a, b) => a.name.localeCompare(b.name));
               const isOpen = !!expandedSessions[us.date];
               return (
@@ -2495,7 +2541,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                   )}
 
                   {isOpen && lockedTricks.length === 0 && remainingSuggestions.length === 0 && (
-                    <div className="text-xs text-slate-500 italic mb-2">No suggestions yet — set tricks in focus or mark tricks as Looking into / Training hard.</div>
+                    <div className="text-xs text-slate-500 italic mb-2">No suggestions yet — set tricks in focus or mark tricks as Want to learn / Training.</div>
                   )}
 
                   {isOpen && (
@@ -2738,7 +2784,7 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
   const categories = [...new Set(tricks.map(t => t.category))];
   const categoryStats = categories.map(cat => {
     const ct = tricks.filter(t => t.category === cat);
-    const m = ct.filter(t => t.status === 'yes_i_can').length;
+    const m = ct.filter(t => t.status === 'got_it').length;
     return { cat, mastered: m, total: ct.length, pct: ct.length > 0 ? (m / ct.length) * 100 : 0 };
   });
   const difficultyStats = [
@@ -2752,7 +2798,7 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
   const [expandedLanding, setExpandedLanding] = useState(null);
   const [achievementsOpen, setAchievementsOpen] = useState(true);
   const sortByStatus = (a, b) => {
-    const order = (t) => t.status === 'yes_i_can' ? 0 : t.status && t.status !== 'not_started' ? 1 : 2;
+    const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : 2;
     return order(a) - order(b) || a.name.localeCompare(b.name);
   };
   const TrickRow = ({ t }) => {
@@ -2807,11 +2853,7 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
       <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
         <div className="font-bold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-cyan-400" /> By Landing</div>
         <div className="space-y-2">
-          {[
-            { id: 'trampoline_landing', label: 'Trampoline landing', emoji: '🤾', color: 'bg-cyan-500' },
-            { id: 'soft_landing', label: 'Soft landing', emoji: '🛬', color: 'bg-blue-500' },
-            { id: 'hard_landing', label: 'Hard landing', emoji: '🪨', color: 'bg-stone-500' },
-          ].map(l => {
+          {LANDING_LEVELS.map(l => {
             const open = expandedLanding === l.id;
             const matched = tricks.filter(t => Array.isArray(t.progress) && t.progress.includes(l.id));
             const rows = matched.slice().sort(sortByStatus);
@@ -2920,7 +2962,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
   const inCategory = isFocus
     ? weeklyGoals.map(g => tricks.find(t => t.id === g.trickId)).filter(Boolean)
     : tricks.filter(t => t.category === selectedCategory);
-  const totalMastered = inCategory.filter(t => t.status === 'yes_i_can').length;
+  const totalMastered = inCategory.filter(t => t.status === 'got_it').length;
 
   const addGoal = () => {
     if (!newGoalTrickId || !saveGoals) return;
@@ -2940,12 +2982,12 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
       list.push({ trick, reason, icon, priority });
       added.add(trick.id);
     };
-    tricks.filter(t => t.status === 'training_like_hell').slice(0, 2).forEach(t => tryAdd(t, 'Almost mastered — one more push!', '🎯', 1));
-    tricks.filter(t => t.status === 'soft_landing').slice(0, 2).forEach(t => tryAdd(t, 'Keep building confidence on soft surface', '🛬', 2));
-    tricks.filter(t => t.status === 'trampoline_landing').slice(0, 2).forEach(t => tryAdd(t, 'Got it on trampoline — try soft mat next', '🤾', 3));
-    tricks.filter(t => t.status === 'training_hard').slice(0, 2).forEach(t => tryAdd(t, 'Already training — stay consistent', '💪', 4));
+    const hasLanding = (t, id) => Array.isArray(t.progress) && t.progress.includes(id);
+    tricks.filter(t => t.status === 'training' && hasLanding(t, 'soft_landing')).slice(0, 2).forEach(t => tryAdd(t, 'Almost mastered — one more push!', '🎯', 1));
+    tricks.filter(t => t.status === 'training' && hasLanding(t, 'trampoline_landing') && !hasLanding(t, 'soft_landing')).slice(0, 2).forEach(t => tryAdd(t, 'Got it on trampoline — try soft mat next', '🤾', 2));
+    tricks.filter(t => t.status === 'training' && (!Array.isArray(t.progress) || t.progress.length === 0)).slice(0, 2).forEach(t => tryAdd(t, 'Already training — stay consistent', '💪', 3));
     if (list.length < 3) {
-      tricks.filter(t => t.status === 'not_started' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).slice(0, 5).forEach(t => tryAdd(t, 'Good one to add', '🌟', 7));
+      tricks.filter(t => t.status === 'want_to_learn' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).slice(0, 5).forEach(t => tryAdd(t, 'Good one to add', '🌟', 7));
     }
     return list.sort((a, b) => a.priority - b.priority).slice(0, 3);
   })();
@@ -2981,7 +3023,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
         const remainingSuggestions = focusSuggestions.filter(s => !weeklyGoals.some(g => g.trickId === s.trick.id));
         const suggestionLimit = Math.max(1, 5 - weeklyGoals.length);
         const visibleSuggestions = remainingSuggestions.slice(0, suggestionLimit);
-        const addable = tricks.filter(t => t.status !== 'yes_i_can' && !weeklyGoals.some(g => g.trickId === t.id))
+        const addable = tricks.filter(t => t.status !== 'got_it' && !weeklyGoals.some(g => g.trickId === t.id))
           .sort((a, b) => a.name.localeCompare(b.name));
         return (
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-3">
@@ -3054,15 +3096,15 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
             )}
 
             {weeklyGoals.length === 0 && visibleSuggestions.length === 0 && addable.length === 0 && (
-              <div className="text-xs text-slate-500 italic">No focus tricks yet. Mark tricks as Looking into / Training hard to get suggestions.</div>
+              <div className="text-xs text-slate-500 italic">No focus tricks yet. Mark tricks as Want to learn / Training to get suggestions.</div>
             )}
           </div>
         );
       })()}
 
       {isFocus && (() => {
-        const trainingHard = tricks.filter(t => t.status === 'training_hard' && !weeklyGoals.some(g => g.trickId === t.id));
-        const lookingInto = tricks.filter(t => t.status === 'looking_into' && !weeklyGoals.some(g => g.trickId === t.id));
+        const training = tricks.filter(t => t.status === 'training' && !weeklyGoals.some(g => g.trickId === t.id));
+        const wantToLearn = tricks.filter(t => t.status === 'want_to_learn' && !weeklyGoals.some(g => g.trickId === t.id));
         const renderTierRow = (t) => {
           const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
           const diff = DIFFICULTY_COLORS[t.difficulty];
@@ -3102,25 +3144,25 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
         };
         return (
           <>
-            {trainingHard.length > 0 && (
+            {training.length > 0 && (
               <div className="bg-slate-800/50 border border-yellow-500/40 rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-black px-2 py-1 rounded bg-yellow-500 text-white">TRAINING HARD</span>
-                  <span className="text-sm font-bold text-slate-200">{trainingHard.length}</span>
+                  <span className="text-xs font-black px-2 py-1 rounded bg-yellow-500 text-white">💪 TRAINING</span>
+                  <span className="text-sm font-bold text-slate-200">{training.length}</span>
                 </div>
                 <div className="space-y-2">
-                  {trainingHard.map(renderTierRow)}
+                  {training.map(renderTierRow)}
                 </div>
               </div>
             )}
-            {lookingInto.length > 0 && (
+            {wantToLearn.length > 0 && (
               <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-black px-2 py-1 rounded bg-purple-500 text-white">LOOKING INTO</span>
-                  <span className="text-sm font-bold text-slate-200">{lookingInto.length}</span>
+                  <span className="text-xs font-black px-2 py-1 rounded bg-purple-500 text-white">👀 WANT TO LEARN</span>
+                  <span className="text-sm font-bold text-slate-200">{wantToLearn.length}</span>
                 </div>
                 <div className="space-y-2">
-                  {lookingInto.map(renderTierRow)}
+                  {wantToLearn.map(renderTierRow)}
                 </div>
               </div>
             )}
@@ -3143,7 +3185,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
             {TIERS.map((tier, idx) => {
               const tricksAtTier = inCategory.filter(t => t.difficulty === tier);
               if (tricksAtTier.length === 0) return null;
-              const masteredCount = tricksAtTier.filter(t => t.status === 'yes_i_can').length;
+              const masteredCount = tricksAtTier.filter(t => t.status === 'got_it').length;
               const allMastered = masteredCount === tricksAtTier.length;
               const col = DIFFICULTY_COLORS[tier];
               const nextHasContent = TIERS.slice(idx + 1).some(t => inCategory.some(tr => tr.difficulty === t));
@@ -3158,8 +3200,8 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals }) {
                     <div className="space-y-2">
                       {tricksAtTier.map(t => {
                         const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-                        const mastered = t.status === 'yes_i_can';
-                        const inProgress = t.status && t.status !== 'not_started' && !mastered;
+                        const mastered = t.status === 'got_it';
+                        const inProgress = t.status === 'training';
                         const inFocus = weeklyGoals.some(g => g.trickId === t.id);
                         const unread = !!t._unread;
                         return (
@@ -3777,8 +3819,8 @@ service cloud.firestore {
 
   // User detail view
   if (selectedUser && userData) {
-    const mastered = userData.tricks.filter(t => t.status === 'yes_i_can').length;
-    const inProgress = userData.tricks.filter(t => t.status !== 'not_started' && t.status !== 'yes_i_can').length;
+    const mastered = userData.tricks.filter(t => t.status === 'got_it').length;
+    const inProgress = userData.tricks.filter(t => t.status === 'training').length;
 
     return (
       <div className="max-w-2xl mx-auto space-y-4">
@@ -3833,14 +3875,14 @@ service cloud.firestore {
           const total = userData.tricks.length;
           const difficultyData = ['Easy', 'Medium', 'Hard', 'Super'].map(label => {
             const inDiff = userData.tricks.filter(t => t.difficulty === label);
-            const m = inDiff.filter(t => t.status === 'yes_i_can').length;
+            const m = inDiff.filter(t => t.status === 'got_it').length;
             const color = ({ Easy: 'bg-green-500', Medium: 'bg-blue-500', Hard: 'bg-orange-500', Super: 'bg-purple-500' })[label];
             return { label, count: m, total: inDiff.length, color };
           });
           const userCategories = [...new Set(userData.tricks.map(t => t.category))].sort();
           const categoryData = userCategories.map(cat => {
             const inCat = userData.tricks.filter(t => t.category === cat);
-            const m = inCat.filter(t => t.status === 'yes_i_can').length;
+            const m = inCat.filter(t => t.status === 'got_it').length;
             return { cat, mastered: m, total: inCat.length, pct: inCat.length > 0 ? (m / inCat.length) * 100 : 0 };
           });
           const overallPct = total > 0 ? Math.round((mastered / total) * 100) : 0;
@@ -3861,7 +3903,7 @@ service cloud.firestore {
                   {difficultyData.map(d => {
                     const open = expandedUserDifficulty === d.label;
                     const sortByStatus = (a, b) => {
-                      const order = (t) => t.status === 'yes_i_can' ? 0 : t.status && t.status !== 'not_started' ? 1 : 2;
+                      const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : 2;
                       return order(a) - order(b) || a.name.localeCompare(b.name);
                     };
                     const rows = userData.tricks.filter(t => t.difficulty === d.label).slice().sort(sortByStatus);
@@ -3902,14 +3944,10 @@ service cloud.firestore {
               <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
                 <div className="font-bold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-cyan-400" /> By Landing</div>
                 <div className="space-y-2">
-                  {[
-                    { id: 'trampoline_landing', label: 'Trampoline landing', emoji: '🤾', color: 'bg-cyan-500' },
-                    { id: 'soft_landing', label: 'Soft landing', emoji: '🛬', color: 'bg-blue-500' },
-                    { id: 'hard_landing', label: 'Hard landing', emoji: '🪨', color: 'bg-stone-500' },
-                  ].map(l => {
+                  {LANDING_LEVELS.map(l => {
                     const open = expandedUserLanding === l.id;
                     const sortByStatus = (a, b) => {
-                      const order = (t) => t.status === 'yes_i_can' ? 0 : t.status && t.status !== 'not_started' ? 1 : 2;
+                      const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : 2;
                       return order(a) - order(b) || a.name.localeCompare(b.name);
                     };
                     const matched = userData.tricks.filter(t => Array.isArray(t.progress) && t.progress.includes(l.id));
@@ -3959,7 +3997,7 @@ service cloud.firestore {
                   {categoryData.map(c => {
                     const open = expandedUserCategory === c.cat;
                     const sortByStatus = (a, b) => {
-                      const order = (t) => t.status === 'yes_i_can' ? 0 : t.status && t.status !== 'not_started' ? 1 : 2;
+                      const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : 2;
                       return order(a) - order(b) || a.name.localeCompare(b.name);
                     };
                     const rows = userData.tricks.filter(t => t.category === c.cat).slice().sort(sortByStatus);
