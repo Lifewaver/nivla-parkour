@@ -1897,9 +1897,18 @@ function ImprovementSuggestionsModal({ user, onClose }) {
     return { className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40', label: 'Pending' };
   };
 
+  // iOS Safari hides inputs behind the on-screen keyboard. Scroll the focused
+  // field into view after the keyboard animation settles.
+  const scrollIntoViewOnFocus = (e) => {
+    const el = e.target;
+    setTimeout(() => {
+      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+  };
+
   return (
-    <div className="fixed inset-x-0 top-0 bottom-20 z-40 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-t sm:border border-yellow-500/30 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-full sm:max-h-[85vh] overflow-y-auto">
+    <div className="fixed inset-x-0 top-0 bottom-20 z-40 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose} style={{ height: '100dvh' }}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-t sm:border border-yellow-500/30 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-full sm:max-h-[85dvh] overflow-y-auto" style={{ scrollPaddingBottom: '30vh' }}>
         <div className="sticky top-0 bg-slate-900 border-b border-slate-700 px-6 py-4 flex items-center justify-between rounded-t-3xl">
           <div className="flex items-center gap-2">
             <span className="text-lg">💡</span>
@@ -1913,14 +1922,18 @@ function ImprovementSuggestionsModal({ user, onClose }) {
             <div>
               <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Title</div>
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+                onFocus={scrollIntoViewOnFocus}
                 placeholder="Short summary of your idea"
+                style={{ scrollMarginBottom: '40vh' }}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
             </div>
             <div>
               <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Description</div>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                onFocus={scrollIntoViewOnFocus}
                 placeholder="Explain what you'd like and why"
                 rows={4}
+                style={{ scrollMarginBottom: '40vh' }}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm resize-none" />
             </div>
             {error && (
@@ -5210,10 +5223,24 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
           </div>
         </>
       ) : (
-        <button onClick={() => setSelectedCategory(null)}
-          className="flex items-center gap-2 text-sm font-semibold text-purple-300 hover:text-purple-200">
-          <ArrowLeft className="w-4 h-4" /> Back to map
-        </button>
+        <div className="flex items-center gap-2 text-sm">
+          <button onClick={() => setSelectedCategory(null)}
+            className="flex items-center gap-1 font-semibold text-purple-300 hover:text-purple-200">
+            <ArrowLeft className="w-4 h-4" /> Map
+          </button>
+          <span className="text-slate-600">/</span>
+          <span className="flex items-center gap-1.5 font-bold"
+            style={(() => {
+              const c = !isFocus && CATEGORY_COLORS[selectedCategory];
+              return c ? { color: c.hex } : undefined;
+            })()}>
+            {isFocus ? (
+              <><span className="text-base">🎯</span>In Focus</>
+            ) : (
+              <><CategoryIcon category={selectedCategory} size={16} />{selectedCategory}</>
+            )}
+          </span>
+        </div>
       )}
 
       {isFocus && (
