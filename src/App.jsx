@@ -843,6 +843,10 @@ function LoginScreen({ error, requestStatus }) {
           <div className="text-7xl mb-6">🚫</div>
           <h1 className="text-3xl font-black text-white mb-3">Access not approved</h1>
           <p className="text-slate-400 mb-8">Your request was not approved. Contact a family admin if you think this is a mistake.</p>
+          <button onClick={handleSignIn}
+            className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-3 transition shadow-xl">
+            <GoogleIcon /> Try a different account
+          </button>
         </div>
       </div>
     );
@@ -1065,7 +1069,7 @@ function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
           <div className="space-y-4">
             <div>
               <div className="text-xs font-bold uppercase tracking-wide text-purple-300 mb-1">Welcome, {firstName} 👋</div>
-              <h1 className="text-3xl font-black leading-tight">Pick 3 tricks you want to learn first</h1>
+              <h1 className="text-3xl font-black leading-tight">Pick up to 3 tricks you want to learn first</h1>
               <p className="text-sm text-slate-400 mt-2">Easy ones to get rolling — you can always change your mind later.</p>
             </div>
             <div className="text-xs text-slate-400">{pickedTrickIds.length} / 3 picked</div>
@@ -1241,7 +1245,7 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData, plannedIntentsData, templatesData, viewedData, onboardingData] =
+        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData, plannedIntentsData, templatesData, viewedData, onboardingData, tricksReclassifiedV1] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
@@ -1259,6 +1263,7 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'templates'),
             loadUserData(user.uid, 'viewedTricks'),
             loadUserData(user.uid, 'onboardingComplete'),
+            loadUserData(user.uid, 'tricksReclassifiedV1'),
           ]);
 
         // Load global trick overrides set by admin
@@ -1322,30 +1327,40 @@ function MainApp({ user }) {
           const migrated = filtered.map(applyOverrides).map(migrateTrickStatus);
 
           // One-time reclassification: untouched want_to_learn → not_started.
-          // Idempotent — once a trick is at not_started it won't be revisited.
-          const goalIds = new Set((Array.isArray(goalsData) ? goalsData : []).map(g => g.trickId));
-          const focusIds = new Set();
-          if (plannedFocusData && typeof plannedFocusData === 'object') {
-            Object.values(plannedFocusData).forEach(arr => {
-              if (Array.isArray(arr)) arr.forEach(id => focusIds.add(id));
+          // Gated by tricksReclassifiedV1 flag so it only runs once per user.
+          // Without the gate, a user who later marks a trick as want_to_learn
+          // and then clears all engagement signals would have it silently
+          // demoted back to not_started on next load.
+          let reclassified = migrated;
+          if (!tricksReclassifiedV1) {
+            const goalIds = new Set((Array.isArray(goalsData) ? goalsData : []).map(g => g.trickId));
+            const focusIds = new Set();
+            if (plannedFocusData && typeof plannedFocusData === 'object') {
+              Object.values(plannedFocusData).forEach(arr => {
+                if (Array.isArray(arr)) arr.forEach(id => focusIds.add(id));
+              });
+            }
+            reclassified = migrated.map(t => {
+              if (t.status !== 'want_to_learn') return t;
+              const hasProgress = Array.isArray(t.progress) && t.progress.length > 0;
+              const hasNotes = typeof t.notes === 'string' && t.notes.trim().length > 0;
+              const hasUserVideos = Array.isArray(t.videos) && t.videos.length > 0;
+              const hasCoolness = (t.coolness || 0) > 0;
+              if (hasProgress || hasNotes || hasUserVideos || hasCoolness) return t;
+              if (goalIds.has(t.id) || focusIds.has(t.id)) return t;
+              return { ...t, status: 'not_started' };
             });
           }
-          const reclassified = migrated.map(t => {
-            if (t.status !== 'want_to_learn') return t;
-            const hasProgress = Array.isArray(t.progress) && t.progress.length > 0;
-            const hasNotes = typeof t.notes === 'string' && t.notes.trim().length > 0;
-            const hasUserVideos = Array.isArray(t.videos) && t.videos.length > 0;
-            const hasCoolness = (t.coolness || 0) > 0;
-            if (hasProgress || hasNotes || hasUserVideos || hasCoolness) return t;
-            if (goalIds.has(t.id) || focusIds.has(t.id)) return t;
-            return { ...t, status: 'not_started' };
-          });
 
           const merged = mergeCommunity(reclassified);
           const changed = merged.length !== tricksData.length
             || merged.some((t, i) => i < tricksData.length && (t.category !== tricksData[i].category || t.status !== tricksData[i].status));
           setTricks(merged);
           if (changed) await saveUserData(user.uid, 'tricks', merged);
+          if (!tricksReclassifiedV1) {
+            try { await saveUserData(user.uid, 'tricksReclassifiedV1', true); }
+            catch (e) { console.error('Save tricksReclassifiedV1 error', e); }
+          }
         } else {
           const seed = INITIAL_TRICKS
             .filter(t => !deletedSet.has(t.id))
@@ -1353,6 +1368,10 @@ function MainApp({ user }) {
           const initial = mergeCommunity(seed);
           setTricks(initial);
           await saveUserData(user.uid, 'tricks', initial);
+          // New users start at not_started; mark migration flag so the
+          // reclassification path can never fire on later loads.
+          try { await saveUserData(user.uid, 'tricksReclassifiedV1', true); }
+          catch (e) { console.error('Save tricksReclassifiedV1 error', e); }
         }
         if (daysData) setTrainingDays(daysData);
         if (journalData) setJournal(journalData);
@@ -1514,11 +1533,22 @@ function MainApp({ user }) {
   const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100];
 
   const markDayTrained = async (dateStr) => {
-    if (!dateStr || trainingDays.includes(dateStr)) return;
-    const next = [...trainingDays, dateStr];
-    const oldStreak = computeStreakFor(trainingDays);
-    const newStreak = computeStreakFor(next);
-    await saveTrainingDays(next);
+    if (!dateStr) return;
+    let nextDays = null;
+    let oldStreak = 0;
+    let newStreak = 0;
+    setTrainingDays(prev => {
+      if (prev.includes(dateStr)) return prev;
+      const next = [...prev, dateStr];
+      if (nextDays === null) {
+        oldStreak = computeStreakFor(prev);
+        newStreak = computeStreakFor(next);
+        nextDays = next;
+      }
+      return next;
+    });
+    if (!nextDays) return;
+    await saveUserData(user.uid, 'trainingDays', nextDays);
     const crossed = STREAK_MILESTONES.find(m => oldStreak < m && newStreak >= m);
     if (crossed) {
       const subtitle = crossed >= 30 ? 'Unstoppable!' : crossed >= 7 ? 'On fire!' : 'Keep it going!';
@@ -2245,7 +2275,7 @@ function TrickCard({ trick, onOpen, isGymnastics }) {
 
 function getVideoEmbed(url) {
   if (!url) return null;
-  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  const yt = url.match(/(?:(?:m\.|www\.)?youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
   if (yt) return { type: 'youtube', src: `https://www.youtube.com/embed/${yt[1]}` };
   const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   if (vimeo) return { type: 'vimeo', src: `https://player.vimeo.com/video/${vimeo[1]}` };
@@ -2346,6 +2376,8 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
     }
   };
   const togglePrimary = (v) => {
+    // Defense in depth — VideoCard already hides this for non-admins via canEdit.
+    if (v._global && !isAdmin) return;
     const willBePrimary = !v.primary;
     if (v._global) {
       const next = globalList.map(x => {
@@ -2540,7 +2572,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
                 <div className="flex gap-2">
                   <input type="url" value={newVideoUrl} onChange={(e) => setNewVideoUrl(e.target.value)}
-                    placeholder="YouTube or Instagram URL"
+                    placeholder="YouTube or Vimeo URL"
                     className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
                   <button onClick={addVideo} className="px-4 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold text-sm">Add</button>
                 </div>
@@ -3867,7 +3899,9 @@ function SessionDetailModal({ session, tricks = [], onClose, onDelete, onOpenTri
   if (!session) return null;
   const d = new Date(session.date + 'T00:00:00');
   const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
-  const practiced = (session.practicedTricks || []).map(id => tricks.find(t => t.id === id)).filter(Boolean);
+  // Keep deleted tricks visible as placeholders so the session record reflects what was practiced.
+  const practicedItems = (session.practicedTricks || []).map(id => ({ id, trick: tricks.find(t => t.id === id) || null }));
+  const practicedCount = practicedItems.length;
   const changes = Array.isArray(session.trickStatusChanges) ? session.trickStatusChanges : [];
   const changeForTrick = (tid) => changes.find(c => c.trickId === tid);
   const tagList = Array.isArray(session.focusTags) ? session.focusTags : [];
@@ -3896,15 +3930,23 @@ function SessionDetailModal({ session, tricks = [], onClose, onDelete, onOpenTri
             </div>
             <div className="rounded-xl p-3 text-center bg-slate-800 border border-slate-700">
               <div className="text-[10px] text-slate-400 uppercase font-bold">Tricks</div>
-              <div className="text-2xl font-black">{practiced.length}</div>
+              <div className="text-2xl font-black">{practicedCount}</div>
             </div>
           </div>
 
-          {practiced.length > 0 && (
+          {practicedCount > 0 && (
             <div>
               <div className="text-[10px] font-bold uppercase text-slate-400 mb-2">Tricks practiced</div>
               <div className="space-y-1.5">
-                {practiced.map(t => {
+                {practicedItems.map(({ id, trick: t }) => {
+                  if (!t) {
+                    return (
+                      <div key={id} className="w-full flex items-center gap-2 bg-slate-900/60 border border-dashed border-slate-700 rounded-lg p-2">
+                        <span className="text-base flex-shrink-0">🗑️</span>
+                        <span className="text-xs text-slate-400 italic">Deleted trick · id {id}</span>
+                      </div>
+                    );
+                  }
                   const change = changeForTrick(t.id);
                   const masteredHere = change?.toStatus === 'got_it';
                   return (
@@ -4389,12 +4431,14 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
       <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
         <div className="font-bold mb-3 flex items-center gap-2"><Target className="w-5 h-5 text-cyan-400" /> By Landing</div>
         <div className="space-y-2">
-          {LANDING_LEVELS.map(l => {
+          {(() => {
+            const landingCounts = LANDING_LEVELS.map(l => tricks.filter(t => Array.isArray(t.progress) && t.progress.includes(l.id)).length);
+            const maxLandingCount = Math.max(1, ...landingCounts);
+            return LANDING_LEVELS.map((l, i) => {
             const open = expandedLanding === l.id;
             const matched = tricks.filter(t => Array.isArray(t.progress) && t.progress.includes(l.id));
             const rows = matched.slice().sort(sortByStatus);
-            const count = matched.length;
-            const totalTricks = tricks.length;
+            const count = landingCounts[i];
             return (
               <div key={l.id}>
                 <button onClick={() => setExpandedLanding(open ? null : l.id)}
@@ -4405,10 +4449,10 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
                       <span className="text-base">{l.emoji}</span>
                       {l.label}
                     </span>
-                    <span className="text-slate-400">{count}/{totalTricks}</span>
+                    <span className="text-slate-400">{count} {count === 1 ? 'trick' : 'tricks'}</span>
                   </div>
                   <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div className={`h-full ${l.color} transition-all duration-500`} style={{ width: `${totalTricks > 0 ? (count / totalTricks) * 100 : 0}%` }} />
+                    <div className={`h-full ${l.color} transition-all duration-500`} style={{ width: `${(count / maxLandingCount) * 100}%` }} />
                   </div>
                 </button>
                 {open && (
@@ -4420,7 +4464,8 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
                 )}
               </div>
             );
-          })}
+          });
+          })()}
         </div>
       </div>
       <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">

@@ -15,6 +15,9 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
+// Force account chooser on every sign-in. Family device → multiple accounts;
+// without this Google silently signs in to whichever was last used.
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // List of allowed email addresses
 export const ALLOWED_EMAILS = [
