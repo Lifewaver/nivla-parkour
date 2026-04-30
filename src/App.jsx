@@ -2208,11 +2208,11 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
               <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
             </button>
             {filtersOpen && (() => {
-              const moreActive = [filterDifficulty, filterStatus, filterVideo, filterStars].filter(v => v !== 'all').length;
+              const moreActive = [filterTracker, filterStatus, filterVideo, filterStars].filter(v => v !== 'all').length;
               return (
                 <div className="space-y-2 pt-1">
                   <FilterRow label="Category" options={categories} selected={filterCategory} onChange={setFilterCategory} />
-                  <FilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
+                  <FilterRow label="Difficulty" options={difficulties} selected={filterDifficulty} onChange={setFilterDifficulty} />
                   <button onClick={() => setMoreFiltersOpen(o => !o)}
                     className="w-full flex items-center justify-between bg-slate-900/60 hover:bg-slate-900 border border-dashed border-slate-700 rounded-lg px-3 py-2 text-xs font-semibold text-slate-300 transition">
                     <span className="flex items-center gap-2">
@@ -2225,7 +2225,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
                   </button>
                   {moreFiltersOpen && (
                     <div className="space-y-2 pl-2 border-l border-slate-700/60">
-                      <FilterRow label="Difficulty" options={difficulties} selected={filterDifficulty} onChange={setFilterDifficulty} />
+                      <FilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
                       <FilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
                       <FilterRow label="Video" options={videoOptions} selected={filterVideo} onChange={setFilterVideo} labelMap={videoLabel} />
                       <FilterRow label="Stars" options={starsOptions} selected={filterStars} onChange={setFilterStars} labelMap={starsLabel} />
