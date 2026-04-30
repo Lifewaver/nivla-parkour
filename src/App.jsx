@@ -4241,50 +4241,69 @@ function SessionsBrowser({ trainingSessions = [], saveTrainingSessions, tricks =
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by trick or note…"
-          className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-purple-500" />
-      </div>
+      {totalSessions > 0 && (
+        <>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by trick or note…"
+              className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-purple-500" />
+          </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {filterChips.map(c => {
-          const matchCount = c.id === 'all' ? totalSessions : safeSessions.filter(c.match).length;
-          if (c.id !== 'all' && matchCount === 0) return null;
-          const active = activeFilter === c.id;
-          return (
-            <button key={c.id} onClick={() => setActiveFilter(c.id)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition border ${active ? 'bg-slate-100 text-slate-900 border-slate-100' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-              {c.label} <span className={`ml-1 ${active ? 'text-slate-500' : 'text-slate-500'}`}>{matchCount}</span>
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {filterChips.map(c => {
+              const matchCount = c.id === 'all' ? totalSessions : safeSessions.filter(c.match).length;
+              if (c.id !== 'all' && matchCount === 0) return null;
+              const active = activeFilter === c.id;
+              return (
+                <button key={c.id} onClick={() => setActiveFilter(c.id)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition border ${active ? 'bg-slate-100 text-slate-900 border-slate-100' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                  {c.label} <span className={`ml-1 ${active ? 'text-slate-500' : 'text-slate-500'}`}>{matchCount}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-3 bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden">
+            <div className="p-3 text-center">
+              <div className="text-[10px] text-slate-400 uppercase font-bold">This month</div>
+              <div className="text-xl font-black mt-0.5">{sessionsThisMonth}</div>
+              <div className="text-[10px] text-slate-500">sessions</div>
+            </div>
+            <div className="p-3 text-center border-l border-slate-700">
+              <div className="text-[10px] text-slate-400 uppercase font-bold">Avg RPE</div>
+              <div className="text-xl font-black mt-0.5 text-amber-300">{avgRpe || '—'}</div>
+              <div className="text-[10px] text-slate-500">last 8</div>
+            </div>
+            <div className="p-3 text-center border-l border-slate-700">
+              <div className="text-[10px] text-slate-400 uppercase font-bold">Top focus</div>
+              <div className="text-sm font-black mt-0.5 truncate">{topTag ? `#${topTag[0]}` : '—'}</div>
+              <div className="text-[10px] text-slate-500">{topTag ? `${topTag[1]} ${topTag[1] === 1 ? 'session' : 'sessions'}` : 'no tags yet'}</div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {totalSessions === 0 ? (
+        <div className="bg-gradient-to-br from-purple-500/15 to-pink-500/10 border border-purple-500/40 rounded-2xl p-6 text-center">
+          <div className="text-5xl mb-2">📓</div>
+          <div className="text-lg font-black text-slate-100">No sessions yet</div>
+          <div className="text-xs text-slate-300 mt-1.5 max-w-xs mx-auto">
+            Your training sessions will show up here. Log your first one from
+            <span className="font-bold text-purple-200"> Training → Today's session → Log</span>.
+          </div>
+          {onClose && (
+            <button onClick={onClose}
+              className="mt-4 inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white">
+              ← Back to Training
             </button>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-3 bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden">
-        <div className="p-3 text-center">
-          <div className="text-[10px] text-slate-400 uppercase font-bold">This month</div>
-          <div className="text-xl font-black mt-0.5">{sessionsThisMonth}</div>
-          <div className="text-[10px] text-slate-500">sessions</div>
+          )}
         </div>
-        <div className="p-3 text-center border-l border-slate-700">
-          <div className="text-[10px] text-slate-400 uppercase font-bold">Avg RPE</div>
-          <div className="text-xl font-black mt-0.5 text-amber-300">{avgRpe || '—'}</div>
-          <div className="text-[10px] text-slate-500">last 8</div>
-        </div>
-        <div className="p-3 text-center border-l border-slate-700">
-          <div className="text-[10px] text-slate-400 uppercase font-bold">Top focus</div>
-          <div className="text-sm font-black mt-0.5 truncate">{topTag ? `#${topTag[0]}` : '—'}</div>
-          <div className="text-[10px] text-slate-500">{topTag ? `${topTag[1]} ${topTag[1] === 1 ? 'session' : 'sessions'}` : 'no tags yet'}</div>
-        </div>
-      </div>
-
-      {filtered.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="bg-slate-800/40 border border-dashed border-slate-700 rounded-2xl p-6 text-center">
           <div className="text-3xl mb-1">📭</div>
           <div className="text-sm font-bold text-slate-200">No sessions match</div>
-          <div className="text-xs text-slate-400 mt-1">{totalSessions === 0 ? 'Log your first session in the Training tab.' : 'Try clearing the search or picking a different filter.'}</div>
+          <div className="text-xs text-slate-400 mt-1">Try clearing the search or picking a different filter.</div>
         </div>
       ) : (
         monthKeys.map(monthKey => {
