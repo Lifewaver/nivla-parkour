@@ -17,6 +17,17 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.27',
+    date: '2026-04-30',
+    title: 'Edges that draw themselves',
+    notes: [
+      'When you master a trick (✅ Got it), the connecting paths in the Skill Tree draw themselves with a glow over ~1.2s — the dopamine moment.',
+      'Quest rewards now point at real achievement badges. Streak quests link to On Fire / Week Warrior, mastery quests link to First Steps / Getting Started / Leveling Up. The badge icon and name appear directly in the reward line.',
+      '"Master 3 Medium" quest swapped to "Master 5 Medium" so it actually awards the Leveling Up badge.',
+      'Daily / weekly quests stay standalone — finishing one is its own reward.',
+    ],
+  },
+  {
     version: '1.26',
     date: '2026-04-30',
     title: 'Tree polish',
@@ -1171,6 +1182,7 @@ function MainApp({ user }) {
   const [filterStars, setFilterStars] = useState('all');
   const [celebrationTrick, setCelebrationTrick] = useState(null);
   const [celebrationToast, setCelebrationToast] = useState(null);
+  const [recentlyMasteredId, setRecentlyMasteredId] = useState(null);
 
   const fireCelebration = (toast) => {
     setCelebrationToast(toast);
@@ -1362,6 +1374,8 @@ function MainApp({ user }) {
     if (status === 'got_it' && oldTrick?.status !== 'got_it') {
       setCelebrationTrick(oldTrick);
       setTimeout(() => setCelebrationTrick(null), 2500);
+      setRecentlyMasteredId(id);
+      setTimeout(() => setRecentlyMasteredId(curr => curr === id ? null : curr), 2000);
     }
   };
 
@@ -1378,6 +1392,8 @@ function MainApp({ user }) {
     if (status === 'got_it' && oldTrick?.status !== 'got_it') {
       setCelebrationTrick(oldTrick);
       setTimeout(() => setCelebrationTrick(null), 2500);
+      setRecentlyMasteredId(id);
+      setTimeout(() => setRecentlyMasteredId(curr => curr === id ? null : curr), 2000);
     } else {
       celebrateLanding(oldTrick?.progress, progress, oldTrick);
     }
@@ -1619,7 +1635,8 @@ function MainApp({ user }) {
         )}
         {activeTab === 'skilltree' && (
           <SkillTreeTab tricks={displayTricks} onOpenTrick={openTrick} weeklyGoals={weeklyGoals} saveGoals={saveGoals}
-            trainingSessions={trainingSessions} streak={streak} fireCelebration={fireCelebration} />
+            trainingSessions={trainingSessions} streak={streak} fireCelebration={fireCelebration}
+            recentlyMasteredId={recentlyMasteredId} />
         )}
         {activeTab === 'add' && (
           <AddTab user={user} setActiveTab={setActiveTab} />
@@ -3597,14 +3614,16 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
 // QUEST SYSTEM
 // =============================================================
 const QUESTS = [
-  { id: 'q_daily_focus', type: 'daily', icon: '🎯', title: 'Train 3 focus tricks today', target: 3, reward: '⚡ +50 XP' },
-  { id: 'q_daily_log',   type: 'daily', icon: '📝', title: 'Log a training session today', target: 1, reward: '🔥 streak' },
-  { id: 'q_weekly_3',    type: 'weekly', icon: '📅', title: 'Train 3 sessions this week', target: 3, reward: '🏅 Badge' },
-  { id: 'q_streak_3',    type: 'streak', icon: '🔥', title: 'Train 3 days in a row', target: 3, reward: 'On Fire badge' },
-  { id: 'q_streak_7',    type: 'streak', icon: '🚀', title: 'Train 7 days in a row', target: 7, reward: 'Week Warrior' },
-  { id: 'q_first_master',type: 'totalMastered', icon: '🌟', title: 'Master your first trick', target: 1, reward: 'First Steps badge' },
-  { id: 'q_easy_5',      type: 'masteredByDiff', diff: 'Easy', icon: '🌱', title: 'Master 5 Easy tricks', target: 5, reward: 'Getting Started' },
-  { id: 'q_medium_3',    type: 'masteredByDiff', diff: 'Medium', icon: '💪', title: 'Master 3 Medium tricks', target: 3, reward: 'Leveling Up' },
+  // Daily / weekly: standalone — no badge, just the satisfaction of finishing.
+  { id: 'q_daily_focus', type: 'daily',  icon: '🎯', title: 'Train 3 focus tricks today',     target: 3, reward: 'Focus quest done' },
+  { id: 'q_daily_log',   type: 'daily',  icon: '📝', title: 'Log a training session today',   target: 1, reward: 'Streak day banked' },
+  { id: 'q_weekly_3',    type: 'weekly', icon: '📅', title: 'Train 3 sessions this week',     target: 3, reward: 'Weekly quest done' },
+  // Streak / mastery: linked to existing achievement badges that auto-fire on completion.
+  { id: 'q_streak_3',    type: 'streak',         icon: '🔥', title: 'Train 3 days in a row',  target: 3, badgeId: 'streak_3' },
+  { id: 'q_streak_7',    type: 'streak',         icon: '🚀', title: 'Train 7 days in a row',  target: 7, badgeId: 'streak_7' },
+  { id: 'q_first_master',type: 'totalMastered',  icon: '🌟', title: 'Master your first trick', target: 1, badgeId: 'first_trick' },
+  { id: 'q_easy_5',      type: 'masteredByDiff', diff: 'Easy',   icon: '🌱', title: 'Master 5 Easy tricks',   target: 5, badgeId: 'easy_5' },
+  { id: 'q_medium_5',    type: 'masteredByDiff', diff: 'Medium', icon: '💪', title: 'Master 5 Medium tricks', target: 5, badgeId: 'medium_5' },
 ];
 
 const getMondayOf = (d) => {
@@ -3678,6 +3697,7 @@ function QuestsPanel({ tricks, weeklyGoals, trainingSessions, streak, onQuestCom
     const pct = Math.min(100, Math.round((q.progress / q.target) * 100));
     const done = q.progress >= q.target;
     const tone = done ? 'border-green-500/50 bg-green-500/10' : 'border-slate-700 bg-slate-800/60';
+    const badge = q.badgeId ? BADGES.find(b => b.id === q.badgeId) : null;
     return (
       <div className={`rounded-xl border p-3 ${tone}`}>
         <div className="flex items-center gap-2 mb-1">
@@ -3695,7 +3715,17 @@ function QuestsPanel({ tricks, weeklyGoals, trainingSessions, streak, onQuestCom
         <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
           <div className={`h-full transition-all duration-500 ${done ? 'bg-green-400' : 'bg-purple-400'}`} style={{ width: `${pct}%` }} />
         </div>
-        <div className="text-[10px] text-slate-400 mt-1.5 truncate">Reward: <span className="text-yellow-300 font-semibold">{q.reward}</span></div>
+        <div className="text-[10px] mt-1.5 flex items-center gap-1 truncate">
+          <span className="text-slate-400">Reward:</span>
+          {badge ? (
+            <span className="text-yellow-300 font-semibold flex items-center gap-0.5 truncate">
+              <span>{badge.icon}</span>
+              <span className="truncate">{badge.name}</span>
+            </span>
+          ) : (
+            <span className="text-yellow-300 font-semibold truncate">{q.reward}</span>
+          )}
+        </div>
       </div>
     );
   };
@@ -3725,7 +3755,7 @@ function QuestsPanel({ tricks, weeklyGoals, trainingSessions, streak, onQuestCom
   );
 }
 
-function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onRemoveFocus, newlyUnlockedIds = [] }) {
+function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onRemoveFocus, newlyUnlockedIds = [], recentlyMasteredId = null }) {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const idsInCategory = useMemo(() => new Set(tricks.map(t => t.id)), [tricks]);
 
@@ -3835,9 +3865,17 @@ function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onR
             const opacity = lit ? 0.95 : partial ? 0.8 : 0.4;
             const midY = (e.from.y + e.to.y) / 2;
             const d = `M ${e.from.x} ${e.from.y + NODE_R} C ${e.from.x} ${midY}, ${e.to.x} ${midY}, ${e.to.x} ${e.to.y - NODE_R}`;
+            const animating = recentlyMasteredId && (e.pid === recentlyMasteredId || e.tid === recentlyMasteredId);
             return (
-              <path key={i} d={d} fill="none" stroke={stroke} strokeWidth="3" strokeOpacity={opacity}
-                strokeLinecap="round" filter={lit ? 'url(#glow)' : undefined} />
+              <path key={`${e.pid}-${e.tid}-${recentlyMasteredId || ''}`}
+                d={d} fill="none" stroke={stroke} strokeWidth={animating ? 4 : 3} strokeOpacity={opacity}
+                strokeLinecap="round" filter={(lit || animating) ? 'url(#glow)' : undefined}
+                pathLength={animating ? 1 : undefined}
+                strokeDasharray={animating ? '1' : undefined}>
+                {animating && (
+                  <animate attributeName="stroke-dashoffset" from="1" to="0" dur="1.2s" fill="freeze" />
+                )}
+              </path>
             );
           })}
         </svg>
@@ -3962,7 +4000,7 @@ function SkillTreeGraph({ tricks, onOpenTrick, weeklyGoals = [], onAddFocus, onR
   );
 }
 
-function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, trainingSessions = [], streak = 0, fireCelebration }) {
+function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, trainingSessions = [], streak = 0, fireCelebration, recentlyMasteredId = null }) {
   const FOCUS_KEY = '__focus__';
   const TIERS = ['Easy', 'Medium', 'Hard', 'Super'];
   const trickCategories = [...new Set(tricks.map(t => t.category))].sort((a, b) => {
@@ -4368,6 +4406,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
               onAddFocus={addSuggestion}
               onRemoveFocus={removeGoal}
               newlyUnlockedIds={nextUnlockable.map(t => t.id)}
+              recentlyMasteredId={recentlyMasteredId}
             />
             <div className="text-[11px] text-slate-500 text-center px-2 leading-relaxed">
               Tap a node for quick actions or to open details. Locked tricks (🔒) unlock when you master their prerequisite.
