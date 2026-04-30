@@ -17,6 +17,18 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.32',
+    date: '2026-04-30',
+    title: 'Use a session as a template',
+    notes: [
+      'Session detail modal gets a new 📋 Use as template action that opens a 3-step flow.',
+      'Step 1: pick when — Tomorrow / Next open day / Same weekday next week / pick a custom date. The Tomorrow card flags REPLACES PLAN if a plan already exists.',
+      'Step 2: tweak what carries — focus tricks (with × remove + add another), session character toggle (carry tags into the intent), duration hint toggle, plus a Why this session? note with a smart placeholder.',
+      'Step 3: confirm — success state plus pattern detection: if you\'ve used the same trick set ≥3 times before, a prompt offers to save the shape as a named template.',
+      'Templates persist via a new templates field; this commit adds saving (apply templates UI to come later).',
+    ],
+  },
+  {
     version: '1.31',
     date: '2026-04-30',
     title: 'Sessions browser',
@@ -1207,6 +1219,7 @@ function MainApp({ user }) {
   const [plannedSessionFocus, setPlannedSessionFocus] = useState({});
   const [plannedSessionDismissed, setPlannedSessionDismissed] = useState({});
   const [plannedSessionIntents, setPlannedSessionIntents] = useState({});
+  const [templates, setTemplates] = useState([]);
   const [globalVideos, setGlobalVideos] = useState({});
   const [communityTricks, setCommunityTricks] = useState([]);
   const [viewedTricks, setViewedTricks] = useState([]);
@@ -1245,7 +1258,7 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData, plannedIntentsData, viewedData, onboardingData] =
+        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData, plannedIntentsData, templatesData, viewedData, onboardingData] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
@@ -1260,6 +1273,7 @@ function MainApp({ user }) {
             loadUserData(user.uid, 'plannedSessionFocus'),
             loadUserData(user.uid, 'plannedSessionDismissed'),
             loadUserData(user.uid, 'plannedSessionIntents'),
+            loadUserData(user.uid, 'templates'),
             loadUserData(user.uid, 'viewedTricks'),
             loadUserData(user.uid, 'onboardingComplete'),
           ]);
@@ -1369,6 +1383,7 @@ function MainApp({ user }) {
         if (plannedFocusData) setPlannedSessionFocus(plannedFocusData);
         if (plannedDismissedData) setPlannedSessionDismissed(plannedDismissedData);
         if (plannedIntentsData) setPlannedSessionIntents(plannedIntentsData);
+        if (Array.isArray(templatesData)) setTemplates(templatesData);
         if (viewedData) setViewedTricks(viewedData);
 
         if (onboardingData === true) {
@@ -1408,6 +1423,7 @@ function MainApp({ user }) {
   const savePlannedSessionFocus = async (f) => { setPlannedSessionFocus(f); await saveUserData(user.uid, 'plannedSessionFocus', f); };
   const savePlannedSessionDismissed = async (d) => { setPlannedSessionDismissed(d); await saveUserData(user.uid, 'plannedSessionDismissed', d); };
   const savePlannedSessionIntents = async (i) => { setPlannedSessionIntents(i); await saveUserData(user.uid, 'plannedSessionIntents', i); };
+  const saveTemplates = async (t) => { setTemplates(t); await saveUserData(user.uid, 'templates', t); };
 
   const celebrateLanding = (oldProgress, newProgress, trick) => {
     const oldSet = new Set(Array.isArray(oldProgress) ? oldProgress : []);
@@ -1680,6 +1696,7 @@ function MainApp({ user }) {
             plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
             plannedSessionDismissed={plannedSessionDismissed} savePlannedSessionDismissed={savePlannedSessionDismissed}
             plannedSessionIntents={plannedSessionIntents} savePlannedSessionIntents={savePlannedSessionIntents}
+            templates={templates} saveTemplates={saveTemplates}
             streak={streak}
             section={trainingSection} setSection={setTrainingSection}
             onUpdateTrickStatus={updateTrickStatus} />
@@ -2546,7 +2563,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, streak = 0, section, setSection, onUpdateTrickStatus }) {
+function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, templates = [], saveTemplates, streak = 0, section, setSection, onUpdateTrickStatus }) {
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const [newJournalEntry, setNewJournalEntry] = useState('');
   const [expandedWeek, setExpandedWeek] = useState(null);
@@ -2654,6 +2671,15 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
           trainingSessions={trainingSessions}
           saveTrainingSessions={saveTrainingSessions}
           tricks={tricks}
+          plannedSessionFocus={plannedSessionFocus}
+          savePlannedSessionFocus={savePlannedSessionFocus}
+          plannedSessionIntents={plannedSessionIntents}
+          savePlannedSessionIntents={savePlannedSessionIntents}
+          plannedDays={plannedDays}
+          plannedMonths={plannedMonths}
+          plannedWeeks={plannedWeeks}
+          templates={templates}
+          saveTemplates={saveTemplates}
           onOpenTrick={onOpenTrick}
           onClose={() => setSection('log')} />
       ) : (
@@ -3786,7 +3812,364 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   );
 }
 
-function SessionDetailModal({ session, tricks = [], onClose, onDelete, onOpenTrick }) {
+function UseAsTemplateModal({ sourceSession, tricks = [], plannedDays = [], plannedMonths = [], plannedWeeks = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionIntents = {}, savePlannedSessionIntents, trainingSessions = [], templates = [], saveTemplates, onClose }) {
+  const [step, setStep] = useState(1);
+  const [targetDate, setTargetDate] = useState(null);
+  const [customDate, setCustomDate] = useState('');
+  const initialTrickIds = Array.isArray(sourceSession?.practicedTricks) ? sourceSession.practicedTricks : [];
+  const [carryTrickIds, setCarryTrickIds] = useState(initialTrickIds);
+  const [carryTags, setCarryTags] = useState(true);
+  const [carryDuration, setCarryDuration] = useState(false);
+  const [intent, setIntent] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [savedTemplateId, setSavedTemplateId] = useState(null);
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split('T')[0];
+  const sourceDate = sourceSession?.date;
+  const sourceWeekday = sourceDate ? new Date(sourceDate + 'T00:00:00').getDay() : null;
+
+  const weekOfMonth = (date) => Math.ceil(date.getDate() / 7);
+  const isPlannedDay = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    if (Array.isArray(plannedDays) && plannedDays.length > 0 && !plannedDays.includes(d.getDay())) return false;
+    if (Array.isArray(plannedMonths) && plannedMonths.length > 0 && !plannedMonths.includes(d.getMonth())) return false;
+    if (Array.isArray(plannedWeeks) && plannedWeeks.length > 0 && !plannedWeeks.includes(weekOfMonth(d))) return false;
+    const anySelected = (plannedDays?.length || 0) + (plannedMonths?.length || 0) + (plannedWeeks?.length || 0);
+    return anySelected > 0;
+  };
+
+  const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
+  const dateHasSession = (ds) => safeSessions.some(s => s.date === ds);
+
+  const tomorrowD = new Date(today); tomorrowD.setDate(today.getDate() + 1);
+  const tomorrowStr = tomorrowD.toISOString().split('T')[0];
+  const tomorrowTrainable = isPlannedDay(tomorrowStr);
+
+  const findNextOpenDay = () => {
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date(today); d.setDate(today.getDate() + i);
+      const ds = d.toISOString().split('T')[0];
+      if (!isPlannedDay(ds)) continue;
+      if (dateHasSession(ds)) continue;
+      const focus = plannedSessionFocus[ds];
+      if (Array.isArray(focus) && focus.length > 0) continue;
+      return ds;
+    }
+    return null;
+  };
+  const nextOpenStr = findNextOpenDay();
+
+  let sameWeekdayStr = null;
+  if (sourceDate) {
+    const next = new Date(sourceDate + 'T00:00:00');
+    next.setDate(next.getDate() + 7);
+    if (next > today) sameWeekdayStr = next.toISOString().split('T')[0];
+  }
+
+  const fmtDateLabel = (ds) => {
+    if (!ds) return '';
+    const d = new Date(ds + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  };
+  const fmtShortDate = (ds) => {
+    if (!ds) return '';
+    const d = new Date(ds + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  const sourceTricks = initialTrickIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
+  const sourceTags = Array.isArray(sourceSession?.focusTags) ? sourceSession.focusTags : [];
+  const sourceDuration = sourceSession?.durationMinutes || 0;
+
+  const carryTricks = carryTrickIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
+  const addable = tricks.filter(t => !carryTrickIds.includes(t.id) && t.status !== 'got_it')
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Pattern detection: count past sessions with the exact same trick set as the carry list
+  const carrySetKey = [...carryTrickIds].sort().join(',');
+  const matchingHistoryCount = safeSessions.filter(s => {
+    const ids = Array.isArray(s.practicedTricks) ? [...s.practicedTricks].sort() : [];
+    return ids.join(',') === carrySetKey;
+  }).length;
+  const suggestTemplateName = (() => {
+    if (sourceTags[0]) return `${sourceTags[0]} session`;
+    if (carryTricks.length > 0) {
+      const cat = carryTricks[0].category;
+      return `${cat} flow`;
+    }
+    return 'Saved session';
+  })();
+  const alreadyTemplated = templates.some(t => {
+    const tIds = Array.isArray(t.trickIds) ? [...t.trickIds].sort().join(',') : '';
+    return tIds === carrySetKey;
+  });
+
+  const datePickAt = step === 1 && targetDate ? targetDate : null;
+
+  const applyPlan = async () => {
+    if (!targetDate || submitting) return;
+    setSubmitting(true);
+    try {
+      const nextFocus = { ...plannedSessionFocus, [targetDate]: carryTrickIds };
+      await savePlannedSessionFocus(nextFocus);
+      const nextIntents = { ...plannedSessionIntents };
+      if (intent && intent.trim()) nextIntents[targetDate] = intent.trim();
+      else if (carryTags && sourceTags.length > 0) {
+        nextIntents[targetDate] = `Repeat what worked ${fmtShortDate(sourceDate)} (${sourceTags.map(t => '#' + t).join(' ')})`;
+      } else if (sourceDate) {
+        nextIntents[targetDate] = `Repeat what worked ${fmtShortDate(sourceDate)}`;
+      }
+      await savePlannedSessionIntents(nextIntents);
+      setStep(3);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const saveAsTemplate = async () => {
+    if (!saveTemplates || alreadyTemplated) return;
+    const newTemplate = {
+      id: Date.now(),
+      name: suggestTemplateName,
+      sourceSessionId: sourceSession?.id || null,
+      createdAt: Date.now(),
+      useCount: 1,
+      lastUsedAt: Date.now(),
+      trickIds: [...carryTrickIds],
+      carryTags,
+      tags: carryTags ? sourceTags : [],
+      carryDuration,
+      durationMinutes: carryDuration ? sourceDuration : 0,
+      defaultIntent: intent.trim(),
+    };
+    await saveTemplates([...templates, newTemplate]);
+    setSavedTemplateId(newTemplate.id);
+  };
+
+  const dotFor = (n) => (
+    <span className={`h-2 rounded-full transition ${step === n ? 'w-6 bg-purple-300' : step > n ? 'w-2 bg-purple-500' : 'w-2 bg-slate-700'}`} />
+  );
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-t sm:border border-purple-500/40 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-full sm:max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-slate-900 border-b border-slate-800 px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">{dotFor(1)}{dotFor(2)}{dotFor(3)}</div>
+          <button onClick={onClose} className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300"><X className="w-3.5 h-3.5" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          {step === 1 && (
+            <>
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">Step 1 of 3</div>
+                <h2 className="font-black text-xl">Plan this for…</h2>
+              </div>
+
+              {sourceSession && (
+                <div className="bg-slate-800/60 border border-green-500/30 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center"><Check className="w-3.5 h-3.5 text-white" strokeWidth={3} /></div>
+                    <div className="text-[10px] font-black uppercase tracking-wider text-green-300">Source · {fmtShortDate(sourceDate)}</div>
+                  </div>
+                  <div className="flex items-center flex-wrap gap-1 mb-1">
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-200">{sourceTricks.length} {sourceTricks.length === 1 ? 'trick' : 'tricks'}</span>
+                    {sourceDuration > 0 && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-200">~{sourceDuration} min</span>}
+                    {sourceTags.map(t => <span key={t} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/30">#{t}</span>)}
+                  </div>
+                  <div className="text-xs text-slate-300 truncate">{sourceTricks.map(t => t.name).join(', ')}</div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {tomorrowTrainable && (
+                  <button onClick={() => { setTargetDate(tomorrowStr); setStep(2); }}
+                    className={`w-full text-left rounded-xl p-3 border-2 transition ${targetDate === tomorrowStr ? 'border-purple-400 bg-purple-500/15' : 'border-slate-700 bg-slate-800/60 hover:bg-slate-800'}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-black text-sm">Tomorrow</div>
+                        <div className="text-[11px] text-slate-400">{fmtDateLabel(tomorrowStr)}</div>
+                      </div>
+                      {plannedSessionFocus[tomorrowStr]?.length > 0 && (
+                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-red-500/20 text-red-200 border border-red-500/40">REPLACES PLAN</span>
+                      )}
+                    </div>
+                  </button>
+                )}
+
+                {nextOpenStr && nextOpenStr !== tomorrowStr && (
+                  <button onClick={() => { setTargetDate(nextOpenStr); setStep(2); }}
+                    className={`w-full text-left rounded-xl p-3 border-2 transition ${targetDate === nextOpenStr ? 'border-purple-400 bg-purple-500/15' : 'border-slate-700 bg-slate-800/60 hover:bg-slate-800'}`}>
+                    <div className="font-black text-sm">Next open day</div>
+                    <div className="text-[11px] text-slate-400">{fmtDateLabel(nextOpenStr)}</div>
+                  </button>
+                )}
+
+                {sameWeekdayStr && sameWeekdayStr !== tomorrowStr && sameWeekdayStr !== nextOpenStr && (
+                  <button onClick={() => { setTargetDate(sameWeekdayStr); setStep(2); }}
+                    className={`w-full text-left rounded-xl p-3 border-2 transition ${targetDate === sameWeekdayStr ? 'border-purple-400 bg-purple-500/15' : 'border-slate-700 bg-slate-800/60 hover:bg-slate-800'}`}>
+                    <div className="font-black text-sm">Same weekday next week</div>
+                    <div className="text-[11px] text-slate-400">{fmtDateLabel(sameWeekdayStr)}</div>
+                  </button>
+                )}
+
+                <div className="bg-slate-800/40 border border-dashed border-slate-700 rounded-xl p-3 space-y-2">
+                  <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" /> Or pick a different date
+                  </label>
+                  <div className="flex gap-2">
+                    <input type="date" value={customDate} onChange={(e) => setCustomDate(e.target.value)}
+                      min={todayStr}
+                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm" />
+                    <button onClick={() => { if (customDate && customDate >= todayStr) { setTargetDate(customDate); setStep(2); } }}
+                      disabled={!customDate || customDate < todayStr}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white disabled:opacity-40">
+                      Use →
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button onClick={onClose} className="w-full text-center text-xs text-slate-400 hover:text-slate-200 py-1">Cancel</button>
+            </>
+          )}
+
+          {step === 2 && targetDate && (
+            <>
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">Step 2 of 3</div>
+                <h2 className="font-black text-xl">Tweak what carries</h2>
+              </div>
+
+              <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-2 flex items-center gap-2 text-[11px]">
+                <span className="text-slate-400">From:</span>
+                <span className="font-bold text-slate-200">{fmtShortDate(sourceDate)}</span>
+                <span className="text-slate-500">→</span>
+                <span className="text-purple-300 font-bold">{fmtShortDate(targetDate)}</span>
+              </div>
+
+              <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-3 space-y-2">
+                <div className="text-sm font-bold flex items-center justify-between">
+                  <span>🎯 Focus tricks</span>
+                  <span className="text-[10px] font-bold text-purple-300">{carryTricks.length} carrying</span>
+                </div>
+                {carryTricks.length === 0 ? (
+                  <div className="text-[11px] text-slate-400 italic">No tricks — add at least one below.</div>
+                ) : (
+                  carryTricks.map(t => (
+                    <div key={t.id} className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg p-2">
+                      <CategoryIcon category={t.category} size={16} />
+                      <span className="flex-1 truncate text-sm">{t.name}</span>
+                      <button onClick={() => setCarryTrickIds(arr => arr.filter(x => x !== t.id))} className="text-slate-500 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))
+                )}
+                {addable.length > 0 && (
+                  <select value="" onChange={(e) => { if (e.target.value) setCarryTrickIds(arr => [...arr, parseInt(e.target.value, 10)]); }}
+                    className="w-full bg-slate-800 border border-dashed border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5">
+                    <option value="">+ Add another trick…</option>
+                    {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
+                  </select>
+                )}
+              </div>
+
+              {sourceTags.length > 0 && (
+                <button onClick={() => setCarryTags(v => !v)}
+                  className={`w-full text-left rounded-xl p-3 border-2 transition ${carryTags ? 'border-purple-400/60 bg-purple-500/10' : 'border-slate-700 bg-slate-800/40'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-bold">🏷️ Session character</div>
+                      <div className="text-[11px] text-slate-400">Carry the {sourceTags.map(t => '#' + t).join(' ')} tag{sourceTags.length === 1 ? '' : 's'} into the intent</div>
+                    </div>
+                    <div className={`w-9 h-5 rounded-full p-0.5 transition flex-shrink-0 ${carryTags ? 'bg-purple-500' : 'bg-slate-700'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white transition ${carryTags ? 'translate-x-4' : ''}`} />
+                    </div>
+                  </div>
+                </button>
+              )}
+
+              {sourceDuration > 0 && (
+                <button onClick={() => setCarryDuration(v => !v)}
+                  className={`w-full text-left rounded-xl p-3 border-2 transition ${carryDuration ? 'border-purple-400/60 bg-purple-500/10' : 'border-slate-700 bg-slate-800/40'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-bold">⏱️ Duration hint</div>
+                      <div className="text-[11px] text-slate-400">Show "expected ~{sourceDuration} min" on the planned day</div>
+                    </div>
+                    <div className={`w-9 h-5 rounded-full p-0.5 transition flex-shrink-0 ${carryDuration ? 'bg-purple-500' : 'bg-slate-700'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white transition ${carryDuration ? 'translate-x-4' : ''}`} />
+                    </div>
+                  </div>
+                </button>
+              )}
+
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Why this session?</label>
+                <textarea value={intent} onChange={(e) => setIntent(e.target.value)}
+                  placeholder={`Repeat what worked ${fmtShortDate(sourceDate)}…`}
+                  rows={2}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs resize-none" />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button onClick={() => setStep(1)} className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200">‹ Back</button>
+                <button onClick={applyPlan} disabled={carryTrickIds.length === 0 || submitting}
+                  className="flex-1 py-2 rounded-lg text-sm font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white disabled:opacity-40">
+                  {submitting ? 'Applying…' : 'Apply to plan →'}
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 3 && targetDate && (
+            <>
+              <div className="text-center py-4">
+                <div className="inline-flex w-14 h-14 rounded-full bg-green-500 items-center justify-center mb-3 shadow-lg shadow-green-500/30">
+                  <Check className="w-8 h-8 text-white" strokeWidth={3} />
+                </div>
+                <h2 className="font-black text-xl">Plan applied</h2>
+                <div className="text-sm text-slate-400 mt-1">{fmtDateLabel(targetDate)} is now planned with {carryTricks.length} {carryTricks.length === 1 ? 'focus trick' : 'focus tricks'}.</div>
+              </div>
+
+              <div className="bg-slate-800/60 border border-purple-500/40 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-purple-500 text-white">PLANNED</span>
+                  <span className="text-[11px] font-bold text-slate-200">{fmtShortDate(targetDate)}</span>
+                </div>
+                <div className="text-xs text-slate-300">{carryTricks.map(t => t.name).join(', ')}</div>
+                {intent && <div className="text-[11px] text-slate-400 italic mt-1">"{intent}"</div>}
+              </div>
+
+              {matchingHistoryCount >= 3 && !alreadyTemplated && saveTemplates && !savedTemplateId && (
+                <div className="bg-purple-500/10 border border-purple-500/40 rounded-xl p-3">
+                  <div className="text-sm font-bold mb-1">📌 Pattern detected</div>
+                  <div className="text-[11px] text-slate-300 mb-2">You've used this session shape <span className="font-bold text-purple-200">{matchingHistoryCount}</span> times. Want to save it as a named template?</div>
+                  <button onClick={saveAsTemplate}
+                    className="w-full py-1.5 rounded-lg text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white">
+                    Save as "{suggestTemplateName}"
+                  </button>
+                </div>
+              )}
+              {savedTemplateId && (
+                <div className="bg-green-500/10 border border-green-500/40 rounded-xl p-3 text-center">
+                  <div className="text-sm font-bold text-green-300">✓ Template saved</div>
+                  <div className="text-[11px] text-slate-300 mt-0.5">"{suggestTemplateName}" is now in your templates.</div>
+                </div>
+              )}
+
+              <button onClick={onClose}
+                className="w-full text-center text-xs text-slate-400 hover:text-slate-200 py-2">
+                Done
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SessionDetailModal({ session, tricks = [], onClose, onDelete, onOpenTrick, onUseAsTemplate }) {
   if (!session) return null;
   const d = new Date(session.date + 'T00:00:00');
   const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
@@ -3879,7 +4262,13 @@ function SessionDetailModal({ session, tricks = [], onClose, onDelete, onOpenTri
             </div>
           )}
 
-          <div className="pt-2 border-t border-slate-800">
+          <div className="pt-2 border-t border-slate-800 space-y-2">
+            {onUseAsTemplate && (
+              <button onClick={() => onUseAsTemplate(session)}
+                className="w-full py-2 rounded-lg text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40">
+                📋 Use as template
+              </button>
+            )}
             {onDelete && (
               <button onClick={() => { if (window.confirm('Delete this session?')) { onDelete(session.id); onClose && onClose(); } }}
                 className="w-full py-2 rounded-lg text-xs font-bold bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30">
@@ -3893,11 +4282,12 @@ function SessionDetailModal({ session, tricks = [], onClose, onDelete, onOpenTri
   );
 }
 
-function SessionsBrowser({ trainingSessions = [], saveTrainingSessions, tricks = [], onClose, onOpenTrick }) {
+function SessionsBrowser({ trainingSessions = [], saveTrainingSessions, tricks = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionIntents = {}, savePlannedSessionIntents, plannedDays = [], plannedMonths = [], plannedWeeks = [], templates = [], saveTemplates, onClose, onOpenTrick }) {
   const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [templateSession, setTemplateSession] = useState(null);
   const [monthLimits, setMonthLimits] = useState({});
 
   const totalSessions = safeSessions.length;
@@ -4094,7 +4484,18 @@ function SessionsBrowser({ trainingSessions = [], saveTrainingSessions, tricks =
         <SessionDetailModal session={selectedSession} tricks={tricks}
           onClose={() => setSelectedSessionId(null)}
           onDelete={removeSession}
-          onOpenTrick={onOpenTrick} />
+          onOpenTrick={onOpenTrick}
+          onUseAsTemplate={(s) => setTemplateSession(s)} />
+      )}
+
+      {templateSession && (
+        <UseAsTemplateModal sourceSession={templateSession} tricks={tricks}
+          plannedDays={plannedDays} plannedMonths={plannedMonths} plannedWeeks={plannedWeeks}
+          plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
+          plannedSessionIntents={plannedSessionIntents} savePlannedSessionIntents={savePlannedSessionIntents}
+          trainingSessions={trainingSessions}
+          templates={templates} saveTemplates={saveTemplates}
+          onClose={() => setTemplateSession(null)} />
       )}
     </div>
   );
