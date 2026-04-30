@@ -2179,7 +2179,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
         onClick={onAddNew}
         className="w-full bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-lg"
       >
-        <Plus className="w-5 h-5" /> Add new trick
+        <Plus className="w-5 h-5" /> Suggest a trick
       </button>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -5519,8 +5519,8 @@ function AddTab({ user, setActiveTab }) {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <div className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-5">
-        <div className="flex items-center gap-2 mb-1"><Plus className="w-5 h-5 text-purple-400" /><h2 className="font-bold text-lg">Add a new trick suggestion</h2></div>
-        <div className="text-xs text-slate-400 mb-3">Submitted suggestions are reviewed by an admin before being published to everyone.</div>
+        <div className="flex items-center gap-2 mb-1"><Plus className="w-5 h-5 text-purple-400" /><h2 className="font-bold text-lg">Suggest a trick</h2></div>
+        <div className="text-xs text-slate-400 mb-3">An admin reviews your suggestion before it shows up for the whole family.</div>
         <div className="space-y-4">
           <div><div className="text-xs font-semibold text-slate-400 uppercase mb-1">Trick name</div><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Triple Backflip" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" /></div>
           <div>
@@ -5587,7 +5587,7 @@ function AddTab({ user, setActiveTab }) {
               <div className="font-mono">{submitError}</div>
             </div>
           )}
-          <button onClick={submit} disabled={!name.trim() || submitting} className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold disabled:opacity-50 hover:scale-[1.02] active:scale-95 transition">{sent ? '✅ Sent for review!' : submitting ? 'Sending…' : 'Send in request'}</button>
+          <button onClick={submit} disabled={!name.trim() || submitting} className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold disabled:opacity-50 hover:scale-[1.02] active:scale-95 transition">{sent ? '✅ Sent for review!' : submitting ? 'Sending…' : 'Send suggestion'}</button>
         </div>
       </div>
     </div>
