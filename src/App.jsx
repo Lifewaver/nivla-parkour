@@ -17,6 +17,19 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.30',
+    date: '2026-04-30',
+    title: 'Today\'s session as five phases',
+    notes: [
+      'No more Warm up / Strength sub-tabs — everything sits on one scroll under a "Today\'s session" header.',
+      'Five collapsible phase cards: Plan · Warm up · Strength · Train · Log. Each has a numbered circle that turns green ✓ when complete or amber when in progress, plus a one-line subtitle ("3/14 done", "1/2 touched"…).',
+      'Five-segment progress bar above the cards mirrors phase state at a glance.',
+      'New Train phase: per focus trick row with ▶ Tutorial shortcut and Same / → Next status buttons that advance the trick by one notch (not_started → want_to_learn → training → got_it).',
+      'Trick advances captured during the session are saved onto the session record (trickStatusChanges) for future "from → to" arrows in the session detail modal.',
+      'Today tab\'s Warm up / Strength / Log it buttons now scroll to and expand the matching phase card.',
+    ],
+  },
+  {
     version: '1.29',
     date: '2026-04-30',
     title: 'One planning surface',
@@ -1654,7 +1667,8 @@ function MainApp({ user }) {
             plannedSessionDismissed={plannedSessionDismissed} savePlannedSessionDismissed={savePlannedSessionDismissed}
             plannedSessionIntents={plannedSessionIntents} savePlannedSessionIntents={savePlannedSessionIntents}
             streak={streak}
-            section={trainingSection} setSection={setTrainingSection} />
+            section={trainingSection} setSection={setTrainingSection}
+            onUpdateTrickStatus={updateTrickStatus} />
         )}
         {activeTab === 'progress' && (
           <ProgressTab stats={stats} tricks={tricks} earnedBadges={earnedBadges} trainingDays={trainingDays} />
@@ -2518,7 +2532,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, streak = 0, section, setSection }) {
+function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal, saveJournal, onOpenTrick, weeklyFocus = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, streak = 0, section, setSection, onUpdateTrickStatus }) {
   const [newGoalTrickId, setNewGoalTrickId] = useState('');
   const [newJournalEntry, setNewJournalEntry] = useState('');
   const [expandedWeek, setExpandedWeek] = useState(null);
@@ -2621,96 +2635,42 @@ function TrainingTab({ weeklyGoals, saveGoals, tricks, completedWarmups, saveWar
 
   return (
     <div className="max-w-2xl mx-auto">
-      {section === 'log' && (
-        <TrainingLogSection
-          trainingDays={trainingDays}
-          trainingSessions={trainingSessions}
-          saveTrainingSessions={saveTrainingSessions}
-          markDayTrained={markDayTrained}
-          plannedDays={plannedDays}
-          savePlannedDays={savePlannedDays}
-          plannedMonths={plannedMonths}
-          savePlannedMonths={savePlannedMonths}
-          plannedWeeks={plannedWeeks}
-          savePlannedWeeks={savePlannedWeeks}
-          plannedSessionFocus={plannedSessionFocus}
-          savePlannedSessionFocus={savePlannedSessionFocus}
-          plannedSessionDismissed={plannedSessionDismissed}
-          savePlannedSessionDismissed={savePlannedSessionDismissed}
-          plannedSessionIntents={plannedSessionIntents}
-          savePlannedSessionIntents={savePlannedSessionIntents}
-          streak={streak}
-          tricks={tricks}
-          weeklyGoals={weeklyGoals}
-          setSection={setSection}
-          onOpenTrick={onOpenTrick}
-        />
-      )}
-
-      {section === 'warmup' && (
-        <div className="space-y-3">
-          <button onClick={() => setSection('log')} className="text-sm text-purple-300 hover:text-purple-200 font-semibold flex items-center gap-1">
-            <ArrowLeft className="w-4 h-4" /> Back to Planing and Log
-          </button>
-          <div className="bg-slate-800/50 border border-orange-500/30 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div><div className="font-bold">Warm-up routine</div><div className="text-sm text-slate-400">{todayWarmups.length}/{WARMUPS.length} completed today</div></div>
-              {todayWarmups.length > 0 && <button onClick={resetWarmups} className="text-xs text-slate-400 hover:text-white">Reset</button>}
-            </div>
-            <div className="space-y-2">
-              {WARMUPS.map(w => {
-                const done = todayWarmups.includes(w.id);
-                return (
-                  <div key={w.id} className={`p-3 rounded-xl border transition ${done ? 'bg-green-500/20 border-green-500/50' : 'bg-slate-800 border-slate-700'}`}>
-                    <button onClick={() => toggleWarmup(w.id)} className="w-full flex items-center gap-3 text-left">
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${done ? 'bg-green-500 border-green-500' : 'border-slate-500'}`}>{done && <Check className="w-4 h-4 text-white" />}</div>
-                      <div className="flex-1"><div className={`font-semibold ${done ? 'line-through text-slate-400' : ''}`}>{w.name}</div><div className="text-xs text-slate-400">{w.duration} · {w.desc}</div></div>
-                    </button>
-                    <ExerciseTimer totalSeconds={w.seconds} color="orange" />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {section === 'conditioning' && (
-        <div className="space-y-3">
-          <button onClick={() => setSection('log')} className="text-sm text-purple-300 hover:text-purple-200 font-semibold flex items-center gap-1">
-            <ArrowLeft className="w-4 h-4" /> Back to Planing and Log
-          </button>
-          <div className="bg-slate-800/50 border border-blue-500/30 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div><div className="font-bold">Strength</div><div className="text-sm text-slate-400">{todayConditioning.length}/{CONDITIONING.length} completed today</div></div>
-              {todayConditioning.length > 0 && <button onClick={resetConditioning} className="text-xs text-slate-400 hover:text-white">Reset</button>}
-            </div>
-            <div className="space-y-2">
-              {CONDITIONING.map(c => {
-                const done = todayConditioning.includes(c.id);
-                return (
-                  <div key={c.id} className={`p-3 rounded-xl border transition ${done ? 'bg-green-500/20 border-green-500/50' : 'bg-slate-800 border-slate-700'}`}>
-                    <button onClick={() => toggleConditioning(c.id)} className="w-full flex items-center gap-3 text-left">
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${done ? 'bg-green-500 border-green-500' : 'border-slate-500'}`}>{done && <Check className="w-4 h-4 text-white" />}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between gap-2"><div className={`font-semibold ${done ? 'line-through text-slate-400' : ''}`}>{c.name}</div><div className="text-xs font-bold text-blue-400 bg-blue-500/20 px-2 py-1 rounded flex-shrink-0">{c.reps}</div></div>
-                        <div className="text-xs text-slate-400 mt-1">{c.desc}</div>
-                      </div>
-                    </button>
-                    <ExerciseTimer totalSeconds={c.seconds} color="blue" />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
+      <TrainingLogSection
+        trainingDays={trainingDays}
+        trainingSessions={trainingSessions}
+        saveTrainingSessions={saveTrainingSessions}
+        markDayTrained={markDayTrained}
+        plannedDays={plannedDays}
+        savePlannedDays={savePlannedDays}
+        plannedMonths={plannedMonths}
+        savePlannedMonths={savePlannedMonths}
+        plannedWeeks={plannedWeeks}
+        savePlannedWeeks={savePlannedWeeks}
+        plannedSessionFocus={plannedSessionFocus}
+        savePlannedSessionFocus={savePlannedSessionFocus}
+        plannedSessionDismissed={plannedSessionDismissed}
+        savePlannedSessionDismissed={savePlannedSessionDismissed}
+        plannedSessionIntents={plannedSessionIntents}
+        savePlannedSessionIntents={savePlannedSessionIntents}
+        streak={streak}
+        tricks={tricks}
+        weeklyGoals={weeklyGoals}
+        completedWarmups={completedWarmups}
+        toggleWarmup={toggleWarmup}
+        resetWarmups={resetWarmups}
+        completedConditioning={completedConditioning}
+        toggleConditioning={toggleConditioning}
+        resetConditioning={resetConditioning}
+        section={section}
+        setSection={setSection}
+        onOpenTrick={onOpenTrick}
+        onUpdateTrickStatus={onUpdateTrickStatus}
+      />
     </div>
   );
 }
 
-function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, streak, tricks = [], weeklyGoals = [], setSection, onOpenTrick }) {
+function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], savePlannedMonths, plannedWeeks = [], savePlannedWeeks, plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, savePlannedSessionDismissed, plannedSessionIntents = {}, savePlannedSessionIntents, streak, tricks = [], weeklyGoals = [], completedWarmups = {}, toggleWarmup, resetWarmups, completedConditioning = {}, toggleConditioning, resetConditioning, section, setSection, onOpenTrick, onUpdateTrickStatus }) {
   const FOCUS_TAGS = ['landning', 'flow', 'vips', 'strength', 'precision', 'flips', 'jump', 'tricks', 'leap', 'swings', 'vaults', 'gymnastics'];
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
@@ -2909,7 +2869,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
   const startLogFor = (dateStr) => {
     setDate(dateStr);
     if (typeof window !== 'undefined') {
-      const el = document.getElementById('training-log-form');
+      const el = document.getElementById('phase-log');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
@@ -2952,6 +2912,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
 
   const submit = async () => {
     if (!date) return;
+    const realChanges = sessionTrickAdvances.filter(a => a.fromStatus !== a.toStatus);
     const entry = {
       id: Date.now(),
       date,
@@ -2960,11 +2921,13 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
       rpe: Number(rpe),
       durationMinutes: duration ? Math.max(0, parseInt(duration, 10) || 0) : 0,
       notes: notes.trim(),
+      trickStatusChanges: realChanges,
       createdAt: Date.now(),
     };
     await saveTrainingSessions([entry, ...safeSessions]);
     if (markDayTrained) await markDayTrained(date);
     setTags([]); setDuration(''); setNotes(''); setRpe(6); setDate(today); setPracticedTricks([]);
+    setSessionTrickAdvances([]);
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 2000);
   };
@@ -2986,6 +2949,52 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
     return m;
   });
   const [selectedDayDate, setSelectedDayDate] = useState(null);
+  const [expandedPhase, setExpandedPhase] = useState(() => {
+    if (section === 'warmup') return 'warmup';
+    if (section === 'conditioning') return 'strength';
+    if (section === 'log') return 'log';
+    return null;
+  });
+  const [sessionTrickAdvances, setSessionTrickAdvances] = useState([]);
+
+  useEffect(() => {
+    if (!section) return;
+    const target = section === 'conditioning' ? 'strength' : section === 'log' ? 'log' : section === 'warmup' ? 'warmup' : null;
+    if (!target) return;
+    setExpandedPhase(target);
+    setTimeout(() => {
+      const el = document.getElementById(`phase-${target}`);
+      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  }, [section]);
+
+  const safeWarmups = completedWarmups || {};
+  const safeConditioning = completedConditioning || {};
+  const todayWarmups = safeWarmups[today] || [];
+  const todayConditioning = safeConditioning[today] || [];
+
+  const advanceTrickLevel = (t) => {
+    if (!onUpdateTrickStatus || !t) return;
+    const fromStatus = t.status || 'not_started';
+    let toStatus;
+    if (fromStatus === 'not_started') toStatus = 'want_to_learn';
+    else if (fromStatus === 'want_to_learn') toStatus = 'training';
+    else if (fromStatus === 'training') toStatus = 'got_it';
+    else return;
+    onUpdateTrickStatus(t.id, toStatus);
+    setSessionTrickAdvances(prev => {
+      const without = prev.filter(a => a.trickId !== t.id);
+      return [...without, { trickId: t.id, fromStatus, toStatus }];
+    });
+  };
+
+  const nextStatusLabel = (t) => {
+    const fromStatus = t?.status || 'not_started';
+    if (fromStatus === 'not_started') return 'Want to learn';
+    if (fromStatus === 'want_to_learn') return 'Training';
+    if (fromStatus === 'training') return 'Got it';
+    return null;
+  };
 
   const weekDates = (() => {
     const out = [];
@@ -3210,7 +3219,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
                 {intent && (
                   <div className="text-xs text-slate-300 bg-slate-800/60 border border-slate-700 rounded-lg p-2 italic">"{intent}"</div>
                 )}
-                <button onClick={() => { setSelectedDayDate(null); setTimeout(() => { const el = document.getElementById('training-log-form'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); }}
+                <button onClick={() => { setSelectedDayDate(null); setExpandedPhase('log'); setTimeout(() => { const el = document.getElementById('phase-log'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); }}
                   className="w-full py-2 rounded-lg text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white">📝 Log this session ↓</button>
               </>
             )}
@@ -3258,6 +3267,310 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
           </div>
         );
       })()}
+
+      {(() => {
+        const focusIdsToday = Array.isArray(plannedSessionFocus[today]) ? plannedSessionFocus[today] : [];
+        const focusTricksToday = focusIdsToday.map(id => tricks.find(t => t.id === id)).filter(Boolean);
+        const todaySession = sessionByDate(today);
+
+        const planComplete = focusTricksToday.length > 0;
+        const warmupComplete = todayWarmups.length === WARMUPS.length;
+        const warmupInProgress = !warmupComplete && todayWarmups.length > 0;
+        const strengthComplete = todayConditioning.length === CONDITIONING.length;
+        const strengthInProgress = !strengthComplete && todayConditioning.length > 0;
+        const trainComplete = focusTricksToday.length > 0 && focusTricksToday.every(t =>
+          sessionTrickAdvances.find(a => a.trickId === t.id) || t.status === 'got_it'
+        );
+        const trainInProgress = !trainComplete && sessionTrickAdvances.length > 0;
+        const logComplete = !!todaySession;
+
+        const phases = [
+          { key: 'plan', num: 1, title: 'Plan', complete: planComplete,
+            subtitle: planComplete ? `${focusTricksToday.length} focus ${focusTricksToday.length === 1 ? 'trick' : 'tricks'} locked` : 'Pick today\'s focus tricks above',
+            inProgress: false },
+          { key: 'warmup', num: 2, title: 'Warm up', complete: warmupComplete,
+            subtitle: warmupComplete ? `All ${WARMUPS.length} done` : `${todayWarmups.length} / ${WARMUPS.length} done`,
+            inProgress: warmupInProgress },
+          { key: 'strength', num: 3, title: 'Strength', complete: strengthComplete,
+            subtitle: strengthComplete ? `All ${CONDITIONING.length} done` : `${todayConditioning.length} / ${CONDITIONING.length} done`,
+            inProgress: strengthInProgress },
+          { key: 'train', num: 4, title: 'Train', complete: trainComplete,
+            subtitle: focusTricksToday.length === 0 ? 'No focus tricks yet' : trainComplete ? `Moved ${focusTricksToday.length} forward` : `${sessionTrickAdvances.length} / ${focusTricksToday.length} touched`,
+            inProgress: trainInProgress },
+          { key: 'log', num: 5, title: 'Log', complete: logComplete,
+            subtitle: logComplete ? `Saved · RPE ${todaySession.rpe} · ${todaySession.durationMinutes || 0} min` : 'RPE & note',
+            inProgress: false },
+        ];
+
+        return (
+          <div className="space-y-2">
+            <div className="grid grid-cols-5 gap-1.5 px-1">
+              {phases.map(p => (
+                <div key={p.key}
+                  className={`h-1.5 rounded-full transition ${
+                    p.complete ? 'bg-green-500' :
+                    p.inProgress || expandedPhase === p.key ? 'bg-amber-400' :
+                    'bg-slate-700'
+                  }`} />
+              ))}
+            </div>
+            <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1">Today's session</div>
+
+            {phases.map(p => {
+              const isOpen = expandedPhase === p.key;
+              const cardClass = p.complete
+                ? 'bg-slate-800/40 border-slate-700'
+                : p.inProgress
+                ? 'bg-amber-500/10 border-amber-400/50 shadow-md shadow-amber-500/10'
+                : 'bg-slate-800/40 border-slate-700';
+              const circleClass = p.complete
+                ? 'bg-green-500 text-white'
+                : p.inProgress
+                ? 'bg-amber-400 text-slate-900'
+                : 'bg-slate-700 text-slate-300';
+              return (
+                <div key={p.key} id={`phase-${p.key}`} className={`rounded-2xl border transition ${cardClass}`}>
+                  <button onClick={() => setExpandedPhase(prev => prev === p.key ? null : p.key)}
+                    className="w-full flex items-center gap-3 p-3 text-left">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0 ${circleClass}`}>
+                      {p.complete ? <Check className="w-4 h-4" strokeWidth={3} /> : p.num}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm">{p.title}</span>
+                        {p.inProgress && <span className="text-[9px] font-black text-amber-300 uppercase tracking-wider">In progress</span>}
+                        {p.complete && <span className="text-[9px] font-black text-green-300 uppercase tracking-wider">Done</span>}
+                      </div>
+                      <div className="text-xs text-slate-400 truncate">{p.subtitle}</div>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isOpen && p.key === 'plan' && (
+                    <div className="px-3 pb-3 space-y-2">
+                      {focusTricksToday.length === 0 ? (
+                        <div className="text-xs text-slate-400 italic text-center py-3">
+                          No focus tricks for today yet. Tap the today cell above to plan.
+                        </div>
+                      ) : (
+                        focusTricksToday.map(t => {
+                          const inGoal = weeklyGoals.some(g => g.trickId === t.id);
+                          const tdiff = DIFFICULTY_COLORS[t.difficulty];
+                          return (
+                            <button key={t.id} onClick={() => onOpenTrick && onOpenTrick(t)}
+                              className="w-full flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg p-2 text-left transition">
+                              <CategoryIcon category={t.category} size={18} />
+                              <span className="flex-1 truncate text-sm font-bold">{t.name}</span>
+                              {inGoal && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/40">GOAL</span>}
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${tdiff?.bg} ${tdiff?.text}`}>{t.difficulty}</span>
+                              <StatusPill trick={t} size="sm" />
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+
+                  {isOpen && p.key === 'warmup' && (
+                    <div className="px-3 pb-3 space-y-2">
+                      {todayWarmups.length > 0 && resetWarmups && (
+                        <div className="flex justify-end">
+                          <button onClick={resetWarmups} className="text-[10px] text-slate-400 hover:text-slate-200">Reset</button>
+                        </div>
+                      )}
+                      {WARMUPS.map(w => {
+                        const done = todayWarmups.includes(w.id);
+                        return (
+                          <div key={w.id} className={`p-2.5 rounded-xl border transition ${done ? 'bg-green-500/15 border-green-500/40' : 'bg-slate-900 border-slate-700'}`}>
+                            <button onClick={() => toggleWarmup && toggleWarmup(w.id)} className="w-full flex items-center gap-2.5 text-left">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${done ? 'bg-green-500 border-green-500' : 'border-slate-500'}`}>
+                                {done && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className={`text-sm font-bold ${done ? 'line-through text-slate-400' : ''}`}>{w.name}</div>
+                                <div className="text-[10px] text-slate-400">{w.duration} · {w.desc}</div>
+                              </div>
+                            </button>
+                            <ExerciseTimer totalSeconds={w.seconds} color="orange" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {isOpen && p.key === 'strength' && (
+                    <div className="px-3 pb-3 space-y-2">
+                      {todayConditioning.length > 0 && resetConditioning && (
+                        <div className="flex justify-end">
+                          <button onClick={resetConditioning} className="text-[10px] text-slate-400 hover:text-slate-200">Reset</button>
+                        </div>
+                      )}
+                      {CONDITIONING.map(c => {
+                        const done = todayConditioning.includes(c.id);
+                        return (
+                          <div key={c.id} className={`p-2.5 rounded-xl border transition ${done ? 'bg-green-500/15 border-green-500/40' : 'bg-slate-900 border-slate-700'}`}>
+                            <button onClick={() => toggleConditioning && toggleConditioning(c.id)} className="w-full flex items-center gap-2.5 text-left">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${done ? 'bg-green-500 border-green-500' : 'border-slate-500'}`}>
+                                {done && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-sm font-bold ${done ? 'line-through text-slate-400' : ''}`}>{c.name}</span>
+                                  <span className="ml-auto text-[10px] font-bold text-blue-300 bg-blue-500/15 border border-blue-500/30 px-1.5 py-0.5 rounded flex-shrink-0">{c.reps}</span>
+                                </div>
+                                <div className="text-[10px] text-slate-400 mt-0.5">{c.desc}</div>
+                              </div>
+                            </button>
+                            <ExerciseTimer totalSeconds={c.seconds} color="blue" />
+                          </div>
+                        );
+                      })}
+                      <button onClick={() => setExpandedPhase('train')}
+                        className="w-full text-[10px] text-slate-400 hover:text-slate-200 py-1.5">
+                        Skip strength →
+                      </button>
+                    </div>
+                  )}
+
+                  {isOpen && p.key === 'train' && (
+                    <div className="px-3 pb-3 space-y-2">
+                      {focusTricksToday.length === 0 ? (
+                        <div className="text-xs text-slate-400 italic text-center py-3">
+                          Lock in some focus tricks first (tap today's cell above).
+                        </div>
+                      ) : (
+                        focusTricksToday.map(t => {
+                          const advance = sessionTrickAdvances.find(a => a.trickId === t.id);
+                          const mastered = t.status === 'got_it';
+                          const inGoal = weeklyGoals.some(g => g.trickId === t.id);
+                          const tdiff = DIFFICULTY_COLORS[t.difficulty];
+                          const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
+                          const nextLabel = nextStatusLabel(t);
+                          return (
+                            <div key={t.id} className="bg-slate-900 border border-slate-700 rounded-xl p-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <CategoryIcon category={t.category} size={18} />
+                                <span className="flex-1 truncate text-sm font-bold">{t.name}</span>
+                                {inGoal && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/40">GOAL</span>}
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${tdiff?.bg} ${tdiff?.text}`}>{t.difficulty}</span>
+                                <StatusPill trick={t} size="sm" />
+                              </div>
+                              {tutorialVideo && (
+                                <button onClick={() => onOpenTrick && onOpenTrick(t, normalizeUrl(tutorialVideo.url))}
+                                  className="w-full mb-2 text-[10px] font-bold py-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 flex items-center justify-center gap-1">
+                                  🎓 Tutorial
+                                </button>
+                              )}
+                              {advance ? (
+                                <div className="text-[11px] text-green-300 font-bold py-1 flex items-center gap-1">
+                                  <Check className="w-3 h-3" strokeWidth={3} /> {advance.fromStatus.replace('_', ' ')} → {advance.toStatus.replace('_', ' ')}
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Move forward today?</div>
+                                  <div className="flex gap-2">
+                                    <button onClick={() => setSessionTrickAdvances(prev => [...prev, { trickId: t.id, fromStatus: t.status || 'not_started', toStatus: t.status || 'not_started' }])}
+                                      className="flex-1 py-2 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+                                      Same
+                                    </button>
+                                    {nextLabel && !mastered && (
+                                      <button onClick={() => advanceTrickLevel(t)}
+                                        className="flex-1 py-2 rounded-lg text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white">
+                                        → {nextLabel}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+
+                  {isOpen && p.key === 'log' && (
+                    <div className="px-3 pb-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Date</div>
+                          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm" />
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Duration (min)</div>
+                          <input type="number" min="0" value={duration} onChange={e => setDuration(e.target.value)} placeholder="e.g. 90" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm" />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-[10px] font-bold uppercase text-slate-400">RPE</div>
+                          <span className="text-[10px] font-bold text-amber-300">{rpe} / 10 · {rpe <= 3 ? 'Easy' : rpe <= 6 ? 'Solid' : rpe <= 8 ? 'Hard' : 'All-out'}</span>
+                        </div>
+                        <input type="range" min="1" max="10" value={rpe} onChange={e => setRpe(e.target.value)} className="w-full accent-amber-500" />
+                        <div className="flex justify-between text-[9px] text-slate-500 mt-0.5"><span>Easy</span><span>Solid</span><span>All-out</span></div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Focus tags</div>
+                        <div className="flex flex-wrap gap-1">
+                          {FOCUS_TAGS.map(tag => {
+                            const on = tags.includes(tag);
+                            return (
+                              <button key={tag} onClick={() => toggleTag(tag)}
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                                #{tag}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Tricks practiced ({practicedTricks.length})</div>
+                        {practicedTricks.length > 0 && (
+                          <div className="space-y-1.5 mb-2">
+                            {practicedTricks.map(id => {
+                              const t = tricks.find(x => x.id === id);
+                              if (!t) return null;
+                              return (
+                                <div key={id} className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg p-2">
+                                  <CategoryIcon category={t.category} size={16} />
+                                  <span className="flex-1 truncate text-sm">{t.name}</span>
+                                  <StatusPill trick={t} size="sm" />
+                                  <button onClick={() => setPracticedTricks(arr => arr.filter(x => x !== id))} className="text-slate-500 hover:text-red-400" title="Remove"><X className="w-3.5 h-3.5" /></button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {(() => {
+                          const addable = (tricks || []).filter(t => !practicedTricks.includes(t.id)).sort((a, b) => a.name.localeCompare(b.name));
+                          if (addable.length === 0) return null;
+                          return (
+                            <select value=""
+                              onChange={e => { if (e.target.value) setPracticedTricks(arr => [...arr, parseInt(e.target.value, 10)]); }}
+                              className="w-full bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5">
+                              <option value="">+ Add a trick…</option>
+                              {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
+                            </select>
+                          );
+                        })()}
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Notes</div>
+                        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="What worked? What's next?" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs resize-none" />
+                      </div>
+                      <button onClick={() => { submit(); setSessionTrickAdvances([]); }}
+                        className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold text-sm transition hover:scale-[1.02] active:scale-95">
+                        {savedToast ? '✅ Saved!' : 'Save session'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-2xl p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -3365,103 +3678,7 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
         )}
       </div>
 
-      <div id="training-log-form" className="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-4 space-y-3">
-        <div className="font-bold flex items-center gap-2"><Plus className="w-5 h-5 text-purple-400" /> Log a session</div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Date</div>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Duration (min)</div>
-            <input type="number" min="0" value={duration} onChange={e => setDuration(e.target.value)} placeholder="e.g. 90" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
-          </div>
-        </div>
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <div className="text-xs font-semibold text-slate-400 uppercase">RPE (intensity)</div>
-            <span className="text-xs font-bold text-purple-300">{rpe} / 10</span>
-          </div>
-          <input type="range" min="1" max="10" value={rpe} onChange={e => setRpe(e.target.value)} className="w-full accent-purple-500" />
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Focus</div>
-          <div className="flex flex-wrap gap-1.5">
-            {FOCUS_TAGS.map(tag => {
-              const on = tags.includes(tag);
-              return (
-                <button key={tag} onClick={() => toggleTag(tag)}
-                  className={`px-2 py-1 rounded-md text-xs font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                  #{tag}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Tricks practiced</div>
-          {practicedTricks.length === 0 && <div className="text-xs text-slate-500 italic mb-1">No tricks added — pick from the dropdown below.</div>}
-          {practicedTricks.length > 0 && (
-            <div className="space-y-2 mb-2">
-              {practicedTricks.map(id => {
-                const t = tricks.find(x => x.id === id);
-                if (!t) return null;
-                const diff = DIFFICULTY_COLORS[t.difficulty];
-                const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-                const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
-                const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
-                const playVideo = (e, video) => { e.stopPropagation(); if (video?.url && onOpenTrick) onOpenTrick(t, normalizeUrl(video.url)); };
-                return (
-                  <div key={id} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
-                    <button onClick={() => onOpenTrick && onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                      <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
-                      <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold truncate">{t.name}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
-                          {t.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {t.videos.length}</span>}
-                        </div>
-                      </div>
-                    </button>
-                    {referenceVideo && (
-                      <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
-                        <Play className="w-4 h-4 fill-current" />
-                      </button>
-                    )}
-                    {tutorialVideo && (
-                      <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
-                        <span className="text-base">🎓</span>
-                      </button>
-                    )}
-                    <StatusPill trick={t} onClick={() => onOpenTrick && onOpenTrick(t)} />
-                    <button onClick={() => setPracticedTricks(arr => arr.filter(x => x !== id))} className="text-slate-500 hover:text-red-400 flex-shrink-0" title="Remove"><X className="w-4 h-4" /></button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {(() => {
-            const addable = (tricks || []).filter(t => !practicedTricks.includes(t.id)).sort((a, b) => a.name.localeCompare(b.name));
-            if (addable.length === 0) return null;
-            return (
-              <select value=""
-                onChange={e => { if (e.target.value) setPracticedTricks(arr => [...arr, parseInt(e.target.value, 10)]); }}
-                className="w-full bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5">
-                <option value="">+ Add a trick…</option>
-                {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
-              </select>
-            );
-          })()}
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Notes</div>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="What worked? What's next?" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm resize-none" />
-        </div>
-        <button onClick={submit} className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold transition hover:scale-[1.02] active:scale-95">
-          {savedToast ? '✅ Saved!' : 'Log session'}
-        </button>
-      </div>
+
 
       {reachedMilestones.length > 0 && (
         <div className="bg-slate-800/50 border border-yellow-500/30 rounded-2xl p-4">
