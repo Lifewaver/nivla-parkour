@@ -3158,6 +3158,11 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
       {(() => {
         const focusIdsToday = Array.isArray(plannedSessionFocus[today]) ? plannedSessionFocus[today] : [];
         const focusTricksToday = focusIdsToday.map(id => tricks.find(t => t.id === id)).filter(Boolean);
+        // Train phase pulls from focus AND from the in-progress Log form's practicedTricks,
+        // deduped. So a quick "I trained at the park" flow (no plan, just log) still gets a
+        // Train surface to advance status from. If both are empty, skip the phase entirely.
+        const trainTrickIds = [...new Set([...focusIdsToday, ...practicedTricks])];
+        const trainTricks = trainTrickIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
         const todaySession = sessionByDate(today);
 
         const planComplete = focusTricksToday.length > 0;
@@ -3165,33 +3170,36 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
         const warmupInProgress = !warmupComplete && todayWarmups.length > 0;
         const strengthComplete = todayConditioning.length === CONDITIONING.length;
         const strengthInProgress = !strengthComplete && todayConditioning.length > 0;
-        const trainComplete = focusTricksToday.length > 0 && focusTricksToday.every(t =>
+        const trainComplete = trainTricks.length > 0 && trainTricks.every(t =>
           sessionTrickAdvances.find(a => a.trickId === t.id) || t.status === 'got_it'
         );
         const trainInProgress = !trainComplete && sessionTrickAdvances.length > 0;
         const logComplete = !!todaySession;
 
+        const showTrain = trainTricks.length > 0;
         const phases = [
-          { key: 'plan', num: 1, title: 'Plan', complete: planComplete,
+          { key: 'plan', title: 'Plan', complete: planComplete,
             subtitle: planComplete ? `${focusTricksToday.length} focus ${focusTricksToday.length === 1 ? 'trick' : 'tricks'} locked` : 'Pick today\'s focus tricks above',
             inProgress: false },
-          { key: 'warmup', num: 2, title: 'Warm up', complete: warmupComplete,
+          { key: 'warmup', title: 'Warm up', complete: warmupComplete,
             subtitle: warmupComplete ? `All ${WARMUPS.length} done` : `${todayWarmups.length} / ${WARMUPS.length} done`,
             inProgress: warmupInProgress },
-          { key: 'strength', num: 3, title: 'Strength', complete: strengthComplete,
+          { key: 'strength', title: 'Strength', complete: strengthComplete,
             subtitle: strengthComplete ? `All ${CONDITIONING.length} done` : `${todayConditioning.length} / ${CONDITIONING.length} done`,
             inProgress: strengthInProgress },
-          { key: 'train', num: 4, title: 'Train', complete: trainComplete,
-            subtitle: focusTricksToday.length === 0 ? 'No focus tricks yet' : trainComplete ? `Moved ${focusTricksToday.length} forward` : `${sessionTrickAdvances.length} / ${focusTricksToday.length} touched`,
-            inProgress: trainInProgress },
-          { key: 'log', num: 5, title: 'Log', complete: logComplete,
+          ...(showTrain ? [{
+            key: 'train', title: 'Train', complete: trainComplete,
+            subtitle: trainComplete ? `Moved ${trainTricks.length} forward` : `${sessionTrickAdvances.length} / ${trainTricks.length} touched`,
+            inProgress: trainInProgress,
+          }] : []),
+          { key: 'log', title: 'Log', complete: logComplete,
             subtitle: logComplete ? `Saved · RPE ${todaySession.rpe} · ${todaySession.durationMinutes || 0} min` : 'RPE & note',
             inProgress: false },
-        ];
+        ].map((p, i) => ({ ...p, num: i + 1 }));
 
         return (
           <div className="space-y-2">
-            <div className="grid grid-cols-5 gap-1.5 px-1">
+            <div className="grid gap-1.5 px-1" style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` }}>
               {phases.map(p => (
                 <div key={p.key}
                   className={`h-1.5 rounded-full transition ${
@@ -3321,12 +3329,8 @@ function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessio
 
                   {isOpen && p.key === 'train' && (
                     <div className="px-3 pb-3 space-y-2">
-                      {focusTricksToday.length === 0 ? (
-                        <div className="text-xs text-slate-400 italic text-center py-3">
-                          Lock in some focus tricks first (tap today's cell above).
-                        </div>
-                      ) : (
-                        focusTricksToday.map(t => {
+                      {trainTricks.length === 0 ? null : (
+                        trainTricks.map(t => {
                           const advance = sessionTrickAdvances.find(a => a.trickId === t.id);
                           const mastered = t.status === 'got_it';
                           const inGoal = weeklyGoals.some(g => g.trickId === t.id);
