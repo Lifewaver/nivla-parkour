@@ -2074,6 +2074,24 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
         </div>
       </div>
 
+      <div className="grid grid-cols-3 gap-2">
+        <button onClick={goToWarmup}
+          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-red-500/30 to-orange-500/30 border border-orange-500/40 hover:scale-[1.02] active:scale-95 transition">
+          <span className="text-3xl">🔥</span>
+          <span className="font-bold text-sm">Warm up</span>
+        </button>
+        <button onClick={goToStrength}
+          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-blue-500/30 to-purple-500/30 border border-blue-500/40 hover:scale-[1.02] active:scale-95 transition">
+          <span className="text-3xl">💪</span>
+          <span className="font-bold text-sm">Strength</span>
+        </button>
+        <button onClick={goToLog}
+          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-green-500/30 to-emerald-500/30 border border-green-500/40 hover:scale-[1.02] active:scale-95 transition">
+          <span className="text-3xl">{hasTrainedToday ? '✅' : '📝'}</span>
+          <span className="font-bold text-sm">Log it</span>
+        </button>
+      </div>
+
       <div className="bg-gradient-to-br from-purple-600/20 via-slate-900 to-pink-600/20 border border-purple-500/40 rounded-3xl p-5 shadow-xl shadow-purple-500/10">
         <div className="flex items-center gap-2 mb-3">
           <Target className="w-5 h-5 text-purple-300" />
@@ -2108,24 +2126,6 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
             )}
           </>
         )}
-      </div>
-
-      <div className="grid grid-cols-3 gap-2">
-        <button onClick={goToWarmup}
-          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-red-500/30 to-orange-500/30 border border-orange-500/40 hover:scale-[1.02] active:scale-95 transition">
-          <span className="text-3xl">🔥</span>
-          <span className="font-bold text-sm">Warm up</span>
-        </button>
-        <button onClick={goToStrength}
-          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-blue-500/30 to-purple-500/30 border border-blue-500/40 hover:scale-[1.02] active:scale-95 transition">
-          <span className="text-3xl">💪</span>
-          <span className="font-bold text-sm">Strength</span>
-        </button>
-        <button onClick={goToLog}
-          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-green-500/30 to-emerald-500/30 border border-green-500/40 hover:scale-[1.02] active:scale-95 transition">
-          <span className="text-3xl">{hasTrainedToday ? '✅' : '📝'}</span>
-          <span className="font-bold text-sm">Log it</span>
-        </button>
       </div>
     </div>
   );
