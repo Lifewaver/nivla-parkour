@@ -4755,10 +4755,22 @@ function AddTab({ user, setActiveTab }) {
     const isRef = newVideoIsReference || (!newVideoIsReference && !newVideoIsTutorial);
     const type = computeVideoType(isRef, newVideoIsTutorial);
     const defaultLabel = type === 'tutorial' ? 'Tutorial' : 'Video';
-    setVideos([...videos, { url, label: newVideoLabel.trim() || defaultLabel, type }]);
+    const noPrimaryYet = !videos.some(v => v.primary);
+    setVideos([...videos, { url, label: newVideoLabel.trim() || defaultLabel, type, primary: noPrimaryYet }]);
     setNewVideoUrl(''); setNewVideoLabel('');
   };
-  const removeVideo = (idx) => setVideos(videos.filter((_, i) => i !== idx));
+  const removeVideo = (idx) => {
+    const removed = videos[idx];
+    const next = videos.filter((_, i) => i !== idx);
+    // Keep exactly one primary if any videos remain.
+    if (removed?.primary && next.length > 0 && !next.some(v => v.primary)) {
+      next[0] = { ...next[0], primary: true };
+    }
+    setVideos(next);
+  };
+  const togglePrimary = (idx) => {
+    setVideos(videos.map((v, i) => i === idx ? { ...v, primary: !v.primary } : { ...v, primary: false }));
+  };
   const reset = () => {
     setName(''); setCategory('Flips'); setDifficulty('Medium');
     setCoolness(0); setVideos([]); setNotes('');
@@ -4830,10 +4842,15 @@ function AddTab({ user, setActiveTab }) {
             {videos.length > 0 && (
               <div className="space-y-2 mb-2">
                 {videos.map((v, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-slate-900/50 border border-slate-700 rounded-lg p-2 text-sm">
+                  <div key={i} className={`flex items-center gap-2 border rounded-lg p-2 text-sm transition ${v.primary ? 'bg-yellow-500/10 border-yellow-500/40' : 'bg-slate-900/50 border-slate-700'}`}>
                     <span className="text-base">{v.type === 'both' ? '📹🎓' : v.type === 'tutorial' ? '🎓' : '📹'}</span>
                     <span className="truncate flex-1">{v.label}</span>
                     <span className="text-xs text-slate-500 truncate flex-shrink-0 max-w-[120px]">{v.url}</span>
+                    <button onClick={() => togglePrimary(i)}
+                      title={v.primary ? 'Primary video' : 'Mark as primary'}
+                      className={`flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center transition ${v.primary ? 'text-yellow-400 hover:bg-yellow-500/20' : 'text-slate-500 hover:text-yellow-300 hover:bg-slate-800'}`}>
+                      <Star className={`w-4 h-4 ${v.primary ? 'fill-yellow-400' : ''}`} />
+                    </button>
                     <button onClick={() => removeVideo(i)} className="text-slate-500 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
                   </div>
                 ))}
