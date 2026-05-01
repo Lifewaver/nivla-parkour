@@ -43,7 +43,7 @@ ParkourApp          ← auth state wrapper, blocks non-allowed emails
 └── MainApp         ← holds all app state, loads/saves to Firestore
     ├── HomeTab
     ├── TricksTab
-    ├── TrainingTab (sections: goals, warmup, conditioning, journal)
+    ├── TrainingTab  ← streak header, log session sheet, heatmap, recent sessions; opens SessionsBrowser via section='sessions'
     ├── ProgressTab
     ├── AddTab
     ├── AdminTab    ← only rendered for admin emails
@@ -54,7 +54,7 @@ ParkourApp          ← auth state wrapper, blocks non-allowed emails
 
 All user data is stored at `users/{uid}/data/{key}` as `{ value: <data>, updatedAt: <timestamp> }`.
 
-Keys used: `tricks`, `trainingDays`, `journal`, `weeklyGoals`, `completedWarmups`, `completedConditioning`.
+Keys read by the app: `tricks`, `trainingDays`, `journal`, `weeklyGoals`, `trainingSessions`, `plannedDays`, `plannedMonths`, `plannedWeeks`, `plannedSessionFocus`, `plannedSessionIntents`, `templates`, `viewedTricks`, `onboardingComplete`, `tricksReclassifiedV1`. Legacy keys `completedWarmups`, `completedConditioning`, `plannedSessionDismissed` may still exist in Firestore for old users but are no longer read.
 
 Admin can also read `userProfiles/{uid}` — written on every sign-in.
 
@@ -62,7 +62,6 @@ Admin can also read `userProfiles/{uid}` — written on every sign-in.
 
 All defined as constants at the top of `App.jsx`:
 - `INITIAL_TRICKS` — 92 parkour tricks with `id`, `name`, `difficulty` (Easy/Medium/Hard/Super), `category`
-- `WARMUPS` / `CONDITIONING` — predefined exercise lists with timer durations
 - `BADGES` — achievement definitions with check functions against a stats object
 - `STATUS_LEVELS` — the 6-step trick progression: `not_started → training_hard → trampoline_landing → soft_landing → training_like_hell → yes_i_can`
 

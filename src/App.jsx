@@ -1,4 +1,4 @@
-// Nivla Parkour - Full app with Firebase auth + Firestore
+﻿// Nivla Parkour - Full app with Firebase auth + Firestore
 // Replace ALL of src/App.jsx with this file.
 //
 // Requires: src/firebase.js, .env.local with Firebase keys, `firebase` package installed.
@@ -6,8 +6,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Home, Dumbbell, Calendar, Trophy, Plus, Flame, Search, X, ExternalLink,
-  Check, Video, Target, TrendingUp, ChevronRight, ChevronDown, Play, Pause,
-  RotateCcw, LogOut, Shield, Eye, ArrowLeft, ScrollText, GitBranch, Star
+  Check, Video, Target, TrendingUp, ChevronRight, ChevronDown, Play,
+  LogOut, Shield, Eye, ArrowLeft, ScrollText, GitBranch, Star
 } from 'lucide-react';
 import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from './firebase';
 import { GiAcrobatic, GiJumpAcross, GiHighKick, GiLeapfrog, GiMuscleUp, GiRunningNinja, GiContortionist, GiBodyBalance } from 'react-icons/gi';
@@ -616,38 +616,6 @@ const INITIAL_TRICKS = [
   { id: 92, name: 'Spider', difficulty: 'Medium', category: 'Gymnastics' },
 ];
 
-const WARMUPS = [
-  { id: 1, name: 'Wrist circles', duration: '30 sec each way', desc: 'Critical for handstands and vaults', seconds: 60 },
-  { id: 2, name: 'Shoulder rolls', duration: '10 each way', desc: 'Loosens shoulders for swings', seconds: 30 },
-  { id: 3, name: 'Arm circles', duration: '10 each way', desc: 'Warm up arms and upper back', seconds: 30 },
-  { id: 4, name: 'Neck rotations', duration: '5 each way', desc: 'Slow and controlled', seconds: 30 },
-  { id: 5, name: 'Hip circles', duration: '10 each way', desc: 'Open up the hips', seconds: 30 },
-  { id: 6, name: 'Leg swings', duration: '10 each leg', desc: 'Front-back and side-to-side', seconds: 60 },
-  { id: 7, name: 'Ankle rotations', duration: '10 each way', desc: 'Critical to avoid rolls!', seconds: 30 },
-  { id: 8, name: 'Deep squats', duration: '15 reps', desc: 'Hold bottom for 2 seconds', seconds: 60 },
-  { id: 9, name: 'Lunges with twist', duration: '10 each side', desc: 'Dynamic hip and core opener', seconds: 60 },
-  { id: 10, name: 'Cat-cow stretches', duration: '10 reps', desc: 'Mobilize the spine', seconds: 45 },
-  { id: 11, name: 'Light jog', duration: '2-3 min', desc: 'Get blood flowing', seconds: 150 },
-  { id: 12, name: 'Jumping jacks', duration: '30 sec', desc: 'Raise heart rate', seconds: 30 },
-  { id: 13, name: 'High knees', duration: '30 sec', desc: 'Dynamic warm up', seconds: 30 },
-  { id: 14, name: 'Bear crawl', duration: '10 meters', desc: 'Activates full body', seconds: 30 },
-];
-
-const CONDITIONING = [
-  { id: 1, name: 'Push-ups', reps: '3 x 10-15', desc: 'Upper body strength', seconds: 60 },
-  { id: 2, name: 'Pull-ups / Chin-ups', reps: '3 x max', desc: 'Essential for swings and climbs', seconds: 60 },
-  { id: 3, name: 'Squats', reps: '3 x 20', desc: 'Leg power for jumps', seconds: 90 },
-  { id: 4, name: 'Jump squats', reps: '3 x 10', desc: 'Explosive leg power', seconds: 60 },
-  { id: 5, name: 'Handstand hold', reps: '3 x 30 sec', desc: 'Against a wall to start', seconds: 30 },
-  { id: 6, name: 'Plank', reps: '3 x 45 sec', desc: 'Core strength', seconds: 45 },
-  { id: 7, name: 'Hollow body hold', reps: '3 x 20 sec', desc: 'Essential for flips', seconds: 20 },
-  { id: 8, name: 'L-sit', reps: '3 x 10 sec', desc: 'Core + hip flexor strength', seconds: 10 },
-  { id: 9, name: 'Box jumps', reps: '3 x 8', desc: 'Explosive power and precision', seconds: 45 },
-  { id: 10, name: 'Broad jumps', reps: '3 x 5', desc: 'Horizontal power', seconds: 30 },
-  { id: 11, name: 'Pistol squats', reps: '3 x 5 each leg', desc: 'Single leg strength', seconds: 60 },
-  { id: 12, name: 'Bridge hold', reps: '3 x 20 sec', desc: 'Back flexibility for flips', seconds: 20 },
-];
-
 // Trick prerequisites: trickId → [prereqIds]. Only the obvious within-category
 // chains — most tricks stand alone with no prereq.
 const PREREQUISITES = {
@@ -1048,7 +1016,6 @@ export default function ParkourApp() {
 function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
   const [step, setStep] = useState(1);
   const [pickedTrickIds, setPickedTrickIds] = useState([]);
-  const [pickedWeekdays, setPickedWeekdays] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [pickedDifficulty, setPickedDifficulty] = useState('Easy');
 
@@ -1060,11 +1027,6 @@ function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
   }, [tricks, pickedDifficulty]);
   const difficultyOptions = ['Easy', 'Medium', 'Hard', 'Super', 'All'];
 
-  const WEEKDAYS = [
-    { num: 1, label: 'Mon' }, { num: 2, label: 'Tue' }, { num: 3, label: 'Wed' },
-    { num: 4, label: 'Thu' }, { num: 5, label: 'Fri' }, { num: 6, label: 'Sat' }, { num: 0, label: 'Sun' },
-  ];
-
   const toggleTrick = (id) => {
     setPickedTrickIds(curr => {
       if (curr.includes(id)) return curr.filter(x => x !== id);
@@ -1073,15 +1035,11 @@ function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
     });
   };
 
-  const toggleWeekday = (n) => {
-    setPickedWeekdays(curr => curr.includes(n) ? curr.filter(x => x !== n) : [...curr, n]);
-  };
-
   const handleFinish = async () => {
     if (submitting) return;
     setSubmitting(true);
     try {
-      await onFinish({ trickIds: pickedTrickIds, weekdays: pickedWeekdays });
+      await onFinish({ trickIds: pickedTrickIds });
     } finally {
       setSubmitting(false);
     }
@@ -1089,7 +1047,7 @@ function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
 
   const StepDots = () => (
     <div className="flex items-center gap-1.5">
-      {[1, 2, 3].map(n => (
+      {[1, 2].map(n => (
         <span key={n}
           className={`w-2 h-2 rounded-full transition ${n === step ? 'bg-purple-400 w-6' : n < step ? 'bg-purple-600' : 'bg-slate-700'}`} />
       ))}
@@ -1166,33 +1124,9 @@ function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
         {step === 2 && (
           <div className="space-y-4">
             <div>
-              <div className="text-xs font-bold uppercase tracking-wide text-purple-300 mb-1">Step 2 of 3</div>
-              <h1 className="text-3xl font-black leading-tight">When do you usually train?</h1>
-              <p className="text-sm text-slate-400 mt-2">Pick the weekdays you'd like to set aside for parkour. We'll suggest sessions on those days.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {WEEKDAYS.map(d => {
-                const on = pickedWeekdays.includes(d.num);
-                return (
-                  <button key={d.num} onClick={() => toggleWeekday(d.num)}
-                    className={`px-4 py-3 rounded-xl text-sm font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                    {d.label}
-                  </button>
-                );
-              })}
-            </div>
-            {pickedWeekdays.length === 0 && (
-              <div className="text-xs text-slate-500 italic">Or skip this and pick days later in Training.</div>
-            )}
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-4">
-            <div>
               <div className="text-xs font-bold uppercase tracking-wide text-purple-300 mb-1">All set</div>
               <h1 className="text-3xl font-black leading-tight">Let's go 🚀</h1>
-              <p className="text-sm text-slate-400 mt-2">Today's session is loaded with your 3 picks. Tap Today to start.</p>
+              <p className="text-sm text-slate-400 mt-2">Your picks are locked in. Tap Today to start.</p>
             </div>
             <div className="bg-slate-800/70 border border-purple-500/30 rounded-2xl p-4 space-y-2">
               <div className="text-[10px] font-bold uppercase tracking-wide text-purple-300">Locked in for today</div>
@@ -1214,11 +1148,6 @@ function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
                 })
               )}
             </div>
-            {pickedWeekdays.length > 0 && (
-              <div className="text-xs text-slate-400">
-                Training days: <span className="text-purple-300 font-bold">{pickedWeekdays.map(n => WEEKDAYS.find(d => d.num === n)?.label).filter(Boolean).join(' · ')}</span>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -1231,11 +1160,11 @@ function OnboardingFlow({ tricks, userName, onFinish, onSkip }) {
               Back
             </button>
           )}
-          {step < 3 ? (
+          {step < 2 ? (
             <button onClick={() => setStep(s => s + 1)}
-              disabled={step === 1 && pickedTrickIds.length === 0}
+              disabled={pickedTrickIds.length === 0}
               className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed transition">
-              {step === 1 ? (pickedTrickIds.length === 0 ? 'Pick at least 1 to continue' : 'Continue →') : 'Continue →'}
+              {pickedTrickIds.length === 0 ? 'Pick at least 1 to continue' : 'Continue →'}
             </button>
           ) : (
             <button onClick={handleFinish} disabled={submitting}
@@ -1261,14 +1190,11 @@ function MainApp({ user }) {
   const [trainingDays, setTrainingDays] = useState([]);
   const [journal, setJournal] = useState([]);
   const [weeklyGoals, setWeeklyGoals] = useState([]);
-  const [completedWarmups, setCompletedWarmups] = useState({});
-  const [completedConditioning, setCompletedConditioning] = useState({});
   const [trainingSessions, setTrainingSessions] = useState([]);
   const [plannedDays, setPlannedDays] = useState([]);
   const [plannedMonths, setPlannedMonths] = useState([]);
   const [plannedWeeks, setPlannedWeeks] = useState([]);
   const [plannedSessionFocus, setPlannedSessionFocus] = useState({});
-  const [plannedSessionDismissed, setPlannedSessionDismissed] = useState({});
   const [plannedSessionIntents, setPlannedSessionIntents] = useState({});
   const [templates, setTemplates] = useState([]);
   const [globalVideos, setGlobalVideos] = useState({});
@@ -1309,20 +1235,17 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [tricksData, daysData, journalData, goalsData, warmupsData, conditioningData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedDismissedData, plannedIntentsData, templatesData, viewedData, onboardingData, tricksReclassifiedV1] =
+        const [tricksData, daysData, journalData, goalsData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedIntentsData, templatesData, viewedData, onboardingData, tricksReclassifiedV1] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
             loadUserData(user.uid, 'trainingDays'),
             loadUserData(user.uid, 'journal'),
             loadUserData(user.uid, 'weeklyGoals'),
-            loadUserData(user.uid, 'completedWarmups'),
-            loadUserData(user.uid, 'completedConditioning'),
             loadUserData(user.uid, 'trainingSessions'),
             loadUserData(user.uid, 'plannedDays'),
             loadUserData(user.uid, 'plannedMonths'),
             loadUserData(user.uid, 'plannedWeeks'),
             loadUserData(user.uid, 'plannedSessionFocus'),
-            loadUserData(user.uid, 'plannedSessionDismissed'),
             loadUserData(user.uid, 'plannedSessionIntents'),
             loadUserData(user.uid, 'templates'),
             loadUserData(user.uid, 'viewedTricks'),
@@ -1440,14 +1363,11 @@ function MainApp({ user }) {
         if (daysData) setTrainingDays(daysData);
         if (journalData) setJournal(journalData);
         if (goalsData) setWeeklyGoals(goalsData);
-        if (warmupsData) setCompletedWarmups(warmupsData);
-        if (conditioningData) setCompletedConditioning(conditioningData);
         if (sessionsData) setTrainingSessions(sessionsData);
         if (plannedData) setPlannedDays(plannedData);
         if (plannedMonthsData) setPlannedMonths(plannedMonthsData);
         if (plannedWeeksData) setPlannedWeeks(plannedWeeksData);
         if (plannedFocusData) setPlannedSessionFocus(plannedFocusData);
-        if (plannedDismissedData) setPlannedSessionDismissed(plannedDismissedData);
         if (plannedIntentsData) setPlannedSessionIntents(plannedIntentsData);
         if (Array.isArray(templatesData)) setTemplates(templatesData);
         if (viewedData) setViewedTricks(viewedData);
@@ -1483,10 +1403,7 @@ function MainApp({ user }) {
   const saveTricks = async (newTricks) => { setTricks(newTricks); await saveUserData(user.uid, 'tricks', newTricks); };
   const saveTrainingDays = async (days) => { setTrainingDays(days); await saveUserData(user.uid, 'trainingDays', days); };
   const saveGoals = async (g) => { setWeeklyGoals(g); await saveUserData(user.uid, 'weeklyGoals', g); };
-  const saveWarmups = async (w) => { setCompletedWarmups(w); await saveUserData(user.uid, 'completedWarmups', w); };
-  const saveConditioning = async (c) => { setCompletedConditioning(c); await saveUserData(user.uid, 'completedConditioning', c); };
   const saveTrainingSessions = async (s) => { setTrainingSessions(s); await saveUserData(user.uid, 'trainingSessions', s); };
-  const savePlannedDays = async (d) => { setPlannedDays(d); await saveUserData(user.uid, 'plannedDays', d); };
   const savePlannedSessionFocus = async (f) => { setPlannedSessionFocus(f); await saveUserData(user.uid, 'plannedSessionFocus', f); };
   const savePlannedSessionIntents = async (i) => { setPlannedSessionIntents(i); await saveUserData(user.uid, 'plannedSessionIntents', i); };
   const saveTemplates = async (t) => { setTemplates(t); await saveUserData(user.uid, 'templates', t); };
@@ -1652,7 +1569,7 @@ function MainApp({ user }) {
     );
   }
 
-  const finishOnboarding = async ({ trickIds, weekdays }) => {
+  const finishOnboarding = async ({ trickIds }) => {
     const today = todayLocal();
     if (Array.isArray(trickIds) && trickIds.length > 0) {
       const idSet = new Set(trickIds);
@@ -1660,9 +1577,6 @@ function MainApp({ user }) {
       const goals = trickIds.map(id => ({ trickId: id, addedAt: Date.now() }));
       await saveGoals(goals);
       await savePlannedSessionFocus({ ...plannedSessionFocus, [today]: trickIds });
-    }
-    if (Array.isArray(weekdays) && weekdays.length > 0) {
-      await savePlannedDays(weekdays);
     }
     await saveUserData(user.uid, 'onboardingComplete', true);
     setOnboardingComplete(true);
@@ -1750,8 +1664,6 @@ function MainApp({ user }) {
         {activeTab === 'home' && (
           <TodayTab streak={streak} weeklyGoals={weeklyGoals} tricks={displayTricks} onOpenTrick={openTrick}
             hasTrainedToday={trainingDays.includes(todayLocal())}
-            goToWarmup={() => { setTrainingSection('warmup'); setActiveTab('training'); }}
-            goToStrength={() => { setTrainingSection('conditioning'); setActiveTab('training'); }}
             goToLog={() => { setTrainingSection('log'); setActiveTab('training'); }}
             goToTree={() => {
               try { window.localStorage.setItem('skillTreeLastCategory', JSON.stringify('__focus__')); } catch {}
@@ -1771,22 +1683,18 @@ function MainApp({ user }) {
             onAddNew={() => setActiveTab('add')} />
         )}
         {activeTab === 'training' && (
-          <TrainingTab weeklyGoals={weeklyGoals} saveGoals={saveGoals} tricks={tricks}
-            completedWarmups={completedWarmups} saveWarmups={saveWarmups}
-            completedConditioning={completedConditioning} saveConditioning={saveConditioning}
+          <TrainingTab tricks={tricks}
             journal={journal} onOpenTrick={openTrick}
             trainingDays={trainingDays} trainingSessions={trainingSessions} saveTrainingSessions={saveTrainingSessions}
             markDayTrained={markDayTrained}
-            plannedDays={plannedDays} savePlannedDays={savePlannedDays}
+            plannedDays={plannedDays}
             plannedMonths={plannedMonths}
             plannedWeeks={plannedWeeks}
             plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
-            plannedSessionDismissed={plannedSessionDismissed}
             plannedSessionIntents={plannedSessionIntents} savePlannedSessionIntents={savePlannedSessionIntents}
             templates={templates} saveTemplates={saveTemplates}
             streak={streak}
-            section={trainingSection} setSection={setTrainingSection}
-            onUpdateTrickStatus={updateTrickStatus} />
+            section={trainingSection} setSection={setTrainingSection} />
         )}
         {activeTab === 'progress' && (
           <ProgressTab stats={stats} tricks={tricks} earnedBadges={earnedBadges} trainingDays={trainingDays} />
@@ -2022,7 +1930,7 @@ function NavButton({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrainedToday, goToWarmup, goToStrength, goToLog, goToTree }) {
+function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrainedToday, goToLog, goToTree }) {
   const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
   const focusTricks = weeklyGoals.map(g => tricks.find(t => t.id === g.trickId)).filter(Boolean);
 
@@ -2092,23 +2000,11 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <button onClick={goToWarmup}
-          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-red-500/30 to-orange-500/30 border border-orange-500/40 hover:scale-[1.02] active:scale-95 transition">
-          <span className="text-3xl">🔥</span>
-          <span className="font-bold text-sm">Warm up</span>
-        </button>
-        <button onClick={goToStrength}
-          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-blue-500/30 to-purple-500/30 border border-blue-500/40 hover:scale-[1.02] active:scale-95 transition">
-          <span className="text-3xl">💪</span>
-          <span className="font-bold text-sm">Strength</span>
-        </button>
-        <button onClick={goToLog}
-          className="flex flex-col items-center justify-center gap-1 py-4 rounded-2xl bg-gradient-to-br from-green-500/30 to-emerald-500/30 border border-green-500/40 hover:scale-[1.02] active:scale-95 transition">
-          <span className="text-3xl">{hasTrainedToday ? '✅' : '📝'}</span>
-          <span className="font-bold text-sm">Log it</span>
-        </button>
-      </div>
+      <button onClick={goToLog}
+        className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-base shadow-lg transition active:scale-[0.99] ${hasTrainedToday ? 'bg-gradient-to-r from-emerald-500/25 to-green-500/25 border-2 border-emerald-500/50 text-emerald-100 hover:from-emerald-500/35 hover:to-green-500/35' : 'bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white'}`}>
+        <span className="text-2xl">{hasTrainedToday ? '✅' : '📝'}</span>
+        <span>{hasTrainedToday ? 'Logged today · edit' : "Log today's session"}</span>
+      </button>
 
       <div className="bg-gradient-to-br from-purple-600/20 via-slate-900 to-pink-600/20 border border-purple-500/40 rounded-3xl p-5 shadow-xl shadow-purple-500/10">
         <div className="flex items-center gap-2 mb-3">
@@ -2692,30 +2588,109 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   );
 }
 
-function TrainingTab({ weeklyGoals, tricks, completedWarmups, saveWarmups, completedConditioning, saveConditioning, journal = [], onOpenTrick, trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, plannedDays = [], savePlannedDays, plannedMonths = [], plannedWeeks = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, plannedSessionIntents = {}, savePlannedSessionIntents, templates = [], saveTemplates, streak = 0, section, setSection, onUpdateTrickStatus }) {
+function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, streak = 0, section, setSection, journal = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionIntents = {}, savePlannedSessionIntents, plannedDays = [], plannedMonths = [], plannedWeeks = [], templates = [], saveTemplates, onOpenTrick }) {
   const today = todayLocal();
-  const safeWarmups = completedWarmups || {};
-  const safeConditioning = completedConditioning || {};
+  const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
+  const sessionByDate = (ds) => safeSessions.find(s => s.date === ds);
+  const todaySession = sessionByDate(today);
 
-  const toggleWarmup = (id) => {
-    const list = safeWarmups[today] || [];
-    saveWarmups({ ...safeWarmups, [today]: list.includes(id) ? list.filter(x => x !== id) : [...list, id] });
-  };
-  const resetWarmups = () => saveWarmups({ ...safeWarmups, [today]: [] });
-  const toggleConditioning = (id) => {
-    const list = safeConditioning[today] || [];
-    saveConditioning({ ...safeConditioning, [today]: list.includes(id) ? list.filter(x => x !== id) : [...list, id] });
-  };
-  const resetConditioning = () => saveConditioning({ ...safeConditioning, [today]: [] });
-  // Bulk one-tap setters that avoid the stale-closure trap of looping toggleWarmup.
-  const setAllWarmups = (dateStr, ids) => saveWarmups({ ...safeWarmups, [dateStr]: ids });
-  const setAllConditioning = (dateStr, ids) => saveConditioning({ ...safeConditioning, [dateStr]: ids });
-  const todayWarmups = safeWarmups[today] || [];
-  const todayConditioning = safeConditioning[today] || [];
+  // Today's "Log it" routes here with section='log'; consume that on first
+  // render so the sheet opens immediately, then clear the parent signal so
+  // tab re-entries don't keep re-opening it.
+  const initialOpenLog = section === 'log';
+  const [logOpen, setLogOpen] = useState(initialOpenLog);
+  const [editingSession, setEditingSession] = useState(() => initialOpenLog ? (todaySession || null) : null);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
 
-  return (
-    <div className="max-w-2xl mx-auto">
-      {section === 'sessions' ? (
+  useEffect(() => {
+    if (initialOpenLog && setSection) setSection(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const monday = useMemo(() => {
+    const m = new Date();
+    m.setHours(0, 0, 0, 0);
+    const day = m.getDay();
+    const diff = m.getDate() - day + (day === 0 ? -6 : 1);
+    m.setDate(diff);
+    return m;
+  }, []);
+  const weekStartStr = formatLocalDate(monday);
+  const weekEndStr = (() => {
+    const end = new Date(monday); end.setDate(monday.getDate() + 6);
+    return formatLocalDate(end);
+  })();
+  const safeDays = Array.isArray(trainingDays) ? trainingDays : [];
+  const daysThisWeek = new Set(safeDays.filter(d => d >= weekStartStr && d <= weekEndStr)).size;
+  const totalSessions = safeSessions.length;
+
+  const HEATMAP_WEEKS = 14;
+  const heatmapColumns = useMemo(() => {
+    const start = new Date(monday);
+    start.setDate(monday.getDate() - 7 * (HEATMAP_WEEKS - 1));
+    const cols = [];
+    for (let w = 0; w < HEATMAP_WEEKS; w++) {
+      const col = [];
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + w * 7 + d);
+        col.push(formatLocalDate(date));
+      }
+      cols.push(col);
+    }
+    return cols;
+  }, [monday]);
+
+  const intensityLevel = (s) => {
+    if (!s) return 0;
+    const rpe = Number(s.rpe) || 0;
+    const min = Number(s.durationMinutes) || 0;
+    const score = (rpe * Math.max(min, 30)) / 60;
+    if (score >= 12) return 4;
+    if (score >= 7) return 3;
+    if (score >= 3) return 2;
+    return 1;
+  };
+  const cellTone = (level) => {
+    if (level === 4) return 'bg-emerald-300';
+    if (level === 3) return 'bg-emerald-500';
+    if (level === 2) return 'bg-emerald-700';
+    if (level === 1) return 'bg-emerald-900/70';
+    return 'bg-slate-800/60';
+  };
+
+  const recentSessions = useMemo(() => {
+    return [...safeSessions]
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0))
+      .slice(0, 8);
+  }, [safeSessions]);
+
+  const rpePillClass = (rpe) => {
+    if (rpe >= 9) return 'bg-red-500/25 text-red-200 border-red-500/40';
+    if (rpe >= 7) return 'bg-orange-500/25 text-orange-200 border-orange-500/40';
+    return 'bg-amber-500/20 text-amber-200 border-amber-500/40';
+  };
+
+  const onSaveSession = async (entry) => {
+    const exists = safeSessions.some(s => s.id === entry.id);
+    const next = exists
+      ? safeSessions.map(s => (s.id === entry.id ? entry : s))
+      : [entry, ...safeSessions];
+    await saveTrainingSessions(next);
+    if (markDayTrained && entry.date) await markDayTrained(entry.date);
+    setLogOpen(false);
+    setEditingSession(null);
+  };
+
+  const onDeleteSession = async (id) => {
+    await saveTrainingSessions(safeSessions.filter(s => s.id !== id));
+  };
+
+  const selectedSession = selectedSessionId ? safeSessions.find(s => s.id === selectedSessionId) : null;
+
+  if (section === 'sessions') {
+    return (
+      <div className="max-w-2xl mx-auto">
         <SessionsBrowser
           trainingSessions={trainingSessions}
           saveTrainingSessions={saveTrainingSessions}
@@ -2731,997 +2706,271 @@ function TrainingTab({ weeklyGoals, tricks, completedWarmups, saveWarmups, compl
           templates={templates}
           saveTemplates={saveTemplates}
           onOpenTrick={onOpenTrick}
-          onClose={() => setSection(null)} />
-      ) : (
-        <TrainingLogSection
-          trainingDays={trainingDays}
-          trainingSessions={trainingSessions}
-          saveTrainingSessions={saveTrainingSessions}
-          markDayTrained={markDayTrained}
-          plannedDays={plannedDays}
-          plannedMonths={plannedMonths}
-          plannedWeeks={plannedWeeks}
-          plannedSessionFocus={plannedSessionFocus}
-          savePlannedSessionFocus={savePlannedSessionFocus}
-          plannedSessionDismissed={plannedSessionDismissed}
-          plannedSessionIntents={plannedSessionIntents}
-          savePlannedSessionIntents={savePlannedSessionIntents}
-          streak={streak}
+          onClose={() => setSection && setSection(null)} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 max-w-2xl mx-auto">
+      <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs font-semibold text-orange-300 uppercase">Streak</div>
+            <div className="flex items-baseline gap-2"><span className="text-4xl font-black">{streak}</span><span className="text-sm font-bold text-orange-200">days</span></div>
+            <div className="text-[11px] font-bold mt-1 text-orange-200">
+              {daysThisWeek > 0 ? `🔥 ${daysThisWeek} of 7 this week` : 'No days yet this week'}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs font-semibold text-orange-300 uppercase">Total</div>
+            <div className="text-2xl font-black">{totalSessions} <span className="text-sm font-bold text-orange-200">sessions</span></div>
+          </div>
+        </div>
+      </div>
+
+      <button onClick={() => { setEditingSession(todaySession || null); setLogOpen(true); }}
+        className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 shadow-lg transition active:scale-[0.99] ${todaySession ? 'bg-gradient-to-r from-emerald-500/25 to-green-500/25 border-2 border-emerald-500/50 text-emerald-100 hover:from-emerald-500/35 hover:to-green-500/35' : 'bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white'}`}>
+        {todaySession ? (
+          <>
+            <Check className="w-5 h-5" /> Logged today
+            <span className="text-xs font-bold opacity-80">· edit</span>
+          </>
+        ) : (
+          <>
+            <Plus className="w-5 h-5" /> Log today's session
+          </>
+        )}
+      </button>
+
+      <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-bold text-sm">Last {HEATMAP_WEEKS} weeks</div>
+          <div className="flex items-center gap-1 text-[10px] text-slate-400">
+            <span>Less</span>
+            {[0, 1, 2, 3, 4].map(l => (
+              <span key={l} className={`inline-block w-2.5 h-2.5 rounded-sm ${cellTone(l)}`} />
+            ))}
+            <span>More</span>
+          </div>
+        </div>
+        <div className="flex gap-1 overflow-x-auto pb-1">
+          {heatmapColumns.map((col, ci) => (
+            <div key={ci} className="flex flex-col gap-1 flex-shrink-0">
+              {col.map(ds => {
+                const s = sessionByDate(ds);
+                const lvl = intensityLevel(s);
+                const isFuture = ds > today;
+                const isToday = ds === today;
+                const tip = s
+                  ? `${ds} · RPE ${s.rpe ?? '—'} · ${s.durationMinutes || 0} min`
+                  : isFuture ? ds : `${ds} · no session`;
+                const baseClass = isFuture
+                  ? 'bg-slate-900/40 border border-dashed border-slate-700'
+                  : cellTone(lvl);
+                return (
+                  <button key={ds} title={tip}
+                    onClick={() => { if (s) setSelectedSessionId(s.id); }}
+                    disabled={!s}
+                    className={`w-3.5 h-3.5 rounded-sm ${baseClass} ${isToday ? 'ring-1 ring-orange-400' : ''} ${s ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-bold text-sm">Recent sessions</div>
+          {totalSessions > 0 && setSection && (
+            <button onClick={() => setSection('sessions')} className="text-[11px] font-bold text-purple-300 hover:text-purple-200">View all →</button>
+          )}
+        </div>
+        {recentSessions.length === 0 ? (
+          <div className="text-center text-slate-400 text-sm py-6">
+            No sessions yet — tap above to log your first one.
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {recentSessions.map(s => {
+              const d = new Date((s.date || today) + 'T00:00:00');
+              const dLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+              const rpe = Number(s.rpe) || 0;
+              const dur = Number(s.durationMinutes) || 0;
+              const trickCount = (Array.isArray(s.practicedTricks) ? s.practicedTricks : []).length;
+              return (
+                <button key={s.id} onClick={() => setSelectedSessionId(s.id)}
+                  className="w-full flex items-center gap-3 bg-slate-900/60 hover:bg-slate-900 border border-slate-700 rounded-xl p-3 text-left transition">
+                  <div className="text-xs font-bold text-slate-300 w-24 flex-shrink-0">{dLabel}</div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${rpePillClass(rpe)}`}>RPE {rpe || '—'}</span>
+                  <span className="text-xs text-slate-400">{dur} min</span>
+                  <span className="text-xs text-slate-400 ml-auto">{trickCount} {trickCount === 1 ? 'trick' : 'tricks'}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {selectedSession && (
+        <SessionDetailModal
+          session={selectedSession}
           tricks={tricks}
-          weeklyGoals={weeklyGoals}
-          completedWarmups={completedWarmups}
-          toggleWarmup={toggleWarmup}
-          resetWarmups={resetWarmups}
-          setAllWarmups={setAllWarmups}
-          completedConditioning={completedConditioning}
-          toggleConditioning={toggleConditioning}
-          resetConditioning={resetConditioning}
-          setAllConditioning={setAllConditioning}
-          section={section}
-          setSection={setSection}
+          onClose={() => setSelectedSessionId(null)}
+          onDelete={onDeleteSession}
           onOpenTrick={onOpenTrick}
-          onUpdateTrickStatus={onUpdateTrickStatus}
+        />
+      )}
+
+      {logOpen && (
+        <LogSessionSheet
+          tricks={tricks}
+          existing={editingSession}
+          onCancel={() => { setLogOpen(false); setEditingSession(null); }}
+          onSave={onSaveSession}
+          onDelete={editingSession ? () => {
+            if (window.confirm('Delete this session?')) {
+              onDeleteSession(editingSession.id);
+              setLogOpen(false);
+              setEditingSession(null);
+            }
+          } : null}
         />
       )}
     </div>
   );
 }
 
-function TrainingLogSection({ trainingDays, trainingSessions, saveTrainingSessions, markDayTrained, plannedDays = [], plannedMonths = [], plannedWeeks = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionDismissed = {}, plannedSessionIntents = {}, savePlannedSessionIntents, streak, tricks = [], weeklyGoals = [], completedWarmups = {}, toggleWarmup, resetWarmups, setAllWarmups, completedConditioning = {}, toggleConditioning, resetConditioning, setAllConditioning, section, setSection, onOpenTrick, onUpdateTrickStatus }) {
-  const FOCUS_TAGS = ['landning', 'flow', 'vips', 'strength', 'precision', 'flips', 'jump', 'tricks', 'leap', 'swings', 'vaults', 'gymnastics'];
+function LogSessionSheet({ tricks = [], existing = null, onCancel, onSave, onDelete }) {
   const today = todayLocal();
-  const [date, setDate] = useState(today);
-  const [tags, setTags] = useState([]);
-  const [rpe, setRpe] = useState(6);
-  const [duration, setDuration] = useState('');
-  const [notes, setNotes] = useState('');
-  const [savedToast, setSavedToast] = useState(false);
+  const [date, setDate] = useState(existing?.date || today);
+  const [duration, setDuration] = useState(existing?.durationMinutes ? String(existing.durationMinutes) : '');
+  const [rpe, setRpe] = useState(existing?.rpe ?? 6);
+  const [practicedTricks, setPracticedTricks] = useState(Array.isArray(existing?.practicedTricks) ? existing.practicedTricks : []);
+  const [notes, setNotes] = useState(existing?.notes || '');
+  const [trickQuery, setTrickQuery] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [journalOpen, setJournalOpen] = useState(false);
-  const [showWarmupRoutine, setShowWarmupRoutine] = useState(false);
-  const [showStrengthRoutine, setShowStrengthRoutine] = useState(false);
-  const [practicedTricks, setPracticedTricks] = useState([]);
-  const prevDateRef = React.useRef(null);
-  useEffect(() => {
-    const locked = Array.isArray(plannedSessionFocus[date]) ? plannedSessionFocus[date] : [];
-    if (prevDateRef.current !== date) {
-      // Switching to a different date — reset the practiced list to that date's focus.
-      setPracticedTricks(locked);
-      prevDateRef.current = date;
-      return;
-    }
-    // Same date, focus updated — merge any newly-added focus tricks in without
-    // clobbering manual additions or removals.
-    setPracticedTricks(prev => {
-      const set = new Set(prev);
-      const additions = locked.filter(id => !set.has(id));
-      if (additions.length === 0) return prev;
-      return [...prev, ...additions];
-    });
-  }, [date, plannedSessionFocus]);
 
-  const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
+  const filteredTricks = useMemo(() => {
+    const q = trickQuery.trim().toLowerCase();
+    const selectedSet = new Set(practicedTricks);
+    return tricks
+      .filter(t => !q || t.name.toLowerCase().includes(q))
+      .sort((a, b) => {
+        const aSel = selectedSet.has(a.id) ? 0 : 1;
+        const bSel = selectedSet.has(b.id) ? 0 : 1;
+        if (aSel !== bSel) return aSel - bSel;
+        return a.name.localeCompare(b.name);
+      });
+  }, [tricks, practicedTricks, trickQuery]);
 
-  const totalSessions = safeSessions.length;
-  const totalMinutes = safeSessions.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0);
-  const avgRpe = totalSessions > 0
-    ? Math.round((safeSessions.reduce((sum, s) => sum + (Number(s.rpe) || 0), 0) / totalSessions) * 10) / 10
-    : 0;
-  const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
-
-  const milestones = [
-    { count: 10, label: '10 sessions logged' },
-    { count: 25, label: '25 sessions logged' },
-    { count: 50, label: '50 sessions logged' },
-    { count: 100, label: '100 sessions logged' },
-  ];
-  const reachedMilestones = milestones.filter(m => totalSessions >= m.count);
-  const nextMilestone = milestones.find(m => totalSessions < m.count);
-
-  const weekOfMonth = (date) => Math.ceil(date.getDate() / 7);
-  const isPlannedDay = (dateStr) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    if (Array.isArray(plannedDays) && plannedDays.length > 0 && !plannedDays.includes(d.getDay())) return false;
-    if (Array.isArray(plannedMonths) && plannedMonths.length > 0 && !plannedMonths.includes(d.getMonth())) return false;
-    if (Array.isArray(plannedWeeks) && plannedWeeks.length > 0 && !plannedWeeks.includes(weekOfMonth(d))) return false;
-    const anySelected = (plannedDays?.length || 0) + (plannedMonths?.length || 0) + (plannedWeeks?.length || 0);
-    return anySelected > 0;
-  };
-  const userMaxMasteredDifficulty = useMemo(() => {
-    const order = ['Easy', 'Medium', 'Hard', 'Super'];
-    const masteredLevels = (tricks || []).filter(t => t.status === 'got_it').map(t => order.indexOf(t.difficulty)).filter(i => i >= 0);
-    return masteredLevels.length > 0 ? Math.max(...masteredLevels) : -1;
-  }, [tricks]);
-
-  const allowedDifficulties = useMemo(() => {
-    const order = ['Easy', 'Medium', 'Hard', 'Super'];
-    const maxIdx = Math.min(3, Math.max(0, userMaxMasteredDifficulty + 1));
-    return order.slice(0, maxIdx + 1);
-  }, [userMaxMasteredDifficulty]);
-
-  const sessionSuggestions = useMemo(() => {
-    const list = [];
-    const seen = new Set();
-    const add = (trick, reason) => {
-      if (!trick || seen.has(trick.id)) return;
-      if (!allowedDifficulties.includes(trick.difficulty)) return;
-      list.push({ trick, reason });
-      seen.add(trick.id);
-    };
-    (weeklyGoals || []).forEach(g => add((tricks || []).find(t => t.id === g.trickId), '🎯 Fokus'));
-    (tricks || []).filter(t => t.status === 'training').forEach(t => add(t, '💪 Training'));
-    (tricks || []).filter(t => t.status === 'want_to_learn').forEach(t => add(t, '👀 Want to learn'));
-    return list;
-  }, [tricks, weeklyGoals, allowedDifficulties]);
-
-  const upcomingSessions = useMemo(() => {
-    const result = [];
-    const todayD = new Date();
-    todayD.setHours(0, 0, 0, 0);
-    const sessionsByDate = {};
-    safeSessions.forEach(s => { if (s.date) sessionsByDate[s.date] = s; });
-    for (let i = 0; i < 28 && result.length < 4; i++) {
-      const d = new Date(todayD);
-      d.setDate(todayD.getDate() + i);
-      const dateStr = formatLocalDate(d);
-      if (isPlannedDay(dateStr)) {
-        result.push({ date: dateStr, dayOfWeek: d.getDay(), loggedSession: sessionsByDate[dateStr] || null });
-      }
-    }
-    return result;
-  }, [plannedDays, plannedMonths, plannedWeeks, safeSessions]);
-
-  const focusForDate = (dateStr) => Array.isArray(plannedSessionFocus[dateStr]) ? plannedSessionFocus[dateStr] : [];
-  const setFocusForDate = (dateStr, ids) => {
-    if (!savePlannedSessionFocus) return;
-    const next = { ...plannedSessionFocus };
-    if (ids.length === 0) delete next[dateStr];
-    else next[dateStr] = ids;
-    savePlannedSessionFocus(next);
-  };
-  const lockFocusTrick = (dateStr, trickId) => {
-    const cur = focusForDate(dateStr);
-    if (cur.includes(trickId)) return;
-    setFocusForDate(dateStr, [...cur, trickId]);
-  };
-  const unlockFocusTrick = (dateStr, trickId) => {
-    setFocusForDate(dateStr, focusForDate(dateStr).filter(id => id !== trickId));
+  const togglePracticed = (id) => {
+    setPracticedTricks(curr => curr.includes(id) ? curr.filter(x => x !== id) : [...curr, id]);
   };
 
-  const toggleTag = (tag) => {
-    setTags(t => t.includes(tag) ? t.filter(x => x !== tag) : [...t, tag]);
-  };
-
-  const submit = async () => {
-    if (!date || submitting) return;
+  const handleSave = async () => {
+    if (submitting) return;
     setSubmitting(true);
     try {
-      const realChanges = sessionTrickAdvances.filter(a => a.fromStatus !== a.toStatus);
       const entry = {
-        id: Date.now(),
+        id: existing?.id ?? Date.now(),
         date,
-        focusTags: tags,
         practicedTricks,
         rpe: Number(rpe),
         durationMinutes: duration ? Math.max(0, parseInt(duration, 10) || 0) : 0,
         notes: notes.trim(),
-        trickStatusChanges: realChanges,
-        createdAt: Date.now(),
+        createdAt: existing?.createdAt ?? Date.now(),
       };
-      await saveTrainingSessions([entry, ...safeSessions]);
-      if (markDayTrained) await markDayTrained(date);
-      setTags([]); setDuration(''); setNotes(''); setRpe(6); setDate(today); setPracticedTricks([]);
-      setSessionTrickAdvances([]);
-      setSavedToast(true);
-      setTimeout(() => setSavedToast(false), 2000);
+      if (existing?.focusTags !== undefined) entry.focusTags = existing.focusTags;
+      if (existing?.trickStatusChanges !== undefined) entry.trickStatusChanges = existing.trickStatusChanges;
+      await onSave(entry);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
-    const m = new Date();
-    m.setHours(0, 0, 0, 0);
-    const day = m.getDay();
-    const diff = m.getDate() - day + (day === 0 ? -6 : 1);
-    m.setDate(diff);
-    return m;
-  });
-  const [selectedDayDate, setSelectedDayDate] = useState(null);
-  const [expandedPhase, setExpandedPhase] = useState(() => {
-    if (section === 'warmup') return 'warmup';
-    if (section === 'conditioning') return 'strength';
-    if (section === 'log') return 'log';
-    return null;
-  });
-  const [sessionTrickAdvances, setSessionTrickAdvances] = useState([]);
-
-  useEffect(() => {
-    if (!section) return;
-    const target = section === 'conditioning' ? 'strength' : section === 'log' ? 'log' : section === 'warmup' ? 'warmup' : null;
-    if (!target) return;
-    setExpandedPhase(target);
-    setTimeout(() => {
-      const el = document.getElementById(`phase-${target}`);
-      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 60);
-  }, [section]);
-
-  const safeWarmups = completedWarmups || {};
-  const safeConditioning = completedConditioning || {};
-  const todayWarmups = safeWarmups[today] || [];
-  const todayConditioning = safeConditioning[today] || [];
-
-  const advanceTrickLevel = (t) => {
-    if (!onUpdateTrickStatus || !t) return;
-    const fromStatus = t.status || 'not_started';
-    let toStatus;
-    if (fromStatus === 'not_started') toStatus = 'want_to_learn';
-    else if (fromStatus === 'want_to_learn') toStatus = 'training';
-    else if (fromStatus === 'training') toStatus = 'got_it';
-    else return;
-    onUpdateTrickStatus(t.id, toStatus);
-    setSessionTrickAdvances(prev => {
-      const without = prev.filter(a => a.trickId !== t.id);
-      return [...without, { trickId: t.id, fromStatus, toStatus }];
-    });
-  };
-
-  const nextStatusLabel = (t) => {
-    const fromStatus = t?.status || 'not_started';
-    if (fromStatus === 'not_started') return 'Want to learn';
-    if (fromStatus === 'want_to_learn') return 'Training';
-    if (fromStatus === 'training') return 'Got it';
-    return null;
-  };
-
-  const setWarmupDone = (done) => {
-    if (!setAllWarmups) return;
-    setAllWarmups(today, done ? WARMUPS.map(w => w.id) : []);
-  };
-  const setStrengthDone = (done) => {
-    if (!setAllConditioning) return;
-    setAllConditioning(today, done ? CONDITIONING.map(c => c.id) : []);
-  };
-
-  const weekDates = (() => {
-    const out = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(currentWeekStart);
-      d.setDate(currentWeekStart.getDate() + i);
-      out.push(formatLocalDate(d));
-    }
-    return out;
-  })();
-
-  const sessionByDate = (dateStr) => safeSessions.find(s => s.date === dateStr);
-
-  const dayState = (dateStr) => {
-    if (sessionByDate(dateStr)) return 'done';
-    if (dateStr === today) return 'today';
-    const focus = plannedSessionFocus[dateStr];
-    const hasFocus = Array.isArray(focus) && focus.length > 0;
-    if (hasFocus) return 'planned';
-    if (!isPlannedDay(dateStr)) return 'rest';
-    if (dateStr < today) return 'rest';
-    return 'unplanned';
-  };
-
-  const weekStates = weekDates.map(dayState);
-  const weekStateCounts = {
-    done: weekStates.filter(s => s === 'done').length,
-    today: weekStates.filter(s => s === 'today').length,
-    planned: weekStates.filter(s => s === 'planned').length,
-    unplanned: weekStates.filter(s => s === 'unplanned').length,
-    rest: weekStates.filter(s => s === 'rest').length,
-  };
-
-  const formatWeekLabel = () => {
-    const start = new Date(currentWeekStart);
-    const end = new Date(currentWeekStart);
-    end.setDate(start.getDate() + 6);
-    const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const todayMonday = (() => {
-      const m = new Date();
-      m.setHours(0, 0, 0, 0);
-      const day = m.getDay();
-      const diff = m.getDate() - day + (day === 0 ? -6 : 1);
-      m.setDate(diff);
-      return m;
-    })();
-    const isThisWeek = currentWeekStart.getTime() === todayMonday.getTime();
-    return isThisWeek ? `This week · ${fmt(start)} – ${fmt(end)}` : `${fmt(start)} – ${fmt(end)}`;
-  };
-
-  const shiftWeek = (deltaWeeks) => {
-    const next = new Date(currentWeekStart);
-    next.setDate(next.getDate() + deltaWeeks * 7);
-    setCurrentWeekStart(next);
-    setSelectedDayDate(null);
-  };
-
-  const setIntentForDate = (dateStr, text) => {
-    if (!savePlannedSessionIntents) return;
-    const next = { ...plannedSessionIntents };
-    if (text && text.trim()) next[dateStr] = text;
-    else delete next[dateStr];
-    savePlannedSessionIntents(next);
-  };
-
-  const upcomingSummaries = (() => {
-    const out = [];
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    for (let i = 1; i <= 14 && out.length < 2; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      const ds = formatLocalDate(d);
-      const st = dayState(ds);
-      if (st === 'planned' || st === 'unplanned') {
-        out.push({ date: ds, state: st });
-      }
-    }
-    return out;
-  })();
+  const rpeLabel = rpe >= 9 ? 'All-out' : rpe >= 7 ? 'Hard' : rpe >= 5 ? 'Moderate' : 'Easy';
+  const rpeColor = rpe >= 9 ? 'text-red-300' : rpe >= 7 ? 'text-orange-300' : rpe >= 5 ? 'text-amber-300' : 'text-emerald-300';
 
   return (
-    <div className="space-y-4">
-      {(() => {
-        // Soft companion to the strict consecutive streak: count distinct
-        // trainingDays that fall inside this calendar week (currentWeekStart
-        // is already this Monday for the week strip). Survives a missed day
-        // without resetting to 0.
-        const weekStartStr = formatLocalDate(currentWeekStart);
-        const weekEnd = new Date(currentWeekStart);
-        weekEnd.setDate(currentWeekStart.getDate() + 6);
-        const weekEndStr = formatLocalDate(weekEnd);
-        const safeDays = Array.isArray(trainingDays) ? trainingDays : [];
-        const daysThisWeek = new Set(safeDays.filter(d => d >= weekStartStr && d <= weekEndStr)).size;
-        const weekTone = daysThisWeek >= 5 ? 'text-green-300' : daysThisWeek >= 3 ? 'text-amber-200' : 'text-orange-200';
-        return (
-          <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs font-semibold text-orange-300 uppercase">Streak</div>
-                <div className="flex items-baseline gap-2"><span className="text-4xl font-black">{streak}</span><span className="text-sm font-bold text-orange-200">days</span></div>
-                <div className={`text-[11px] font-bold mt-1 ${weekTone}`}>
-                  {daysThisWeek > 0 ? `🔥 ${daysThisWeek} of 7 this week` : 'No days yet this week'}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-xs font-semibold text-orange-300 uppercase">Total</div>
-                <div className="text-2xl font-black">{totalSessions} <span className="text-sm font-bold text-orange-200">sessions</span></div>
-                <div className="text-xs text-slate-300">{totalHours} h logged · avg RPE {avgRpe || '—'}</div>
-              </div>
-            </div>
-            {nextMilestone && (
-              <div className="mt-3 text-xs text-orange-200">
-                Next milestone: <span className="font-bold">{nextMilestone.label}</span> ({nextMilestone.count - totalSessions} to go)
-              </div>
-            )}
-            {streak === 0 && daysThisWeek > 0 && (
-              <div className="mt-3 text-[11px] text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-1.5">
-                Streak reset, but you've still trained {daysThisWeek} {daysThisWeek === 1 ? 'day' : 'days'} this week — keep going.
-              </div>
-            )}
+    <div className="fixed inset-x-0 top-0 bottom-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onCancel}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-t sm:border border-purple-500/30 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-full sm:max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-slate-900 border-b border-slate-700 px-5 py-4 flex items-center justify-between">
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">{existing ? 'Edit session' : 'Log session'}</div>
+            <div className="font-black text-base">{date}</div>
           </div>
-        );
-      })()}
+          <button onClick={onCancel} className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Date</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
+          </div>
 
-      {(() => {
-        const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        return (
-          <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-3">
-            <div className="flex items-center justify-between mb-2">
-              <button onClick={() => shiftWeek(-1)} className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300" title="Previous week">‹</button>
-              <span className="text-xs font-bold text-slate-300">{formatWeekLabel()}</span>
-              <button onClick={() => shiftWeek(1)} className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300" title="Next week">›</button>
+          <div>
+            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Duration (min)</label>
+            <input type="number" min="0" inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)}
+              placeholder="60"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] font-bold uppercase text-slate-400">RPE</label>
+              <span className={`text-xs font-bold ${rpeColor}`}>{rpe} · {rpeLabel}</span>
             </div>
-            <div className="grid grid-cols-7 gap-1.5">
-              {weekDates.map((ds, i) => {
-                const st = weekStates[i];
-                const d = new Date(ds + 'T00:00:00');
-                const dayNum = d.getDate();
-                const focus = plannedSessionFocus[ds];
-                const focusCount = Array.isArray(focus) ? focus.length : 0;
-                const session = sessionByDate(ds);
-                const selected = selectedDayDate === ds;
+            <input type="range" min="1" max="10" step="1" value={rpe}
+              onChange={(e) => setRpe(parseInt(e.target.value, 10))}
+              className="w-full accent-purple-500" />
+            <div className="flex justify-between text-[10px] text-slate-500 mt-1"><span>1</span><span>10</span></div>
+          </div>
 
-                let cellClass = 'bg-slate-900 border-slate-700 text-slate-400';
-                let labelText = null;
-                if (st === 'done') {
-                  cellClass = 'bg-green-600/80 border-green-300 text-white';
-                  labelText = '✓';
-                } else if (st === 'today') {
-                  cellClass = 'bg-orange-500/30 border-orange-400 text-orange-100 ring-2 ring-orange-400/50 shadow-lg shadow-orange-500/20';
-                  labelText = 'TODAY';
-                } else if (st === 'planned') {
-                  cellClass = 'bg-purple-500/15 border-purple-400 border-dashed text-purple-200';
-                  labelText = `${focusCount}🎯`;
-                } else if (st === 'unplanned') {
-                  cellClass = 'bg-slate-900 border-slate-600 border-dashed text-slate-400';
-                  labelText = '+ plan';
-                } else if (st === 'rest') {
-                  cellClass = 'bg-slate-900/60 border-slate-800 text-slate-500';
-                  labelText = 'rest';
-                }
-                if (selected) cellClass += ' ring-2 ring-purple-300';
-
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] font-bold uppercase text-slate-400">Tricks practiced (optional)</label>
+              {practicedTricks.length > 0 && (
+                <span className="text-[10px] text-slate-400">{practicedTricks.length} selected</span>
+              )}
+            </div>
+            <input type="text" value={trickQuery} onChange={(e) => setTrickQuery(e.target.value)}
+              placeholder="Search tricks…"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 mb-2 focus:outline-none focus:border-purple-500" />
+            <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+              {filteredTricks.slice(0, 80).map(t => {
+                const on = practicedTricks.includes(t.id);
                 return (
-                  <button key={ds} onClick={() => setSelectedDayDate(prev => prev === ds ? null : ds)}
-                    className={`flex flex-col items-center justify-center rounded-lg border-2 px-1 py-2 text-[9px] font-bold transition ${cellClass}`}>
-                    <span className="text-[8px] uppercase opacity-80">{weekdayLabels[i]}</span>
-                    <span className="text-base font-black my-0.5">{dayNum}</span>
-                    <span className="text-[8px] truncate max-w-full">{labelText}</span>
+                  <button key={t.id} onClick={() => togglePracticed(t.id)}
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full border transition ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                    {t.name}
                   </button>
                 );
               })}
             </div>
-            <div className="text-[10px] mt-2 flex items-center justify-between gap-2">
-              <div className="text-slate-400">
-                {weekStateCounts.done > 0 && <span>{weekStateCounts.done} done</span>}
-                {weekStateCounts.done > 0 && weekStateCounts.today > 0 && <span> · </span>}
-                {weekStateCounts.today > 0 && <span>{weekStateCounts.today} today</span>}
-                {(weekStateCounts.done + weekStateCounts.today) > 0 && weekStateCounts.planned > 0 && <span> · </span>}
-                {weekStateCounts.planned > 0 && <span>{weekStateCounts.planned} planned</span>}
-                {(weekStateCounts.done + weekStateCounts.today + weekStateCounts.planned) > 0 && weekStateCounts.unplanned > 0 && <span> · </span>}
-                {weekStateCounts.unplanned > 0 && <span>{weekStateCounts.unplanned} open</span>}
-                {(weekStateCounts.done + weekStateCounts.today + weekStateCounts.planned + weekStateCounts.unplanned) === 0 && <span>All rest this week</span>}
-              </div>
-              <button onClick={() => setSection && setSection('sessions')}
-                className="text-purple-300 hover:text-purple-200 font-bold flex-shrink-0">
-                Sessions →
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Notes (optional)</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
+              placeholder="How did it feel? What worked?"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 resize-none" />
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-slate-800">
+            <button onClick={handleSave} disabled={submitting}
+              className="w-full py-3 rounded-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white disabled:opacity-50 transition">
+              {submitting ? 'Saving…' : (existing ? 'Save changes' : 'Save session')}
+            </button>
+            {onDelete && (
+              <button onClick={onDelete} className="w-full py-2 rounded-lg text-xs font-bold bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30">
+                × Delete session
               </button>
-            </div>
-          </div>
-        );
-      })()}
-
-      {selectedDayDate && (() => {
-        const ds = selectedDayDate;
-        const st = dayState(ds);
-        const d = new Date(ds + 'T00:00:00');
-        const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-        const session = sessionByDate(ds);
-        const focusIds = Array.isArray(plannedSessionFocus[ds]) ? plannedSessionFocus[ds] : [];
-        const focusTricks = focusIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
-        const intent = plannedSessionIntents[ds] || '';
-        const addable = tricks.filter(t => !focusIds.includes(t.id) && t.status !== 'got_it')
-          .sort((a, b) => a.name.localeCompare(b.name));
-        const suggestThree = () => {
-          const dismissedIds = Array.isArray(plannedSessionDismissed[ds]) ? plannedSessionDismissed[ds] : [];
-          const picks = sessionSuggestions
-            .filter(s => !focusIds.includes(s.trick.id) && !dismissedIds.includes(s.trick.id))
-            .slice(0, 3 - focusIds.length)
-            .map(s => s.trick.id);
-          if (picks.length > 0) setFocusForDate(ds, [...focusIds, ...picks]);
-        };
-
-        return (
-          <div className="bg-slate-900/80 border border-purple-500/40 rounded-2xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">{st === 'done' ? 'Recap' : st === 'today' ? 'Today' : st === 'planned' ? 'Planned' : st === 'rest' ? 'Rest day' : 'Empty day'}</div>
-                <div className="font-black text-base">{dayLabel}</div>
-              </div>
-              <button onClick={() => setSelectedDayDate(null)} className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300">×</button>
-            </div>
-
-            {st === 'done' && session && (
-              <>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 text-center">
-                    <div className="text-[10px] text-slate-400 uppercase">RPE</div>
-                    <div className="text-lg font-black">{session.rpe ?? '—'}</div>
-                  </div>
-                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 text-center">
-                    <div className="text-[10px] text-slate-400 uppercase">Min</div>
-                    <div className="text-lg font-black">{session.durationMinutes || 0}</div>
-                  </div>
-                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-2 text-center">
-                    <div className="text-[10px] text-slate-400 uppercase">Tricks</div>
-                    <div className="text-lg font-black">{(session.practicedTricks || []).length}</div>
-                  </div>
-                </div>
-                {Array.isArray(session.focusTags) && session.focusTags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {session.focusTags.map(tag => <span key={tag} className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/30">#{tag}</span>)}
-                  </div>
-                )}
-                {session.notes && (
-                  <div className="text-xs text-slate-300 bg-slate-800/60 border border-slate-700 rounded-lg p-2 whitespace-pre-wrap">{session.notes}</div>
-                )}
-                <button onClick={() => { setJournalOpen(true); setSelectedDayDate(null); setTimeout(() => { const el = document.getElementById('training-journal'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 50); }}
-                  className="w-full py-2 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200">Open in journal →</button>
-              </>
             )}
-
-            {st === 'today' && (
-              <>
-                {focusTricks.length > 0 ? (
-                  <div className="space-y-1.5">
-                    <div className="text-[10px] font-bold uppercase text-slate-400">Focus locked in</div>
-                    {focusTricks.map(t => (
-                      <div key={t.id} className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg p-2">
-                        <CategoryIcon category={t.category} size={16} />
-                        <span className="flex-1 truncate text-sm font-bold">{t.name}</span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text}`}>{t.difficulty}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-slate-400 italic">No focus locked yet — pick tricks below or just train and log.</div>
-                )}
-                {intent && (
-                  <div className="text-xs text-slate-300 bg-slate-800/60 border border-slate-700 rounded-lg p-2 italic">"{intent}"</div>
-                )}
-                <button onClick={() => { setSelectedDayDate(null); setExpandedPhase('log'); setTimeout(() => { const el = document.getElementById('phase-log'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); }}
-                  className="w-full py-2 rounded-lg text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white">📝 Log this session ↓</button>
-              </>
-            )}
-
-            {(st === 'planned' || st === 'unplanned' || (st === 'rest' && ds >= today)) && (
-              <>
-                {focusTricks.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="text-[10px] font-bold uppercase text-slate-400">Focus tricks ({focusTricks.length})</div>
-                    {focusTricks.map(t => (
-                      <div key={t.id} className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg p-2">
-                        <CategoryIcon category={t.category} size={16} />
-                        <span className="flex-1 truncate text-sm font-bold">{t.name}</span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text}`}>{t.difficulty}</span>
-                        <button onClick={() => unlockFocusTrick(ds, t.id)} className="text-slate-500 hover:text-red-400" title="Remove"><X className="w-4 h-4" /></button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  {focusIds.length < 6 && sessionSuggestions.some(s => !focusIds.includes(s.trick.id)) && (
-                    <button onClick={suggestThree} className="flex-1 py-2 rounded-lg text-xs font-bold bg-yellow-500 text-slate-900 hover:bg-yellow-400">✨ Suggest {Math.min(3, 6 - focusIds.length)}</button>
-                  )}
-                  {addable.length > 0 && (
-                    <select value="" onChange={(e) => { if (e.target.value) lockFocusTrick(ds, parseInt(e.target.value, 10)); }}
-                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 px-2 py-2">
-                      <option value="">+ Add trick…</option>
-                      {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
-                    </select>
-                  )}
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Why this session?</label>
-                  <textarea value={intent} onChange={(e) => setIntentForDate(ds, e.target.value)}
-                    placeholder="Following up on a goal · trying a new line · just for fun…"
-                    rows={2}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs resize-none" />
-                </div>
-              </>
-            )}
-
-            {st === 'rest' && ds < today && (
-              <div className="text-xs text-slate-400 italic text-center py-3">Rest day. Nothing logged.</div>
-            )}
-          </div>
-        );
-      })()}
-
-      {(() => {
-        const focusIdsToday = Array.isArray(plannedSessionFocus[today]) ? plannedSessionFocus[today] : [];
-        const focusTricksToday = focusIdsToday.map(id => tricks.find(t => t.id === id)).filter(Boolean);
-        // Train phase pulls from focus AND from the in-progress Log form's practicedTricks,
-        // deduped. So a quick "I trained at the park" flow (no plan, just log) still gets a
-        // Train surface to advance status from. If both are empty, skip the phase entirely.
-        const trainTrickIds = [...new Set([...focusIdsToday, ...practicedTricks])];
-        const trainTricks = trainTrickIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
-        const todaySession = sessionByDate(today);
-
-        const planComplete = focusTricksToday.length > 0;
-        const warmupComplete = todayWarmups.length === WARMUPS.length;
-        const warmupInProgress = !warmupComplete && todayWarmups.length > 0;
-        const strengthComplete = todayConditioning.length === CONDITIONING.length;
-        const strengthInProgress = !strengthComplete && todayConditioning.length > 0;
-        const trainComplete = trainTricks.length > 0 && trainTricks.every(t =>
-          sessionTrickAdvances.find(a => a.trickId === t.id) || t.status === 'got_it'
-        );
-        const trainInProgress = !trainComplete && sessionTrickAdvances.length > 0;
-        const logComplete = !!todaySession;
-
-        const showTrain = trainTricks.length > 0;
-        const phases = [
-          { key: 'plan', title: 'Plan', complete: planComplete,
-            subtitle: planComplete ? `${focusTricksToday.length} focus ${focusTricksToday.length === 1 ? 'trick' : 'tricks'} locked` : 'Pick today\'s focus tricks above',
-            inProgress: false },
-          { key: 'warmup', title: 'Warm up', complete: warmupComplete,
-            subtitle: warmupComplete ? `All ${WARMUPS.length} done` : `${todayWarmups.length} / ${WARMUPS.length} done`,
-            inProgress: warmupInProgress },
-          { key: 'strength', title: 'Strength', complete: strengthComplete,
-            subtitle: strengthComplete ? `All ${CONDITIONING.length} done` : `${todayConditioning.length} / ${CONDITIONING.length} done`,
-            inProgress: strengthInProgress },
-          ...(showTrain ? [{
-            key: 'train', title: 'Train', complete: trainComplete,
-            subtitle: trainComplete ? `Moved ${trainTricks.length} forward` : `${sessionTrickAdvances.length} / ${trainTricks.length} touched`,
-            inProgress: trainInProgress,
-          }] : []),
-          { key: 'log', title: 'Log', complete: logComplete,
-            subtitle: logComplete ? `Saved · RPE ${todaySession.rpe} · ${todaySession.durationMinutes || 0} min` : 'RPE & note',
-            inProgress: false },
-        ].map((p, i) => ({ ...p, num: i + 1 }));
-
-        return (
-          <div className="space-y-2">
-            <div className="grid gap-1.5 px-1" style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` }}>
-              {phases.map(p => (
-                <div key={p.key}
-                  className={`h-1.5 rounded-full transition ${
-                    p.complete ? 'bg-green-500' :
-                    p.inProgress || expandedPhase === p.key ? 'bg-amber-400' :
-                    'bg-slate-700'
-                  }`} />
-              ))}
-            </div>
-            <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1">Today's session</div>
-
-            {phases.map(p => {
-              const isOpen = expandedPhase === p.key;
-              const cardClass = p.complete
-                ? 'bg-slate-800/40 border-slate-700'
-                : p.inProgress
-                ? 'bg-amber-500/10 border-amber-400/50 shadow-md shadow-amber-500/10'
-                : 'bg-slate-800/40 border-slate-700';
-              const circleClass = p.complete
-                ? 'bg-green-500 text-white'
-                : p.inProgress
-                ? 'bg-amber-400 text-slate-900'
-                : 'bg-slate-700 text-slate-300';
-              return (
-                <div key={p.key} id={`phase-${p.key}`} className={`rounded-2xl border transition ${cardClass}`}>
-                  <button onClick={() => setExpandedPhase(prev => prev === p.key ? null : p.key)}
-                    className="w-full flex items-center gap-3 p-3 text-left">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0 ${circleClass}`}>
-                      {p.complete ? <Check className="w-4 h-4" strokeWidth={3} /> : p.num}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-sm">{p.title}</span>
-                        {p.inProgress && <span className="text-[9px] font-black text-amber-300 uppercase tracking-wider">In progress</span>}
-                        {p.complete && <span className="text-[9px] font-black text-green-300 uppercase tracking-wider">Done</span>}
-                      </div>
-                      <div className="text-xs text-slate-400 truncate">{p.subtitle}</div>
-                    </div>
-                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {isOpen && p.key === 'plan' && (
-                    <div className="px-3 pb-3 space-y-2">
-                      {focusTricksToday.length === 0 ? (
-                        <div className="text-xs text-slate-400 italic text-center py-3">
-                          No focus tricks for today yet. Tap the today cell above to plan.
-                        </div>
-                      ) : (
-                        focusTricksToday.map(t => {
-                          const inGoal = weeklyGoals.some(g => g.trickId === t.id);
-                          const tdiff = DIFFICULTY_COLORS[t.difficulty];
-                          return (
-                            <button key={t.id} onClick={() => onOpenTrick && onOpenTrick(t)}
-                              className="w-full flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg p-2 text-left transition">
-                              <CategoryIcon category={t.category} size={18} />
-                              <span className="flex-1 truncate text-sm font-bold">{t.name}</span>
-                              {inGoal && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/40">GOAL</span>}
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${tdiff?.bg} ${tdiff?.text}`}>{t.difficulty}</span>
-                              <StatusPill trick={t} size="sm" />
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-
-                  {isOpen && p.key === 'warmup' && (
-                    <div className="px-3 pb-3 space-y-3">
-                      <button onClick={() => setWarmupDone(!warmupComplete)}
-                        className={`w-full py-3 rounded-xl font-black text-sm transition flex items-center justify-center gap-2 border-2 ${
-                          warmupComplete
-                            ? 'bg-green-500/20 border-green-500/60 text-green-200 hover:bg-green-500/30'
-                            : 'bg-gradient-to-br from-orange-500 to-red-500 border-orange-400 text-white hover:scale-[1.01] active:scale-95'
-                        }`}>
-                        {warmupComplete ? '✓ Warmed up' : 'Warmed up — tap when done'}
-                      </button>
-                      <button onClick={() => setShowWarmupRoutine(o => !o)}
-                        className="w-full text-[11px] text-slate-300 hover:text-slate-100 py-1 flex items-center justify-center gap-1">
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showWarmupRoutine ? 'rotate-180' : ''}`} />
-                        {showWarmupRoutine ? 'Hide routine' : 'Show me a routine'}
-                      </button>
-                      {showWarmupRoutine && (
-                        <div className="space-y-2 pt-1 border-t border-slate-800">
-                          {todayWarmups.length > 0 && resetWarmups && (
-                            <div className="flex justify-between items-center pt-2">
-                              <span className="text-[10px] text-slate-400">{todayWarmups.length} / {WARMUPS.length} done</span>
-                              <button onClick={resetWarmups} className="text-[10px] text-slate-400 hover:text-slate-200">Reset</button>
-                            </div>
-                          )}
-                          {WARMUPS.map(w => {
-                            const done = todayWarmups.includes(w.id);
-                            return (
-                              <div key={w.id} className={`p-2.5 rounded-xl border transition ${done ? 'bg-green-500/15 border-green-500/40' : 'bg-slate-900 border-slate-700'}`}>
-                                <button onClick={() => toggleWarmup && toggleWarmup(w.id)} className="w-full flex items-center gap-2.5 text-left">
-                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${done ? 'bg-green-500 border-green-500' : 'border-slate-500'}`}>
-                                    {done && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className={`text-sm font-bold ${done ? 'line-through text-slate-400' : ''}`}>{w.name}</div>
-                                    <div className="text-[10px] text-slate-400">{w.duration} · {w.desc}</div>
-                                  </div>
-                                </button>
-                                <ExerciseTimer totalSeconds={w.seconds} color="orange" />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {isOpen && p.key === 'strength' && (
-                    <div className="px-3 pb-3 space-y-3">
-                      <button onClick={() => setStrengthDone(!strengthComplete)}
-                        className={`w-full py-3 rounded-xl font-black text-sm transition flex items-center justify-center gap-2 border-2 ${
-                          strengthComplete
-                            ? 'bg-green-500/20 border-green-500/60 text-green-200 hover:bg-green-500/30'
-                            : 'bg-gradient-to-br from-blue-500 to-purple-500 border-blue-400 text-white hover:scale-[1.01] active:scale-95'
-                        }`}>
-                        {strengthComplete ? '✓ Did strength' : 'Did strength — tap when done'}
-                      </button>
-                      <button onClick={() => setShowStrengthRoutine(o => !o)}
-                        className="w-full text-[11px] text-slate-300 hover:text-slate-100 py-1 flex items-center justify-center gap-1">
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showStrengthRoutine ? 'rotate-180' : ''}`} />
-                        {showStrengthRoutine ? 'Hide routine' : 'Show me a routine'}
-                      </button>
-                      {showStrengthRoutine && (
-                        <div className="space-y-2 pt-1 border-t border-slate-800">
-                          {todayConditioning.length > 0 && resetConditioning && (
-                            <div className="flex justify-between items-center pt-2">
-                              <span className="text-[10px] text-slate-400">{todayConditioning.length} / {CONDITIONING.length} done</span>
-                              <button onClick={resetConditioning} className="text-[10px] text-slate-400 hover:text-slate-200">Reset</button>
-                            </div>
-                          )}
-                          {CONDITIONING.map(c => {
-                            const done = todayConditioning.includes(c.id);
-                            return (
-                              <div key={c.id} className={`p-2.5 rounded-xl border transition ${done ? 'bg-green-500/15 border-green-500/40' : 'bg-slate-900 border-slate-700'}`}>
-                                <button onClick={() => toggleConditioning && toggleConditioning(c.id)} className="w-full flex items-center gap-2.5 text-left">
-                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${done ? 'bg-green-500 border-green-500' : 'border-slate-500'}`}>
-                                    {done && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <span className={`text-sm font-bold ${done ? 'line-through text-slate-400' : ''}`}>{c.name}</span>
-                                      <span className="ml-auto text-[10px] font-bold text-blue-300 bg-blue-500/15 border border-blue-500/30 px-1.5 py-0.5 rounded flex-shrink-0">{c.reps}</span>
-                                    </div>
-                                    <div className="text-[10px] text-slate-400 mt-0.5">{c.desc}</div>
-                                  </div>
-                                </button>
-                                <ExerciseTimer totalSeconds={c.seconds} color="blue" />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      <button onClick={() => setExpandedPhase('train')}
-                        className="w-full text-[10px] text-slate-400 hover:text-slate-200 py-1.5">
-                        Skip strength →
-                      </button>
-                    </div>
-                  )}
-
-                  {isOpen && p.key === 'train' && (
-                    <div className="px-3 pb-3 space-y-2">
-                      {trainTricks.length === 0 ? null : (
-                        trainTricks.map(t => {
-                          const advance = sessionTrickAdvances.find(a => a.trickId === t.id);
-                          const mastered = t.status === 'got_it';
-                          const inGoal = weeklyGoals.some(g => g.trickId === t.id);
-                          const tdiff = DIFFICULTY_COLORS[t.difficulty];
-                          const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
-                          const nextLabel = nextStatusLabel(t);
-                          return (
-                            <div key={t.id} className="bg-slate-900 border border-slate-700 rounded-xl p-3">
-                              <div className="flex items-center gap-2 mb-2">
-                                <CategoryIcon category={t.category} size={18} />
-                                <span className="flex-1 truncate text-sm font-bold">{t.name}</span>
-                                {inGoal && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/40">GOAL</span>}
-                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${tdiff?.bg} ${tdiff?.text}`}>{t.difficulty}</span>
-                                <StatusPill trick={t} size="sm" />
-                              </div>
-                              {tutorialVideo && (
-                                <button onClick={() => onOpenTrick && onOpenTrick(t, normalizeUrl(tutorialVideo.url))}
-                                  className="w-full mb-2 text-[10px] font-bold py-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 flex items-center justify-center gap-1">
-                                  🎓 Tutorial
-                                </button>
-                              )}
-                              {advance ? (
-                                <div className="text-[11px] text-green-300 font-bold py-1 flex items-center gap-1">
-                                  <Check className="w-3 h-3" strokeWidth={3} /> {advance.fromStatus.replace('_', ' ')} → {advance.toStatus.replace('_', ' ')}
-                                </div>
-                              ) : (
-                                <div className="space-y-1.5">
-                                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Move forward today?</div>
-                                  <div className="flex gap-2">
-                                    <button onClick={() => setSessionTrickAdvances(prev => [...prev, { trickId: t.id, fromStatus: t.status || 'not_started', toStatus: t.status || 'not_started' }])}
-                                      className="flex-1 py-2 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
-                                      Same
-                                    </button>
-                                    {nextLabel && !mastered && (
-                                      <button onClick={() => advanceTrickLevel(t)}
-                                        className="flex-1 py-2 rounded-lg text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white">
-                                        → {nextLabel}
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-
-                  {isOpen && p.key === 'log' && (
-                    <div className="px-3 pb-3 space-y-3">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Date</div>
-                          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm" />
-                        </div>
-                        <div>
-                          <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Duration (min)</div>
-                          <input type="number" min="0" value={duration} onChange={e => setDuration(e.target.value)} placeholder="e.g. 90" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm" />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="text-[10px] font-bold uppercase text-slate-400">RPE</div>
-                          <span className="text-[10px] font-bold text-amber-300">{rpe} / 10 · {rpe <= 3 ? 'Easy' : rpe <= 6 ? 'Solid' : rpe <= 8 ? 'Hard' : 'All-out'}</span>
-                        </div>
-                        <input type="range" min="1" max="10" value={rpe} onChange={e => setRpe(e.target.value)} className="w-full accent-amber-500" />
-                        <div className="flex justify-between text-[9px] text-slate-500 mt-0.5"><span>Easy</span><span>Solid</span><span>All-out</span></div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Focus tags</div>
-                        <div className="flex flex-wrap gap-1">
-                          {FOCUS_TAGS.map(tag => {
-                            const on = tags.includes(tag);
-                            return (
-                              <button key={tag} onClick={() => toggleTag(tag)}
-                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition border ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                                #{tag}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Tricks practiced ({practicedTricks.length})</div>
-                        {practicedTricks.length > 0 && (
-                          <div className="space-y-1.5 mb-2">
-                            {practicedTricks.map(id => {
-                              const t = tricks.find(x => x.id === id);
-                              if (!t) return null;
-                              return (
-                                <div key={id} className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg p-2">
-                                  <CategoryIcon category={t.category} size={16} />
-                                  <span className="flex-1 truncate text-sm">{t.name}</span>
-                                  <StatusPill trick={t} size="sm" />
-                                  <button onClick={() => setPracticedTricks(arr => arr.filter(x => x !== id))} className="text-slate-500 hover:text-red-400" title="Remove"><X className="w-3.5 h-3.5" /></button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {(() => {
-                          const addable = (tricks || []).filter(t => !practicedTricks.includes(t.id)).sort((a, b) => a.name.localeCompare(b.name));
-                          if (addable.length === 0) return null;
-                          return (
-                            <select value=""
-                              onChange={e => { if (e.target.value) setPracticedTricks(arr => [...arr, parseInt(e.target.value, 10)]); }}
-                              className="w-full bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5">
-                              <option value="">+ Add a trick…</option>
-                              {addable.map(t => <option key={t.id} value={t.id}>{t.name} ({t.difficulty})</option>)}
-                            </select>
-                          );
-                        })()}
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Notes</div>
-                        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="What worked? What's next?" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs resize-none" />
-                      </div>
-                      <button onClick={submit} disabled={submitting}
-                        className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold text-sm transition hover:scale-[1.02] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100">
-                        {savedToast ? '✅ Saved!' : submitting ? 'Saving…' : 'Save session'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        );
-      })()}
-
-
-
-
-      {reachedMilestones.length > 0 && (
-        <div className="bg-slate-800/50 border border-yellow-500/30 rounded-2xl p-4">
-          <div className="font-bold mb-3 flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-400" /> Milestones</div>
-          <div className="flex flex-wrap gap-2">
-            {reachedMilestones.map(m => (
-              <span key={m.count} className="text-xs font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-2 py-1 rounded">🏅 {m.label}</span>
-            ))}
           </div>
         </div>
-      )}
-
-      {upcomingSummaries.length > 0 && (
-        <div className="bg-slate-800/40 border border-purple-500/30 rounded-2xl p-3">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">Coming up</div>
-            <button onClick={() => setSection && setSection('sessions')} className="text-[10px] font-bold text-purple-300 hover:text-purple-200">View all →</button>
-          </div>
-          <div className="space-y-1.5">
-            {upcomingSummaries.map(({ date: ds, state }) => {
-              const d = new Date(ds + 'T00:00:00');
-              const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
-              const diff = Math.round((d - todayD) / 86400000);
-              const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-              const md = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-              const label = diff === 1 ? 'Tomorrow' : `${weekday} ${md}`;
-              const focusCount = (plannedSessionFocus[ds] || []).length;
-              return (
-                <button key={ds} onClick={() => {
-                  if (!weekDates.includes(ds)) {
-                    const m = new Date(d); m.setHours(0, 0, 0, 0);
-                    const day = m.getDay();
-                    const offset = m.getDate() - day + (day === 0 ? -6 : 1);
-                    m.setDate(offset);
-                    setCurrentWeekStart(m);
-                  }
-                  setSelectedDayDate(ds);
-                  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                  className="w-full flex items-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg p-2 text-left transition">
-                  <span className="text-base flex-shrink-0">{state === 'planned' ? '🎯' : '➕'}</span>
-                  <span className="text-sm font-bold flex-1 truncate">{label}</span>
-                  <span className="text-[10px] text-slate-400">
-                    {state === 'planned' ? `${focusCount} ${focusCount === 1 ? 'trick' : 'tricks'}` : '+ plan'}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div id="training-journal" className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
-        <div className="flex items-center gap-2">
-          <button onClick={() => setJournalOpen(o => !o)} className="flex items-center gap-2 text-left flex-1">
-            <ScrollText className="w-5 h-5 text-purple-400 flex-shrink-0" />
-            <span className="font-bold flex-1">Journal — logged sessions ({safeSessions.length})</span>
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${journalOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {setSection && (
-            <button onClick={() => setSection('sessions')} className="text-[10px] font-bold text-purple-300 hover:text-purple-200 flex-shrink-0">All sessions →</button>
-          )}
-        </div>
-        {journalOpen && (
-          <div className="mt-3">
-            <SessionJournalSection
-              trainingSessions={trainingSessions}
-              saveTrainingSessions={saveTrainingSessions}
-              tricks={tricks}
-              embedded
-            />
-          </div>
-        )}
       </div>
     </div>
   );
@@ -4473,96 +3722,6 @@ function SessionsBrowser({ trainingSessions = [], saveTrainingSessions, tricks =
           onClose={() => setTemplateSession(null)} />
       )}
     </div>
-  );
-}
-
-function SessionJournalSection({ trainingSessions = [], saveTrainingSessions, tricks = [], embedded = false }) {
-  const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
-  const sortedSessions = [...safeSessions].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  const [openId, setOpenId] = useState(null);
-  const removeSession = async (e, id) => {
-    e.stopPropagation();
-    if (!window.confirm('Delete this training session?')) return;
-    if (openId === id) setOpenId(null);
-    await saveTrainingSessions(safeSessions.filter(s => s.id !== id));
-  };
-  const Wrapper = embedded ? 'div' : 'div';
-  const wrapperClass = embedded ? '' : 'bg-slate-800/50 border border-slate-700 rounded-2xl p-4';
-  return (
-    <Wrapper className={wrapperClass}>
-      {!embedded && (
-        <div className="font-bold mb-3 flex items-center gap-2"><ScrollText className="w-5 h-5 text-purple-400" /> Logged sessions ({safeSessions.length})</div>
-      )}
-      {sortedSessions.length === 0 ? (
-        <div className="text-sm text-slate-500 text-center py-6">No sessions logged yet.</div>
-      ) : (
-        <div className="space-y-2">
-          {sortedSessions.map(s => {
-            const isOpen = openId === s.id;
-            const tagsCount = Array.isArray(s.focusTags) ? s.focusTags.length : 0;
-            const tricksCount = Array.isArray(s.practicedTricks) ? s.practicedTricks.length : 0;
-            return (
-              <div key={s.id} className={`bg-slate-900 border rounded-lg text-sm ${isOpen ? 'border-purple-500/40' : 'border-slate-700'}`}>
-                <button onClick={() => setOpenId(isOpen ? null : s.id)} className="w-full flex items-center gap-2 p-3 text-left">
-                  <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                  <span className="font-bold">{s.date}</span>
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 flex-shrink-0">RPE {s.rpe}</span>
-                  {s.durationMinutes > 0 && <span className="text-xs text-slate-400 flex-shrink-0">{s.durationMinutes} min</span>}
-                  {!isOpen && (tricksCount > 0 || tagsCount > 0) && (
-                    <span className="text-[10px] text-slate-500 flex-shrink-0 ml-auto">
-                      {tricksCount > 0 && `${tricksCount} ${tricksCount === 1 ? 'trick' : 'tricks'}`}
-                      {tricksCount > 0 && tagsCount > 0 && ' · '}
-                      {tagsCount > 0 && `${tagsCount} tag${tagsCount === 1 ? '' : 's'}`}
-                    </span>
-                  )}
-                  {isOpen && <span className="ml-auto" />}
-                  <button onClick={(e) => removeSession(e, s.id)} className="text-slate-500 hover:text-red-400 flex-shrink-0"><X className="w-4 h-4" /></button>
-                </button>
-                {isOpen && (
-                  <div className="px-3 pb-3 pt-0 space-y-2 border-t border-slate-700/60">
-                    {tagsCount > 0 && (
-                      <div>
-                        <div className="text-[10px] font-semibold text-slate-400 uppercase mt-2 mb-1">Focus tags</div>
-                        <div className="flex flex-wrap gap-1">
-                          {s.focusTags.map(t => <span key={t} className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">#{t}</span>)}
-                        </div>
-                      </div>
-                    )}
-                    {tricksCount > 0 && (
-                      <div>
-                        <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Tricks practiced</div>
-                        <div className="space-y-1">
-                          {s.practicedTricks.map(id => {
-                            const t = tricks.find(x => x.id === id);
-                            if (!t) return null;
-                            return (
-                              <div key={id} className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded p-2 text-xs">
-                                <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
-                                <span className="flex-1 truncate font-medium">{t.name}</span>
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DIFFICULTY_COLORS[t.difficulty]?.bg} ${DIFFICULTY_COLORS[t.difficulty]?.text} flex-shrink-0`}>{t.difficulty}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    {s.notes ? (
-                      <div>
-                        <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Notes</div>
-                        <div className="text-xs text-slate-300 whitespace-pre-wrap bg-slate-800 border border-slate-700 rounded p-2">{s.notes}</div>
-                      </div>
-                    ) : null}
-                    {tagsCount === 0 && tricksCount === 0 && !s.notes && (
-                      <div className="text-xs text-slate-500 italic mt-2">No details logged for this session.</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </Wrapper>
   );
 }
 
@@ -5687,34 +4846,6 @@ function AddTab({ user, setActiveTab }) {
           <button onClick={submit} disabled={!name.trim() || submitting} className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold disabled:opacity-50 hover:scale-[1.02] active:scale-95 transition">{sent ? '✅ Sent for review!' : submitting ? 'Sending…' : 'Send suggestion'}</button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function ExerciseTimer({ totalSeconds, color = 'orange' }) {
-  const [remaining, setRemaining] = useState(totalSeconds);
-  const [running, setRunning] = useState(false);
-  const [finished, setFinished] = useState(false);
-  useEffect(() => {
-    if (!running) return;
-    if (remaining <= 0) { setRunning(false); setFinished(true); if (navigator.vibrate) navigator.vibrate([200, 100, 200]); return; }
-    const id = setTimeout(() => setRemaining(r => r - 1), 1000);
-    return () => clearTimeout(id);
-  }, [running, remaining]);
-  const reset = (e) => { e.stopPropagation(); setRemaining(totalSeconds); setRunning(false); setFinished(false); };
-  const toggle = (e) => { e.stopPropagation(); if (finished) { setRemaining(totalSeconds); setFinished(false); setRunning(true); } else setRunning(r => !r); };
-  const mins = Math.floor(remaining / 60), secs = remaining % 60;
-  const display = `${mins}:${secs.toString().padStart(2, '0')}`;
-  const pct = (remaining / totalSeconds) * 100;
-  const c = color === 'blue' ? { bg: 'bg-blue-500', text: 'text-blue-300', bgLight: 'bg-blue-500/20' } : { bg: 'bg-orange-500', text: 'text-orange-300', bgLight: 'bg-orange-500/20' };
-  return (
-    <div onClick={(e) => e.stopPropagation()} className="mt-3 flex items-center gap-2 bg-slate-900/70 rounded-lg p-2 border border-slate-700">
-      <div className="flex-1 relative h-8 bg-slate-800 rounded overflow-hidden">
-        <div className={`absolute inset-y-0 left-0 ${c.bg} transition-all duration-1000 ${finished ? 'animate-pulse' : ''}`} style={{ width: `${pct}%` }} />
-        <div className="absolute inset-0 flex items-center justify-center font-mono font-bold text-sm">{finished ? '✅ Done!' : display}</div>
-      </div>
-      <button onClick={toggle} className={`flex-shrink-0 w-9 h-9 rounded-lg ${c.bgLight} ${c.text} hover:opacity-80 flex items-center justify-center transition`}>{running ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}</button>
-      <button onClick={reset} className="flex-shrink-0 w-9 h-9 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 flex items-center justify-center transition"><RotateCcw className="w-4 h-4" /></button>
     </div>
   );
 }
