@@ -2743,78 +2743,76 @@ function LogSessionSheet({ tricks = [], weeklyGoals = [], existing = null, onCan
 
   if (inline) {
     return (
-      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
-        <div className="bg-slate-900/60 border-b border-slate-700 px-4 py-3 flex items-center justify-between">
-          <div className="font-black text-base">+ Log Session</div>
+      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="font-bold flex items-center gap-2"><ScrollText className="w-5 h-5 text-purple-400" /> Log Session</div>
           {onCancel && <button onClick={onCancel} className="text-xs font-bold text-slate-400 hover:text-white">Cancel</button>}
         </div>
-        <div className="p-4 space-y-4">
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Date</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
-            </div>
-            <div className="flex-1">
-              <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Duration (min)</label>
-              <input type="number" min="0" inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)}
-                placeholder="60"
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
-            </div>
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Date</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
           </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[10px] font-bold uppercase text-slate-400">RPE</label>
-              <span className={`text-xs font-bold ${rpeColor}`}>{rpe} · {rpeLabel}</span>
-            </div>
-            <input type="range" min="1" max="10" step="1" value={rpe}
-              onChange={(e) => setRpe(parseInt(e.target.value, 10))}
-              className="w-full accent-purple-500" />
-            <div className="flex justify-between text-[10px] text-slate-500 mt-1"><span>1</span><span>10</span></div>
+          <div className="flex-1">
+            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Duration (min)</label>
+            <input type="number" min="0" inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)}
+              placeholder="60"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
           </div>
+        </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[10px] font-bold uppercase text-slate-400">Tricks practiced (optional)</label>
-              {practicedTricks.length > 0 && (
-                <span className="text-[10px] text-slate-400">{practicedTricks.length} selected</span>
-              )}
-            </div>
-            <input type="text" value={trickQuery} onChange={(e) => setTrickQuery(e.target.value)}
-              placeholder="Search tricks…"
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 mb-2 focus:outline-none focus:border-purple-500" />
-            <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
-              {filteredTricks.slice(0, 20).map(t => {
-                const on = practicedTricks.includes(t.id);
-                return (
-                  <button key={t.id} onClick={() => togglePracticed(t.id)}
-                    className={`text-xs font-bold px-2.5 py-1 rounded-full border transition ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
-                    {t.name}
-                  </button>
-                );
-              })}
-            </div>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[10px] font-bold uppercase text-slate-400">RPE</label>
+            <span className={`text-xs font-bold ${rpeColor}`}>{rpe} · {rpeLabel}</span>
           </div>
+          <input type="range" min="1" max="10" step="1" value={rpe}
+            onChange={(e) => setRpe(parseInt(e.target.value, 10))}
+            className="w-full accent-purple-500" />
+          <div className="flex justify-between text-[10px] text-slate-500 mt-1"><span>1</span><span>10</span></div>
+        </div>
 
-          <div>
-            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Notes (optional)</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
-              placeholder="How did it feel? What worked?"
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 resize-none" />
-          </div>
-
-          <div className="space-y-2 pt-2 border-t border-slate-800">
-            <button onClick={handleSave} disabled={submitting}
-              className="w-full py-3 rounded-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white disabled:opacity-50 transition">
-              {submitting ? 'Saving…' : (existing ? 'Save changes' : 'Save session')}
-            </button>
-            {onDelete && (
-              <button onClick={onDelete} className="w-full py-2 rounded-lg text-xs font-bold bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30">
-                × Delete session
-              </button>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[10px] font-bold uppercase text-slate-400">Tricks practiced (optional)</label>
+            {practicedTricks.length > 0 && (
+              <span className="text-[10px] text-slate-400">{practicedTricks.length} selected</span>
             )}
           </div>
+          <input type="text" value={trickQuery} onChange={(e) => setTrickQuery(e.target.value)}
+            placeholder="Search tricks…"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 mb-2 focus:outline-none focus:border-purple-500" />
+          <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+            {filteredTricks.slice(0, 20).map(t => {
+              const on = practicedTricks.includes(t.id);
+              return (
+                <button key={t.id} onClick={() => togglePracticed(t.id)}
+                  className={`text-xs font-bold px-2.5 py-1 rounded-full border transition ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                  {t.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Notes (optional)</label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
+            placeholder="How did it feel? What worked?"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 resize-none" />
+        </div>
+
+        <div className="space-y-2 pt-2 border-t border-slate-800">
+          <button onClick={handleSave} disabled={submitting}
+            className="w-full py-3 rounded-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white disabled:opacity-50 transition">
+            {submitting ? 'Saving…' : (existing ? 'Save changes' : 'Save session')}
+          </button>
+          {onDelete && (
+            <button onClick={onDelete} className="w-full py-2 rounded-lg text-xs font-bold bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30">
+              × Delete session
+            </button>
+          )}
         </div>
       </div>
     );
