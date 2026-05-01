@@ -2487,16 +2487,11 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
   const sessionsByDate = (ds) => safeSessions.filter(s => s.date === ds);
   const todaySessions = sessionsByDate(today);
 
-  // Today's "Log it" routes here with section='log'; consume that on first
-  // render so the sheet opens immediately, then clear the parent signal so
-  // tab re-entries don't keep re-opening it.
-  const initialOpenLog = section === 'log';
-  const [logOpen, setLogOpen] = useState(initialOpenLog);
   const [editingSession, setEditingSession] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
 
   useEffect(() => {
-    if (initialOpenLog && setSection) setSection(null);
+    if (section === 'log' && setSection) setSection(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2578,7 +2573,6 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
       : [entry, ...safeSessions];
     await saveTrainingSessions(next);
     if (markDayTrained && entry.date) await markDayTrained(entry.date);
-    setLogOpen(false);
     setEditingSession(null);
   };
 
@@ -2629,32 +2623,19 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
         </div>
       </div>
 
-      <button onClick={() => { setEditingSession(null); setLogOpen(true); }}
-        className="w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 shadow-lg transition active:scale-[0.99] bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white">
-        <Plus className="w-5 h-5" /> Log Session
-      </button>
-
-      {todaySessions.length > 0 && (
-        <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-3">
-          <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Today ({todaySessions.length})</div>
-          <div className="space-y-1.5">
-            {todaySessions.map(s => {
-              const rpe = Number(s.rpe) || 0;
-              const dur = Number(s.durationMinutes) || 0;
-              const trickCount = (Array.isArray(s.practicedTricks) ? s.practicedTricks : []).length;
-              return (
-                <button key={s.id} onClick={() => { setEditingSession(s); setLogOpen(true); }}
-                  className="w-full flex items-center gap-3 bg-slate-900/60 hover:bg-slate-900 border border-slate-700 rounded-xl p-3 text-left transition">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${rpePillClass(rpe)}`}>RPE {rpe || '—'}</span>
-                  <span className="text-xs text-slate-400">{dur} min</span>
-                  <span className="text-xs text-slate-400 ml-auto">{trickCount} {trickCount === 1 ? 'trick' : 'tricks'}</span>
-                  <span className="text-[11px] text-purple-300 font-bold">edit →</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <LogSessionSheet
+        inline
+        tricks={tricks}
+        existing={editingSession}
+        onCancel={editingSession ? () => setEditingSession(null) : null}
+        onSave={onSaveSession}
+        onDelete={editingSession ? () => {
+          if (window.confirm('Delete this session?')) {
+            onDeleteSession(editingSession.id);
+            setEditingSession(null);
+          }
+        } : null}
+      />
 
       <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
@@ -2716,7 +2697,7 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
               const dur = Number(s.durationMinutes) || 0;
               const trickCount = (Array.isArray(s.practicedTricks) ? s.practicedTricks : []).length;
               return (
-                <button key={s.id} onClick={() => setSelectedSessionId(s.id)}
+                <button key={s.id} onClick={() => setEditingSession(s)}
                   className="w-full flex items-center gap-3 bg-slate-900/60 hover:bg-slate-900 border border-slate-700 rounded-xl p-3 text-left transition">
                   <div className="text-xs font-bold text-slate-300 w-24 flex-shrink-0">{dLabel}</div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${rpePillClass(rpe)}`}>RPE {rpe || '—'}</span>
@@ -2738,27 +2719,11 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
           onOpenTrick={onOpenTrick}
         />
       )}
-
-      {logOpen && (
-        <LogSessionSheet
-          tricks={tricks}
-          existing={editingSession}
-          onCancel={() => { setLogOpen(false); setEditingSession(null); }}
-          onSave={onSaveSession}
-          onDelete={editingSession ? () => {
-            if (window.confirm('Delete this session?')) {
-              onDeleteSession(editingSession.id);
-              setLogOpen(false);
-              setEditingSession(null);
-            }
-          } : null}
-        />
-      )}
     </div>
   );
 }
 
-function LogSessionSheet({ tricks = [], existing = null, onCancel, onSave, onDelete }) {
+function LogSessionSheet({ tricks = [], existing = null, onCancel, onSave, onDelete, inline = false }) {
   const today = todayLocal();
   const [date, setDate] = useState(existing?.date || today);
   const [duration, setDuration] = useState(existing?.durationMinutes ? String(existing.durationMinutes) : '');
@@ -2808,6 +2773,87 @@ function LogSessionSheet({ tricks = [], existing = null, onCancel, onSave, onDel
 
   const rpeLabel = rpe >= 9 ? 'All-out' : rpe >= 7 ? 'Hard' : rpe >= 5 ? 'Moderate' : 'Easy';
   const rpeColor = rpe >= 9 ? 'text-red-300' : rpe >= 7 ? 'text-orange-300' : rpe >= 5 ? 'text-amber-300' : 'text-emerald-300';
+
+  if (inline) {
+    return (
+      <div className="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
+        <div className="bg-slate-900/60 border-b border-slate-700 px-4 py-3 flex items-center justify-between">
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">{existing ? 'Edit session' : 'New session'}</div>
+            <div className="font-bold text-sm">{date}</div>
+          </div>
+          {onCancel && <button onClick={onCancel} className="text-xs font-bold text-slate-400 hover:text-white">Cancel</button>}
+        </div>
+        <div className="p-4 space-y-4">
+          <div>
+            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Date</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Duration (min)</label>
+            <input type="number" min="0" inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)}
+              placeholder="60"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] font-bold uppercase text-slate-400">RPE</label>
+              <span className={`text-xs font-bold ${rpeColor}`}>{rpe} · {rpeLabel}</span>
+            </div>
+            <input type="range" min="1" max="10" step="1" value={rpe}
+              onChange={(e) => setRpe(parseInt(e.target.value, 10))}
+              className="w-full accent-purple-500" />
+            <div className="flex justify-between text-[10px] text-slate-500 mt-1"><span>1</span><span>10</span></div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] font-bold uppercase text-slate-400">Tricks practiced (optional)</label>
+              {practicedTricks.length > 0 && (
+                <span className="text-[10px] text-slate-400">{practicedTricks.length} selected</span>
+              )}
+            </div>
+            <input type="text" value={trickQuery} onChange={(e) => setTrickQuery(e.target.value)}
+              placeholder="Search tricks…"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 mb-2 focus:outline-none focus:border-purple-500" />
+            <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+              {filteredTricks.slice(0, 80).map(t => {
+                const on = practicedTricks.includes(t.id);
+                return (
+                  <button key={t.id} onClick={() => togglePracticed(t.id)}
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full border transition ${on ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Notes (optional)</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
+              placeholder="How did it feel? What worked?"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 resize-none" />
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-slate-800">
+            <button onClick={handleSave} disabled={submitting}
+              className="w-full py-3 rounded-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white disabled:opacity-50 transition">
+              {submitting ? 'Saving…' : (existing ? 'Save changes' : 'Save session')}
+            </button>
+            {onDelete && (
+              <button onClick={onDelete} className="w-full py-2 rounded-lg text-xs font-bold bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30">
+                × Delete session
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onCancel}>
