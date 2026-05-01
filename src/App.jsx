@@ -2354,11 +2354,8 @@ function TrickCard({ trick, onOpen, isGymnastics }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const status = STATUS_LEVELS.find(s => s.id === trick.status);
   const unread = !!trick._unread;
-  const tutorialVideo = trick.videos?.find(v => isTutorialVideo(v) && v.primary)
-    || trick.videos?.find(v => isTutorialVideo(v));
-  const referenceVideo = trick.videos?.find(v => v.type !== 'tutorial' && v.primary)
-    || trick.videos?.find(v => v.type !== 'tutorial');
-  const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpen(normalizeUrl(video.url)); };
+  const video = trick.videos?.find(v => v.primary) || trick.videos?.[0];
+  const playVideo = (e, v) => { e.stopPropagation(); if (v?.url) onOpen(normalizeUrl(v.url)); };
   const openCard = () => onOpen();
   return (
     <div className={`relative w-full border rounded-xl p-3 transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
@@ -2375,14 +2372,9 @@ function TrickCard({ trick, onOpen, isGymnastics }) {
             </div>
           </div>
         </button>
-        {referenceVideo && (
-          <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
+        {video && (
+          <button onClick={(e) => playVideo(e, video)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={video.label}>
             <Play className="w-4 h-4 fill-current" />
-          </button>
-        )}
-        {tutorialVideo && (
-          <button onClick={(e) => playVideo(e, tutorialVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 flex items-center justify-center transition" title={`🎓 ${tutorialVideo.label}`}>
-            <span className="text-base">🎓</span>
           </button>
         )}
         <StatusPill trick={trick} onClick={openCard} />
