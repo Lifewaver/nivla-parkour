@@ -17,6 +17,15 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.35',
+    date: '2026-05-01',
+    title: 'Bulk sync now actually moves videos to global',
+    notes: [
+      'Admin "📤 Push my entire trick library to community" used to copy personal videos into globalVideos but leave them in your personal library — so videos appeared twice on your own view after a sync.',
+      'Now the button promotes personal videos to global AND clears them from your personal library in one step. Result count includes how many tricks had personal videos cleared.',
+    ],
+  },
+  {
     version: '1.34',
     date: '2026-05-01',
     title: 'Trick Management: global-video sort + preview card',
@@ -1788,7 +1797,7 @@ function MainApp({ user }) {
           <AddTab user={user} setActiveTab={setActiveTab} />
         )}
         {activeTab === 'admin' && userIsAdmin && (
-         <AdminTab currentUserUid={user.uid} myTricks={tricks} />
+         <AdminTab currentUserUid={user.uid} myTricks={tricks} saveTricks={saveTricks} />
         )}
       </div>
 
@@ -5710,7 +5719,7 @@ function ExerciseTimer({ totalSeconds, color = 'orange' }) {
   );
 }
 
-function AdminTab({ currentUserUid, myTricks = [] }) {
+function AdminTab({ currentUserUid, myTricks = [], saveTricks }) {
   const [profiles, setProfiles] = useState([]);
   const [requests, setRequests] = useState([]);
   const [overrides, setOverrides] = useState({});
@@ -5896,7 +5905,7 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
 
   const syncMyTricksToCommunity = async () => {
     if (syncing) return;
-    if (!window.confirm(`Push your full trick library to the community list?\n\nNew tricks (not in the seed list) will be added to communityTricks. All your personal videos will be made global.\n\nProceed?`)) return;
+    if (!window.confirm(`Push your full trick library to the community list?\n\nNew tricks (not in the seed list) will be added to communityTricks. All your personal videos will be promoted to global AND removed from your personal library (so they don't appear twice).\n\nProceed?`)) return;
     setSyncing(true);
     setSyncError(null);
     setSyncResult(null);
@@ -5910,8 +5919,10 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
 
       const newCommunity = [...existingCommunity];
       const newGV = { ...existingGV };
+      const updatedMyTricks = [];
       let addedTricks = 0;
       let addedVideoTricks = 0;
+      let clearedPersonalTricks = 0;
 
       for (const t of myTricks) {
         const isSeed = seedIds.has(t.id);
@@ -5938,6 +5949,10 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
             newGV[key] = [...existingForTrick, ...additions];
             addedVideoTricks++;
           }
+          updatedMyTricks.push({ ...t, videos: [] });
+          clearedPersonalTricks++;
+        } else {
+          updatedMyTricks.push(t);
         }
       }
 
@@ -5947,8 +5962,12 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
         updatedAt: Date.now(),
       }, { merge: true });
 
+      if (clearedPersonalTricks > 0 && typeof saveTricks === 'function') {
+        await saveTricks(updatedMyTricks);
+      }
+
       setCommunityTricks(newCommunity);
-      setSyncResult(`✅ Synced. Added ${addedTricks} new community trick${addedTricks === 1 ? '' : 's'}, promoted videos for ${addedVideoTricks} trick${addedVideoTricks === 1 ? '' : 's'}.`);
+      setSyncResult(`✅ Synced. Added ${addedTricks} new community trick${addedTricks === 1 ? '' : 's'}, promoted videos for ${addedVideoTricks} trick${addedVideoTricks === 1 ? '' : 's'}, cleared personal videos on ${clearedPersonalTricks} trick${clearedPersonalTricks === 1 ? '' : 's'}.`);
       setTimeout(() => setSyncResult(null), 6000);
     } catch (e) {
       console.error('Sync error', e);
