@@ -2488,7 +2488,6 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
   const todaySessions = sessionsByDate(today);
 
   const [editingSession, setEditingSession] = useState(null);
-  const [selectedSessionId, setSelectedSessionId] = useState(null);
 
   useEffect(() => {
     if (section === 'log' && setSection) setSection(null);
@@ -2580,7 +2579,30 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
     await saveTrainingSessions(safeSessions.filter(s => s.id !== id));
   };
 
-  const selectedSession = selectedSessionId ? safeSessions.find(s => s.id === selectedSessionId) : null;
+  if (editingSession) {
+    return (
+      <div className="space-y-4 max-w-2xl mx-auto">
+        <button onClick={() => setEditingSession(null)} className="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white transition">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        <LogSessionSheet
+          key={editingSession.id}
+          inline
+          tricks={tricks}
+          weeklyGoals={weeklyGoals}
+          existing={editingSession}
+          onCancel={() => setEditingSession(null)}
+          onSave={onSaveSession}
+          onDelete={() => {
+            if (window.confirm('Delete this session?')) {
+              onDeleteSession(editingSession.id);
+              setEditingSession(null);
+            }
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
@@ -2604,15 +2626,7 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
         inline
         tricks={tricks}
         weeklyGoals={weeklyGoals}
-        existing={editingSession}
-        onCancel={editingSession ? () => setEditingSession(null) : null}
         onSave={onSaveSession}
-        onDelete={editingSession ? () => {
-          if (window.confirm('Delete this session?')) {
-            onDeleteSession(editingSession.id);
-            setEditingSession(null);
-          }
-        } : null}
       />
 
 
@@ -2645,15 +2659,6 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
         )}
       </div>
 
-      {selectedSession && (
-        <SessionDetailModal
-          session={selectedSession}
-          tricks={tricks}
-          onClose={() => setSelectedSessionId(null)}
-          onDelete={onDeleteSession}
-          onOpenTrick={onOpenTrick}
-        />
-      )}
     </div>
   );
 }
