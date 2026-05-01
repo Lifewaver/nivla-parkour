@@ -2524,9 +2524,9 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
           </div>
         </div>
         <div className="p-5 space-y-5">
-          {allVideos.length > 0 && (
+          {allVideos.some(v => v.primary) && (
             <div className="-mx-5 -mt-5 space-y-2">
-              {allVideos.map(v => (
+              {allVideos.filter(v => v.primary).map(v => (
                 <VideoCard key={`${v._global ? 'g' : 'p'}-${v.url}-${v.type || ''}`} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
                   autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null}
                   isGlobal={!!v._global} canEdit={!v._global || isAdmin} flush />
@@ -2664,6 +2664,15 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
             <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Notes</div>
             <textarea value={notesInput} onChange={(e) => setNotesInput(e.target.value)} onBlur={saveNotes} placeholder="Tips, things to remember, safety notes..." rows={4} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm resize-none" />
           </div>
+          {allVideos.some(v => !v.primary) && (
+            <div className="space-y-2">
+              {allVideos.filter(v => !v.primary).map(v => (
+                <VideoCard key={`${v._global ? 'g' : 'p'}-${v.url}-${v.type || ''}`} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
+                  autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null}
+                  isGlobal={!!v._global} canEdit={!v._global || isAdmin} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
