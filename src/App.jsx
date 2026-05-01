@@ -2582,29 +2582,6 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
 
   const selectedSession = selectedSessionId ? safeSessions.find(s => s.id === selectedSessionId) : null;
 
-  if (section === 'sessions') {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <SessionsBrowser
-          trainingSessions={trainingSessions}
-          saveTrainingSessions={saveTrainingSessions}
-          tricks={tricks}
-          legacyJournal={journal}
-          plannedSessionFocus={plannedSessionFocus}
-          savePlannedSessionFocus={savePlannedSessionFocus}
-          plannedSessionIntents={plannedSessionIntents}
-          savePlannedSessionIntents={savePlannedSessionIntents}
-          plannedDays={plannedDays}
-          plannedMonths={plannedMonths}
-          plannedWeeks={plannedWeeks}
-          templates={templates}
-          saveTemplates={saveTemplates}
-          onOpenTrick={onOpenTrick}
-          onClose={() => setSection && setSection(null)} />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-2xl p-4">
@@ -2641,12 +2618,7 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
 
 
       <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-bold flex items-center gap-2"><Flame className="w-5 h-5 text-purple-400" /> Recent sessions</div>
-          {totalSessions > 0 && setSection && (
-            <button onClick={() => setSection('sessions')} className="text-[11px] font-bold text-purple-300 hover:text-purple-200">View all →</button>
-          )}
-        </div>
+        <div className="font-bold flex items-center gap-2 mb-3"><Flame className="w-5 h-5 text-purple-400" /> Recent sessions</div>
         {recentSessions.length === 0 ? (
           <div className="text-center text-slate-400 text-sm py-6">
             No sessions yet — tap above to log your first one.
