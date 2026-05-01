@@ -17,6 +17,15 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.33',
+    date: '2026-05-01',
+    title: 'Delete a trick from the edit view',
+    notes: [
+      'Admin → Trick Management edit view now has a clear "Delete this trick" button (red, with × icon) below Save/Cancel.',
+      'Confirms with the same warning as the inline × button, and closes the edit view automatically on success.',
+    ],
+  },
+  {
     version: '1.32',
     date: '2026-04-30',
     title: 'Use a session as a template',
@@ -5937,9 +5946,10 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
   };
 
   const removeTrickFromGlobal = async (trickId, trickName) => {
-    if (!window.confirm(`Remove "${trickName}" from the global trick list?\n\nThis will hide it for all users on next load. Their personal videos and progress for this trick will be discarded when their app re-syncs.`)) return;
+    if (!window.confirm(`Remove "${trickName}" from the global trick list?\n\nThis will hide it for all users on next load. Their personal videos and progress for this trick will be discarded when their app re-syncs.`)) return false;
     setDeletingTrickId(trickId);
     setSaveError(null);
+    let ok = false;
     try {
       const snap = await getDoc(doc(db, 'globalConfig', 'tricks'));
       const data = snap.exists() ? snap.data() : {};
@@ -5959,11 +5969,19 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
       setCommunityTricks(next.communityTricks);
       setSaveOk(true);
       setTimeout(() => setSaveOk(false), 1500);
+      ok = true;
     } catch (e) {
       console.error('Remove trick error', e);
       setSaveError(`Remove failed — ${e.code || 'error'}: ${e.message || 'unknown'}`);
     }
     setDeletingTrickId(null);
+    return ok;
+  };
+
+  const deleteEditingTrick = async () => {
+    if (!editingTrick) return;
+    const ok = await removeTrickFromGlobal(editingTrick.id, editForm.name.trim() || editingTrick.name);
+    if (ok) setEditingTrick(null);
   };
 
   const respondImprovement = async (s, status) => {
@@ -6803,6 +6821,11 @@ service cloud.firestore {
                 Cancel
               </button>
             </div>
+            <button onClick={deleteEditingTrick} disabled={deletingTrickId === editingTrick.id || savingTrick}
+              className="w-full py-2.5 bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 disabled:opacity-50">
+              <X className="w-4 h-4" />
+              {deletingTrickId === editingTrick.id ? 'Deleting…' : 'Delete this trick'}
+            </button>
           </div>
         ) : (
           <div className="space-y-1 max-h-64 overflow-y-auto">
