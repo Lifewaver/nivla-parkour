@@ -1679,6 +1679,7 @@ function MainApp({ user }) {
             filterTracker={filterTracker} setFilterTracker={setFilterTracker}
             filterVideo={filterVideo} setFilterVideo={setFilterVideo}
             filterStars={filterStars} setFilterStars={setFilterStars}
+            weeklyGoals={weeklyGoals}
             onOpenTrick={openTrick}
             onAddNew={() => setActiveTab('add')} />
         )}
@@ -1966,7 +1967,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
     const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
     const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
     return (
-      <div key={t.id} className="w-full bg-slate-800/70 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
+      <div key={t.id} className="w-full bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 rounded-xl p-3 flex items-center gap-2 transition" style={{ boxShadow: '0 0 12px rgba(168,85,247,0.3)' }}>
         <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
           <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
           <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
@@ -2089,7 +2090,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterStars, setFilterStars, onOpenTrick, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterStars, setFilterStars, weeklyGoals, onOpenTrick, onAddNew }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState(() => new Set());
   const toggleCategory = (cat) => setCollapsedCategories(prev => {
@@ -2213,7 +2214,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
             </button>
             {!isCollapsed && (
               <div className={`space-y-2 ${isGymnastics ? 'bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-2' : ''}`}>
-                {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} isGymnastics={isGymnastics} />)}
+                {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} isGymnastics={isGymnastics} inFocus={weeklyGoals?.some(g => g.trickId === t.id)} />)}
               </div>
             )}
           </div>
@@ -2266,15 +2267,19 @@ function normalizeUrl(url) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
-function TrickCard({ trick, onOpen, isGymnastics }) {
+function TrickCard({ trick, onOpen, isGymnastics, inFocus }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
   const status = STATUS_LEVELS.find(s => s.id === trick.status);
   const unread = !!trick._unread;
   const video = trick.videos?.find(v => v.primary) || trick.videos?.[0];
   const playVideo = (e, v) => { e.stopPropagation(); if (v?.url) onOpen(normalizeUrl(v.url)); };
   const openCard = () => onOpen();
+  const focusStyle = inFocus ? { boxShadow: '0 0 12px rgba(168,85,247,0.3)' } : undefined;
+  const baseClass = inFocus
+    ? 'bg-purple-900/30 hover:bg-purple-900/50 border-purple-500/50'
+    : isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700';
   return (
-    <div className={`relative w-full border rounded-xl p-3 transition ${isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700'}`}>
+    <div className={`relative w-full border rounded-xl p-3 transition ${baseClass}`} style={focusStyle}>
       {unread && <span className="pointer-events-none absolute -top-1 -left-1 text-base animate-pulse">✨</span>}
       <div className="flex items-center gap-2 text-left">
         <button onClick={openCard} className="flex items-center gap-3 flex-1 min-w-0 text-left">
@@ -4468,7 +4473,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
                     const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
                     const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
                     return (
-                      <div key={g.trickId} className="w-full bg-slate-800/50 hover:bg-slate-800 border border-purple-500/40 rounded-xl p-3 flex items-center gap-2 transition">
+                      <div key={g.trickId} className="w-full bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 rounded-xl p-3 flex items-center gap-2 transition" style={{ boxShadow: '0 0 12px rgba(168,85,247,0.3)' }}>
                         <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                           <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
                           <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
