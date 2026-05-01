@@ -1287,8 +1287,8 @@ function MainApp({ user }) {
   };
   const closeTrick = () => { setSelectedTrick(null); setAutoplayVideoUrl(null); };
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [filterDifficulty, setFilterDifficulty] = useState('all');
+  const [filterCategory, setFilterCategory] = useState([]);
+  const [filterDifficulty, setFilterDifficulty] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTracker, setFilterTracker] = useState('all');
   const [filterVideo, setFilterVideo] = useState('all');
@@ -2188,7 +2188,6 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
 
 function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterStars, setFilterStars, onOpenTrick, onAddNew }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
   const trackerOptions = ['all', ...STATUS_LEVELS.map(s => s.id)];
@@ -2200,8 +2199,8 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
   };
   const filtered = tricks.filter(t => {
     if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    if (filterCategory !== 'all' && t.category !== filterCategory) return false;
-    if (filterDifficulty !== 'all' && t.difficulty !== filterDifficulty) return false;
+    if (filterCategory.length > 0 && !filterCategory.includes(t.category)) return false;
+    if (filterDifficulty.length > 0 && !filterDifficulty.includes(t.difficulty)) return false;
     if (filterStatus !== 'all') {
       const progressArr = Array.isArray(t.progress) ? t.progress : [];
       if (filterStatus === 'none' && progressArr.length !== 0) return false;
@@ -2253,52 +2252,36 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
           if (opt === 'unrated') return 'Unrated';
           return opt === '5' ? '★★★★★' : `★${opt}+`;
         };
-        const activeFilterCount = [filterCategory, filterDifficulty, filterTracker, filterStatus, filterVideo, filterStars].filter(v => v !== 'all').length;
+        const moreActive = [filterTracker, filterStatus, filterVideo, filterStars].filter(v => v !== 'all').length;
+        const activeFilterCount = (filterCategory.length > 0 ? 1 : 0) + (filterDifficulty.length > 0 ? 1 : 0) + moreActive;
         return (
           <div className="space-y-2">
+            <MultiFilterRow label="Category" options={categories} selected={filterCategory} onChange={setFilterCategory} />
+            <MultiFilterRow label="Difficulty" options={difficulties} selected={filterDifficulty} onChange={setFilterDifficulty} />
             <button onClick={() => setFiltersOpen(o => !o)}
               className="w-full flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 transition">
               <span className="font-semibold text-sm flex items-center gap-2">
-                Filters
-                {activeFilterCount > 0 && (
-                  <span className="text-xs font-bold bg-purple-500/30 text-purple-200 border border-purple-500/40 px-2 py-0.5 rounded-full">{activeFilterCount} active</span>
+                More filters
+                {moreActive > 0 && (
+                  <span className="text-xs font-bold bg-purple-500/30 text-purple-200 border border-purple-500/40 px-2 py-0.5 rounded-full">{moreActive} active</span>
                 )}
               </span>
               <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
             </button>
-            {filtersOpen && (() => {
-              const moreActive = [filterTracker, filterStatus, filterVideo, filterStars].filter(v => v !== 'all').length;
-              return (
-                <div className="space-y-2 pt-1">
-                  <FilterRow label="Category" options={categories} selected={filterCategory} onChange={setFilterCategory} />
-                  <FilterRow label="Difficulty" options={difficulties} selected={filterDifficulty} onChange={setFilterDifficulty} />
-                  <button onClick={() => setMoreFiltersOpen(o => !o)}
-                    className="w-full flex items-center justify-between bg-slate-900/60 hover:bg-slate-900 border border-dashed border-slate-700 rounded-lg px-3 py-2 text-xs font-semibold text-slate-300 transition">
-                    <span className="flex items-center gap-2">
-                      More filters
-                      {moreActive > 0 && (
-                        <span className="text-[10px] font-bold bg-purple-500/30 text-purple-200 border border-purple-500/40 px-1.5 py-0.5 rounded-full">{moreActive}</span>
-                      )}
-                    </span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${moreFiltersOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {moreFiltersOpen && (
-                    <div className="space-y-2 pl-2 border-l border-slate-700/60">
-                      <FilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
-                      <FilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
-                      <FilterRow label="Video" options={videoOptions} selected={filterVideo} onChange={setFilterVideo} labelMap={videoLabel} />
-                      <FilterRow label="Stars" options={starsOptions} selected={filterStars} onChange={setFilterStars} labelMap={starsLabel} />
-                    </div>
-                  )}
-                  {activeFilterCount > 0 && (
-                    <button onClick={() => { setFilterCategory('all'); setFilterDifficulty('all'); setFilterTracker('all'); setFilterStatus('all'); setFilterVideo('all'); setFilterStars('all'); }}
-                      className="text-xs text-slate-400 hover:text-white underline">
-                      Clear all filters
-                    </button>
-                  )}
-                </div>
-              );
-            })()}
+            {filtersOpen && (
+              <div className="space-y-2 pt-1">
+                <FilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
+                <FilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
+                <FilterRow label="Video" options={videoOptions} selected={filterVideo} onChange={setFilterVideo} labelMap={videoLabel} />
+                <FilterRow label="Stars" options={starsOptions} selected={filterStars} onChange={setFilterStars} labelMap={starsLabel} />
+              </div>
+            )}
+            {activeFilterCount > 0 && (
+              <button onClick={() => { setFilterCategory([]); setFilterDifficulty([]); setFilterTracker('all'); setFilterStatus('all'); setFilterVideo('all'); setFilterStars('all'); }}
+                className="text-xs text-slate-400 hover:text-white underline">
+                Clear all filters
+              </button>
+            )}
           </div>
         );
       })()}
@@ -2332,6 +2315,28 @@ function FilterRow({ label, options, selected, onChange, labelMap }) {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {options.map(opt => (
           <button key={opt} onClick={() => onChange(opt)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition ${selected === opt ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+            {labelMap ? labelMap(opt) : (opt === 'all' ? 'All' : opt)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MultiFilterRow({ label, options, selected, onChange, labelMap }) {
+  const isAll = (opt) => opt === 'all';
+  const isSelected = (opt) => isAll(opt) ? selected.length === 0 : selected.includes(opt);
+  const toggle = (opt) => {
+    if (isAll(opt)) { onChange([]); return; }
+    if (selected.includes(opt)) onChange(selected.filter(x => x !== opt));
+    else onChange([...selected, opt]);
+  };
+  return (
+    <div>
+      <div className="text-xs font-semibold text-slate-400 uppercase mb-1">{label}</div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {options.map(opt => (
+          <button key={opt} onClick={() => toggle(opt)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition ${isSelected(opt) ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
             {labelMap ? labelMap(opt) : (opt === 'all' ? 'All' : opt)}
           </button>
         ))}
