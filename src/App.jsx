@@ -4698,9 +4698,36 @@ service cloud.firestore {
           <Shield className="w-5 h-5 text-yellow-400" />
           <h2 className="font-bold text-lg">Admin Panel</h2>
         </div>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slate-400 mb-3">
           Tap a user to view their training progress in read-only mode.
         </p>
+        {(() => {
+          const pendingUsers = requests.filter(r => r.status === 'pending').length;
+          const pendingImprovements = improvements.filter(s => s.status === 'pending').length;
+          const pendingSuggestions = suggestions.filter(s => s.status === 'pending').length;
+          const items = [
+            pendingUsers > 0 && { label: 'access request', count: pendingUsers, icon: '👥' },
+            pendingImprovements > 0 && { label: 'improvement', count: pendingImprovements, icon: '💡' },
+            pendingSuggestions > 0 && { label: 'trick suggestion', count: pendingSuggestions, icon: '✨' },
+          ].filter(Boolean);
+          if (items.length === 0) return (
+            <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-2">
+              <Check className="w-3.5 h-3.5 flex-shrink-0" /> All clear — nothing pending review.
+            </div>
+          );
+          return (
+            <div className="bg-orange-500/15 border border-orange-500/40 rounded-xl px-3 py-2.5 space-y-1">
+              <div className="text-xs font-bold text-orange-300 uppercase tracking-wide mb-1.5">Needs review</div>
+              {items.map(({ label, count, icon }) => (
+                <div key={label} className="flex items-center gap-2 text-sm">
+                  <span>{icon}</span>
+                  <span className="font-bold text-white">{count}</span>
+                  <span className="text-orange-200">{label}{count !== 1 ? 's' : ''} pending</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl">
