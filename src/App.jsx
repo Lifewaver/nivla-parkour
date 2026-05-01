@@ -1578,7 +1578,7 @@ function MainApp({ user }) {
         )}
 
         {activeTab === 'add' && (
-          <AddTab user={user} />
+          <AddTab user={user} tricks={tricks} />
         )}
         {activeTab === 'admin' && userIsAdmin && (
          <AdminTab currentUserUid={user.uid} myTricks={tricks} saveTricks={saveTricks} />
@@ -3789,7 +3789,7 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
   );
 }
 
-function AddTab({ user }) {
+function AddTab({ user, tricks = [] }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Flips');
   const [difficulty, setDifficulty] = useState('Medium');
@@ -3864,7 +3864,29 @@ function AddTab({ user }) {
         <div className="flex items-center gap-2 mb-1"><Plus className="w-5 h-5 text-purple-400" /><h2 className="font-bold text-lg">Suggest a trick</h2></div>
         <div className="text-xs text-slate-400 mb-3">An admin reviews your suggestion before it shows up for the whole family.</div>
         <div className="space-y-4">
-          <div><div className="text-xs font-semibold text-slate-400 uppercase mb-1">Trick name</div><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Triple Backflip" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" /></div>
+          <div>
+            <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Trick name</div>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Triple Backflip" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2" />
+            {(() => {
+              const q = name.trim().toLowerCase();
+              if (!q) return null;
+              const match = tricks.find(t => t.name.toLowerCase() === q);
+              const close = !match && tricks.filter(t => t.name.toLowerCase().includes(q) || q.includes(t.name.toLowerCase()));
+              if (match) return (
+                <div className="mt-2 flex items-start gap-2 bg-red-500/15 border border-red-500/40 rounded-lg px-3 py-2 text-xs text-red-300">
+                  <span className="text-base leading-none">⚠️</span>
+                  <span><span className="font-bold">"{match.name}"</span> is already in the trick list ({match.difficulty} · {match.category}).</span>
+                </div>
+              );
+              if (close.length > 0) return (
+                <div className="mt-2 flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2 text-xs text-yellow-300">
+                  <span className="text-base leading-none">⚠️</span>
+                  <span>Similar tricks already exist: {close.slice(0, 3).map(t => <span key={t.id} className="font-bold">{t.name}</span>).reduce((a, b) => [a, ', ', b])}.</span>
+                </div>
+              );
+              return null;
+            })()}
+          </div>
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Category</div>
             <div className="flex flex-wrap gap-2">
