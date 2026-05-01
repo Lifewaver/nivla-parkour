@@ -1665,6 +1665,7 @@ function MainApp({ user }) {
           <TodayTab streak={streak} weeklyGoals={weeklyGoals} tricks={displayTricks} onOpenTrick={openTrick}
             hasTrainedToday={trainingDays.includes(todayLocal())}
             goToLog={() => { setTrainingSection('log'); setActiveTab('training'); }}
+            goToTricks={() => setActiveTab('tricks')}
             goToTree={() => {
               try { window.localStorage.setItem('skillTreeLastCategory', JSON.stringify('__focus__')); } catch {}
               closeTrick();
@@ -1938,7 +1939,7 @@ function NavButton({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrainedToday, goToLog, goToTree }) {
+function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrainedToday, goToLog, goToTricks, goToTree }) {
   const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
   const focusTricks = weeklyGoals.map(g => tricks.find(t => t.id === g.trickId)).filter(Boolean);
 
@@ -2027,10 +2028,10 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
             <div className="text-2xl mb-1">🎯</div>
             <div className="text-sm font-bold text-slate-200 mb-1">No tricks in focus yet</div>
             <div className="text-xs text-slate-400 mb-3">Pick what you're working on this week from the Tree.</div>
-            {goToTree && (
-              <button onClick={goToTree}
+            {goToTricks && (
+              <button onClick={goToTricks}
                 className="px-4 py-2 rounded-xl font-bold text-sm bg-purple-500 hover:bg-purple-400 text-white transition">
-                Open Tree → In Focus
+                Go to Tricks →
               </button>
             )}
           </div>
@@ -2039,11 +2040,11 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
             <div className="space-y-2">
               {focusTricks.map(renderTrickRow)}
             </div>
-            {goToTree && (
-              <button onClick={goToTree}
+            {goToTricks && (
+              <button onClick={goToTricks}
                 className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-purple-200 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 transition">
-                <GitBranch className="w-3.5 h-3.5" />
-                Manage focus in Tree →
+                <Target className="w-3.5 h-3.5" />
+                Manage focus →
               </button>
             )}
           </>
