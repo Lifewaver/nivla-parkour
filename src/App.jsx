@@ -2368,7 +2368,6 @@ function TrickCard({ trick, onOpen, isGymnastics }) {
             <div className="font-bold truncate">{trick.name}</div>
             <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff.bg} ${diff.text}`}>{trick.difficulty}</span>
-              {trick.videos?.length > 0 && <span className="text-xs text-slate-400 flex items-center gap-1"><Video className="w-3 h-3" /> {trick.videos.length}</span>}
             </div>
           </div>
         </button>
