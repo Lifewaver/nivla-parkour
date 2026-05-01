@@ -2188,6 +2188,12 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
 
 function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterStars, setFilterStars, onOpenTrick, onAddNew }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState(() => new Set());
+  const toggleCategory = (cat) => setCollapsedCategories(prev => {
+    const next = new Set(prev);
+    if (next.has(cat)) next.delete(cat); else next.add(cat);
+    return next;
+  });
   const categories = ['all', ...new Set(tricks.map(t => t.category))];
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
   const trackerOptions = ['all', ...STATUS_LEVELS.map(s => s.id)];
@@ -2289,17 +2295,24 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
       {sortedCategories.map(cat => {
         const isGymnastics = GYMNASTICS_CATEGORIES.includes(cat);
         const catColor = CATEGORY_COLORS[cat];
+        const isCollapsed = collapsedCategories.has(cat);
         return (
           <div key={cat}>
-            <div className="flex items-center gap-2 mb-2 mt-4">
+            <button
+              onClick={() => toggleCategory(cat)}
+              className="w-full flex items-center gap-2 mb-2 mt-4 text-left"
+            >
               <span className="w-1 h-7 rounded-full" style={catColor ? { backgroundColor: catColor.hex } : undefined} />
               <CategoryIcon category={cat} size={28} />
               <h3 className="font-black text-lg uppercase tracking-wide" style={catColor ? { color: catColor.hex } : undefined}>{cat}</h3>
               <span className="text-sm text-slate-500">({grouped[cat].length})</span>
-            </div>
-            <div className={`space-y-2 ${isGymnastics ? 'bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-2' : ''}`}>
-              {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} isGymnastics={isGymnastics} />)}
-            </div>
+              <ChevronDown className={`w-4 h-4 text-slate-400 ml-auto transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+            </button>
+            {!isCollapsed && (
+              <div className={`space-y-2 ${isGymnastics ? 'bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-2' : ''}`}>
+                {grouped[cat].map(t => <TrickCard key={t.id} trick={t} onOpen={(url) => onOpenTrick(t, url)} isGymnastics={isGymnastics} />)}
+              </div>
+            )}
           </div>
         );
       })}
