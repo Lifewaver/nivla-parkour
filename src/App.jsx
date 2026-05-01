@@ -5249,6 +5249,16 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
               );
             })}
           </div>
+
+          <QuestsPanel tricks={tricks} weeklyGoals={weeklyGoals} trainingSessions={trainingSessions} streak={streak}
+            onQuestComplete={(q) => fireCelebration && fireCelebration({
+              _id: Date.now(),
+              kind: 'small',
+              icon: q.icon,
+              title: 'Quest complete!',
+              subtitle: q.title,
+              tone: 'orange',
+            })} />
         </>
       ) : (
         <div className="flex items-center gap-2 text-sm">
@@ -5269,18 +5279,6 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
             )}
           </span>
         </div>
-      )}
-
-      {isFocus && (
-        <QuestsPanel tricks={tricks} weeklyGoals={weeklyGoals} trainingSessions={trainingSessions} streak={streak}
-          onQuestComplete={(q) => fireCelebration && fireCelebration({
-            _id: Date.now(),
-            kind: 'small',
-            icon: q.icon,
-            title: 'Quest complete!',
-            subtitle: q.title,
-            tone: 'orange',
-          })} />
       )}
 
       {isFocus && (() => {
