@@ -2026,6 +2026,24 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
   const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
   const focusTricks = weeklyGoals.map(g => tricks.find(t => t.id === g.trickId)).filter(Boolean);
 
+  const inspirationTrick = useMemo(() => {
+    const focusIds = new Set(weeklyGoals.map(g => g.trickId));
+    const hasPlayableVideo = (t) => Array.isArray(t.videos) && t.videos.some(v => getVideoEmbed(normalizeUrl(v.url)));
+    const primary = tricks.filter(t => t.status !== 'got_it' && !focusIds.has(t.id) && hasPlayableVideo(t));
+    const pool = primary.length > 0 ? primary : tricks.filter(hasPlayableVideo);
+    if (pool.length === 0) return null;
+    const seed = todayLocal();
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+    return pool[Math.abs(hash) % pool.length];
+  }, [tricks, weeklyGoals]);
+  const inspirationVideo = inspirationTrick
+    ? (inspirationTrick.videos.find(v => v.type !== 'tutorial' && v.primary && getVideoEmbed(normalizeUrl(v.url)))
+      || inspirationTrick.videos.find(v => v.type !== 'tutorial' && getVideoEmbed(normalizeUrl(v.url)))
+      || inspirationTrick.videos.find(v => getVideoEmbed(normalizeUrl(v.url))))
+    : null;
+  const inspirationEmbed = inspirationVideo ? getVideoEmbed(normalizeUrl(inspirationVideo.url)) : null;
+
   const renderTrickRow = (t) => {
     const diff = DIFFICULTY_COLORS[t.difficulty];
     const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
@@ -2127,6 +2145,43 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
           </>
         )}
       </div>
+
+      {inspirationTrick && inspirationEmbed && (() => {
+        const t = inspirationTrick;
+        const diff = DIFFICULTY_COLORS[t.difficulty];
+        const playUrl = inspirationVideo?.url ? normalizeUrl(inspirationVideo.url) : null;
+        return (
+          <div className="bg-slate-900/60 border border-slate-700 rounded-3xl overflow-hidden">
+            <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+              <span className="text-base">✨</span>
+              <div className="font-black text-sm uppercase tracking-wide text-cyan-300">Need inspiration?</div>
+              <span className="ml-auto text-[10px] text-slate-500">Daily pick</span>
+            </div>
+            <div className="aspect-video bg-black">
+              <iframe
+                src={inspirationEmbed.src}
+                title={inspirationVideo?.label || t.name}
+                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className="w-full h-full border-0"
+              />
+            </div>
+            <button onClick={() => onOpenTrick(t, playUrl || undefined)}
+              className="w-full flex items-center gap-3 p-4 hover:bg-slate-800/40 transition text-left">
+              <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
+              <CategoryIcon category={t.category} size={22} className="text-slate-300 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="font-bold truncate">{t.name}</div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${diff?.bg} ${diff?.text}`}>{t.difficulty}</span>
+                  <span className="text-xs text-slate-400 truncate">{t.category}</span>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-500 flex-shrink-0" />
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }
