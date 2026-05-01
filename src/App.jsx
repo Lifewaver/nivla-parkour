@@ -1883,7 +1883,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
       <button onClick={goToLog}
         className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-base shadow-lg transition active:scale-[0.99] ${hasTrainedToday ? 'bg-gradient-to-r from-emerald-500/25 to-green-500/25 border-2 border-emerald-500/50 text-emerald-100 hover:from-emerald-500/35 hover:to-green-500/35' : 'bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white'}`}>
         <span className="text-2xl">{hasTrainedToday ? '✅' : '📝'}</span>
-        <span>{hasTrainedToday ? 'Logged today · edit' : "Log today's session"}</span>
+        <span>{hasTrainedToday ? 'Log Session · edit' : 'Log Session'}</span>
       </button>
 
       <div className="bg-gradient-to-br from-purple-600/20 via-slate-900 to-pink-600/20 border border-purple-500/40 rounded-3xl p-5 shadow-xl shadow-purple-500/10">
