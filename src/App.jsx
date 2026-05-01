@@ -2642,7 +2642,7 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
 
       <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="font-bold text-sm">Recent sessions</div>
+          <div className="font-bold flex items-center gap-2"><Flame className="w-5 h-5 text-purple-400" /> Recent sessions</div>
           {totalSessions > 0 && setSection && (
             <button onClick={() => setSection('sessions')} className="text-[11px] font-bold text-purple-300 hover:text-purple-200">View all →</button>
           )}
