@@ -2119,8 +2119,8 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
     if (filterVideo !== 'all') {
       const vids = Array.isArray(t.videos) ? t.videos : [];
       if (filterVideo === 'none' && vids.length > 0) return false;
-      if (filterVideo === 'reference' && !vids.some(isReferenceVideo)) return false;
-      if (filterVideo === 'tutorial' && !vids.some(isTutorialVideo)) return false;
+      if (filterVideo === 'video' && vids.length === 0) return false;
+      if (filterVideo === 'starred' && !vids.some(v => v.primary)) return false;
     }
     if (filterStars !== 'all') {
       const stars = t.coolness || 0;
@@ -2153,8 +2153,8 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
         <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tricks..." className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-purple-500" />
       </div>
       {(() => {
-        const videoOptions = ['all', 'none', 'reference', 'tutorial'];
-        const videoLabel = (opt) => ({ all: 'All', none: 'No video', reference: '📹 Reference', tutorial: '🎓 Tutorial' }[opt] || opt);
+        const videoOptions = ['all', 'none', 'video', 'starred'];
+        const videoLabel = (opt) => ({ all: 'All', none: 'No Video', video: 'Video', starred: 'Video with Star' }[opt] || opt);
         const starsOptions = ['all', 'unrated', '1', '2', '3', '4', '5'];
         const starsLabel = (opt) => {
           if (opt === 'all') return 'All';
