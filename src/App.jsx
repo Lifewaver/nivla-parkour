@@ -17,6 +17,16 @@ import { doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, whe
 
 const RELEASE_NOTES = [
   {
+    version: '1.34',
+    date: '2026-05-01',
+    title: 'Trick Management: global-video sort + preview card',
+    notes: [
+      'New sort option "🌐 Videos" orders tricks by global video count (most first) — easy way to find tricks that still need a tutorial.',
+      'Each row shows a small 🎥 N badge when the trick has global videos.',
+      'Edit view now renders the live trick card below the Delete button so you can see exactly how the trick appears to users (with current name/category/difficulty edits + its global videos). Play buttons open the video in a new tab.',
+    ],
+  },
+  {
     version: '1.33',
     date: '2026-05-01',
     title: 'Delete a trick from the edit view',
@@ -5723,6 +5733,7 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
   const [suggestions, setSuggestions] = useState([]);
   const [communityTricks, setCommunityTricks] = useState([]);
   const [deletedTricks, setDeletedTricks] = useState([]);
+  const [globalVideos, setGlobalVideos] = useState({});
   const [deletingTrickId, setDeletingTrickId] = useState(null);
   const [expandedUserDifficulty, setExpandedUserDifficulty] = useState(null);
   const [expandedUserCategory, setExpandedUserCategory] = useState(null);
@@ -5769,6 +5780,7 @@ function AdminTab({ currentUserUid, myTricks = [] }) {
           setOverrides(data.overrides || {});
           setCommunityTricks(Array.isArray(data.communityTricks) ? data.communityTricks : []);
           setDeletedTricks(Array.isArray(data.deletedTricks) ? data.deletedTricks : []);
+          setGlobalVideos(data.globalVideos || {});
         }
       } catch (e) { console.error('Global overrides load error', e); }
 
@@ -6748,6 +6760,7 @@ service cloud.firestore {
                 { id: 'default', label: 'Default' },
                 { id: 'category', label: 'Category' },
                 { id: 'difficulty', label: 'Difficulty' },
+                { id: 'globalvideos', label: '🌐 Videos' },
               ].map(opt => (
                 <button key={opt.id} onClick={() => setTrickSort(opt.id)}
                   className={`px-2.5 py-1 rounded-md text-xs font-bold transition ${trickSort === opt.id ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
@@ -6826,6 +6839,33 @@ service cloud.firestore {
               <X className="w-4 h-4" />
               {deletingTrickId === editingTrick.id ? 'Deleting…' : 'Delete this trick'}
             </button>
+            {(() => {
+              const previewName = editForm.name.trim() || editingTrick.name;
+              const previewVideos = (globalVideos[String(editingTrick.id)] || []).map(v => ({ ...v, _global: true }));
+              const previewTrick = {
+                ...editingTrick,
+                name: previewName,
+                category: editForm.category,
+                difficulty: editForm.difficulty,
+                videos: previewVideos,
+              };
+              return (
+                <div className="pt-3 border-t border-slate-700/50">
+                  <div className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-2">
+                    Preview
+                    <span className="text-[10px] font-normal normal-case text-slate-500">— how this trick appears to users</span>
+                  </div>
+                  <TrickCard
+                    trick={previewTrick}
+                    onOpen={(url) => { if (url) window.open(url, '_blank', 'noopener,noreferrer'); }}
+                    isGymnastics={previewTrick.category === 'Gymnastics'}
+                  />
+                  {previewVideos.length === 0 && (
+                    <div className="mt-2 text-[11px] text-slate-500 italic">No global videos on this trick yet.</div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <div className="space-y-1 max-h-64 overflow-y-auto">
@@ -6853,18 +6893,30 @@ service cloud.firestore {
                 withEffective.sort((a, b) =>
                   (DIFF_ORDER[a.effective.difficulty] ?? 99) - (DIFF_ORDER[b.effective.difficulty] ?? 99)
                   || a.effective.name.localeCompare(b.effective.name));
+              } else if (trickSort === 'globalvideos') {
+                const gvCount = (id) => Array.isArray(globalVideos[String(id)]) ? globalVideos[String(id)].length : 0;
+                withEffective.sort((a, b) =>
+                  gvCount(b.trick.id) - gvCount(a.trick.id)
+                  || a.effective.name.localeCompare(b.effective.name));
               }
               return withEffective;
             })().map(({ trick: t, effective, source }) => {
               const ov = overrides[String(t.id)];
               const col = DIFFICULTY_COLORS[effective.difficulty];
               const isDeleting = deletingTrickId === t.id;
+              const gvCount = Array.isArray(globalVideos[String(t.id)]) ? globalVideos[String(t.id)].length : 0;
               return (
                 <div key={t.id} className="w-full flex items-center gap-2 bg-slate-900 hover:bg-slate-800 rounded-lg px-3 py-2 text-left transition text-sm">
                   <button onClick={() => startEdit(t)} className="flex-1 flex items-center gap-2 min-w-0">
                     <div className={`w-1.5 h-6 rounded-full ${col.strip} flex-shrink-0`} />
                     <CategoryIcon category={effective.category} size={15} className="flex-shrink-0 text-slate-400" />
                     <span className="flex-1 truncate font-medium">{effective.name}</span>
+                    {gvCount > 0 && (
+                      <span title={`${gvCount} global video${gvCount === 1 ? '' : 's'}`}
+                        className="text-[10px] font-bold text-cyan-300 bg-cyan-500/15 border border-cyan-500/40 px-1.5 py-0.5 rounded flex items-center gap-0.5 flex-shrink-0">
+                        <Video className="w-2.5 h-2.5" />{gvCount}
+                      </span>
+                    )}
                     {source === 'community' && <span className="text-[10px] font-bold text-cyan-300 bg-cyan-500/20 border border-cyan-500/40 px-1.5 py-0.5 rounded flex-shrink-0">🌐</span>}
                     {ov && <span className="text-xs text-blue-400 flex-shrink-0">✏️</span>}
                     <span className={`text-xs font-semibold flex-shrink-0 ${col.text}`}>{effective.difficulty}</span>
