@@ -3994,6 +3994,8 @@ function AdminTab({ currentUserUid, myTricks = [], saveTricks }) {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [syncError, setSyncError] = useState(null);
+  const [suggestionsExpanded, setSuggestionsExpanded] = useState(false);
+  const [trickMgmtExpanded, setTrickMgmtExpanded] = useState(false);
 
   useEffect(() => {
     const loadAll = async () => {
@@ -4902,12 +4904,16 @@ service cloud.firestore {
         )}
       </div>
 
-      <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl p-4">
-        <div className="font-bold mb-3 flex items-center gap-2">
-          <span className="text-lg">💡</span> Trick Suggestions
+      <div className="bg-slate-800/50 border border-purple-500/40 rounded-2xl">
+        <button onClick={() => setSuggestionsExpanded(v => !v)}
+          className="w-full p-4 flex items-center gap-2 hover:bg-slate-800/70 transition rounded-2xl text-left">
+          <span className="text-lg">💡</span>
+          <span className="font-bold">Trick Suggestions</span>
           <span className="ml-auto text-xs text-slate-400 font-normal">{suggestions.filter(s => s.status === 'pending').length} pending · {suggestions.length} total</span>
-        </div>
-        <div className="bg-slate-900/60 border border-slate-700 rounded-lg p-3 mb-3">
+          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${suggestionsExpanded ? 'rotate-90' : ''}`} />
+        </button>
+        {suggestionsExpanded && <div className="px-4 pb-4 border-t border-slate-700 pt-4 space-y-3">
+        <div className="bg-slate-900/60 border border-slate-700 rounded-lg p-3">
           <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Bulk sync</div>
           <button onClick={syncMyTricksToCommunity} disabled={syncing}
             className="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:opacity-50 rounded-lg text-sm font-bold transition">
@@ -4984,14 +4990,19 @@ service cloud.firestore {
             })}
           </div>
         )}
+        </div>}
       </div>
 
-      <div className="bg-slate-800/50 border border-blue-500/40 rounded-2xl p-4">
-        <div className="font-bold mb-3 flex items-center gap-2">
-          <span className="text-lg">✏️</span> Trick Management
+      <div className="bg-slate-800/50 border border-blue-500/40 rounded-2xl">
+        <button onClick={() => setTrickMgmtExpanded(v => !v)}
+          className="w-full p-4 flex items-center gap-2 hover:bg-slate-800/70 transition rounded-2xl text-left">
+          <span className="text-lg">✏️</span>
+          <span className="font-bold">Trick Management</span>
           {saveOk && <span className="text-xs font-bold bg-green-500/20 text-green-300 border border-green-500/40 px-2 py-0.5 rounded">✓ Saved</span>}
           <span className="ml-auto text-xs text-slate-400 font-normal">{INITIAL_TRICKS.length} tricks</span>
-        </div>
+          <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${trickMgmtExpanded ? 'rotate-90' : ''}`} />
+        </button>
+        {trickMgmtExpanded && <div className="px-4 pb-4 border-t border-slate-700 pt-4">
         <input
           type="text"
           value={trickSearch}
@@ -5184,6 +5195,7 @@ service cloud.firestore {
             })}
           </div>
         )}
+        </div>}
       </div>
 
     </div>
