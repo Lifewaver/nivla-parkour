@@ -4382,17 +4382,15 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
             </p>
           </div>
 
-          <button onClick={() => setSelectedCategory(FOCUS_KEY)}
-            className="w-full text-left bg-gradient-to-br from-purple-600/30 to-pink-600/20 border-2 border-purple-500/50 rounded-2xl p-4 hover:from-purple-600/40 hover:to-pink-600/30 transition">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-purple-500/30 border-2 border-purple-300 flex items-center justify-center text-2xl flex-shrink-0">🎯</div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">In Focus</div>
-                <div className="font-black text-base">{weeklyGoals.length} active {weeklyGoals.length === 1 ? 'trick' : 'tricks'}</div>
-                <div className="text-xs text-slate-400 mt-0.5">Manage your weekly focus list →</div>
-              </div>
-            </div>
-          </button>
+          <QuestsPanel tricks={tricks} weeklyGoals={weeklyGoals} trainingSessions={trainingSessions} streak={streak}
+            onQuestComplete={(q) => fireCelebration && fireCelebration({
+              _id: Date.now(),
+              kind: 'small',
+              icon: q.icon,
+              title: 'Quest complete!',
+              subtitle: q.title,
+              tone: 'orange',
+            })} />
 
           <div className="grid grid-cols-2 gap-3">
             {trickCategories.map(cat => {
@@ -4438,15 +4436,6 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
             })}
           </div>
 
-          <QuestsPanel tricks={tricks} weeklyGoals={weeklyGoals} trainingSessions={trainingSessions} streak={streak}
-            onQuestComplete={(q) => fireCelebration && fireCelebration({
-              _id: Date.now(),
-              kind: 'small',
-              icon: q.icon,
-              title: 'Quest complete!',
-              subtitle: q.title,
-              tone: 'orange',
-            })} />
         </>
       ) : (
         <div className="flex items-center gap-2 text-sm">
