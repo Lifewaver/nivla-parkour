@@ -2745,24 +2745,22 @@ function LogSessionSheet({ tricks = [], weeklyGoals = [], existing = null, onCan
     return (
       <div className="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
         <div className="bg-slate-900/60 border-b border-slate-700 px-4 py-3 flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">{existing ? 'Edit session' : 'New session'}</div>
-            <div className="font-bold text-sm">{date}</div>
-          </div>
+          <div className="font-black text-base">+ Log Session</div>
           {onCancel && <button onClick={onCancel} className="text-xs font-bold text-slate-400 hover:text-white">Cancel</button>}
         </div>
         <div className="p-4 space-y-4">
-          <div>
-            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Date</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
-          </div>
-
-          <div>
-            <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Duration (min)</label>
-            <input type="number" min="0" inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)}
-              placeholder="60"
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Date</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] font-bold uppercase text-slate-400 mb-1 block">Duration (min)</label>
+              <input type="number" min="0" inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)}
+                placeholder="60"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500" />
+            </div>
           </div>
 
           <div>
