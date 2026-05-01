@@ -2095,9 +2095,18 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
             )}
           </div>
         ) : (
-          <div className="space-y-2">
-            {focusTricks.map(renderTrickRow)}
-          </div>
+          <>
+            <div className="space-y-2">
+              {focusTricks.map(renderTrickRow)}
+            </div>
+            {goToTree && (
+              <button onClick={goToTree}
+                className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-purple-200 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 transition">
+                <GitBranch className="w-3.5 h-3.5" />
+                Manage focus in Tree →
+              </button>
+            )}
+          </>
         )}
       </div>
 
