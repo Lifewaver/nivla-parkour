@@ -2391,14 +2391,14 @@ function getVideoEmbed(url) {
   return null;
 }
 
-function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef, isGlobal, canEdit = true }) {
+function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef, isGlobal, canEdit = true, flush = false }) {
   const safeUrl = normalizeUrl(video.url);
   const embed = getVideoEmbed(safeUrl);
   const embedSrc = embed && autoplay
     ? `${embed.src}${embed.src.includes('?') ? '&' : '?'}autoplay=1`
     : embed?.src;
   return (
-    <div ref={scrollRef} className={`bg-purple-900/20 border rounded-lg overflow-hidden ${autoplay ? 'border-purple-400/80 ring-2 ring-purple-400/40' : video.primary ? 'border-yellow-400/60' : isGlobal ? 'border-cyan-500/40' : 'border-purple-500/30'}`}>
+    <div ref={scrollRef} className={`bg-purple-900/20 overflow-hidden ${flush ? '' : 'border rounded-lg'} ${autoplay ? (flush ? '' : 'border-purple-400/80 ring-2 ring-purple-400/40') : video.primary ? (flush ? '' : 'border-yellow-400/60') : isGlobal ? (flush ? '' : 'border-cyan-500/40') : (flush ? '' : 'border-purple-500/30')}`}>
       {embed && (
         <div className="aspect-video bg-black">
           <iframe
@@ -2524,6 +2524,15 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
           </div>
         </div>
         <div className="p-5 space-y-5">
+          {allVideos.length > 0 && (
+            <div className="-mx-5 -mt-5 space-y-2">
+              {allVideos.map(v => (
+                <VideoCard key={`${v._global ? 'g' : 'p'}-${v.url}-${v.type || ''}`} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
+                  autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null}
+                  isGlobal={!!v._global} canEdit={!v._global || isAdmin} flush />
+              ))}
+            </div>
+          )}
           {(() => {
             const progressArr = Array.isArray(trick.progress) ? trick.progress : [];
             const showProgress = trick.status === 'training' || trick.status === 'got_it';
@@ -2623,17 +2632,6 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
               </div>
             );
           })()}
-          <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-1">📹 Videos</div>
-            <div className="space-y-2">
-              {allVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No videos yet. Add inspiration clips below.</div>}
-              {allVideos.map(v => (
-                <VideoCard key={`${v._global ? 'g' : 'p'}-${v.url}-${v.type || ''}`} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
-                  autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null}
-                  isGlobal={!!v._global} canEdit={!v._global || isAdmin} />
-              ))}
-            </div>
-          </div>
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl">
             <button onClick={() => setAddVideoOpen(o => !o)}
               className="w-full flex items-center justify-between p-3 hover:bg-slate-800 transition rounded-xl">
