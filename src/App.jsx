@@ -2444,8 +2444,6 @@ function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef, isGl
 function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus, onUpdateProgress, onUpdateStatusAndProgress, onUpdateCoolness, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
-  const [newVideoIsReference, setNewVideoIsReference] = useState(true);
-  const [newVideoIsTutorial, setNewVideoIsTutorial] = useState(false);
   const [newVideoGlobal, setNewVideoGlobal] = useState(false);
   const [addVideoOpen, setAddVideoOpen] = useState(false);
   const [notesInput, setNotesInput] = useState(trick.notes || '');
@@ -2455,8 +2453,6 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   const personalVideos = allVideos.filter(v => !v._global);
   const globalList = allVideos.filter(v => v._global).map(({ _global, ...rest }) => rest);
   const stripFlag = ({ _global, ...rest }) => rest;
-  const tutorialVideos = allVideos.filter(isTutorialVideo);
-  const referenceVideos = allVideos.filter(isReferenceVideo);
   const isAutoplayVideo = (v) => autoplayUrl && normalizeUrl(v.url) === autoplayUrl;
   useEffect(() => {
     if (autoplayUrl && autoplayRef.current) {
@@ -2466,11 +2462,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
     const url = normalizeUrl(newVideoUrl.trim());
-    const isRef = newVideoIsReference || (!newVideoIsReference && !newVideoIsTutorial);
-    const isTut = newVideoIsTutorial;
-    const type = computeVideoType(isRef, isTut);
-    const defaultLabel = type === 'tutorial' ? 'Tutorial' : 'Video';
-    const newEntry = { url, label: newVideoLabel.trim() || defaultLabel, type };
+    const newEntry = { url, label: newVideoLabel.trim() || 'Video' };
     if (isAdmin && newVideoGlobal) {
       onUpdateGlobalVideos(trick.id, [...globalList, newEntry]);
     } else {
@@ -2492,14 +2484,14 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
     if (v._global) {
       const next = globalList.map(x => {
         if (x.url === v.url && x.label === v.label && x.type === v.type) return { ...x, primary: willBePrimary };
-        if (willBePrimary && x.type === v.type) return { ...x, primary: false };
+        if (willBePrimary) return { ...x, primary: false };
         return x;
       });
       onUpdateGlobalVideos(trick.id, next);
     } else {
       const next = personalVideos.map(stripFlag).map(x => {
         if (x.url === v.url && x.label === v.label && x.type === v.type) return { ...x, primary: willBePrimary };
-        if (willBePrimary && x.type === v.type) return { ...x, primary: false };
+        if (willBePrimary) return { ...x, primary: false };
         return x;
       });
       onUpdateVideos(trick.id, next);
@@ -2633,21 +2625,10 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
             );
           })()}
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-1">📹 Reference Videos</div>
+            <div className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-1">📹 Videos</div>
             <div className="space-y-2">
-              {referenceVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No reference videos yet. Add inspiration clips below.</div>}
-              {referenceVideos.map(v => (
-                <VideoCard key={`${v._global ? 'g' : 'p'}-${v.url}-${v.type || ''}`} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
-                  autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null}
-                  isGlobal={!!v._global} canEdit={!v._global || isAdmin} />
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-1">🎓 Tutorial Videos</div>
-            <div className="space-y-2">
-              {tutorialVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No tutorials yet. Add one below to learn how to do this trick.</div>}
-              {tutorialVideos.map(v => (
+              {allVideos.length === 0 && <div className="text-sm text-slate-500 bg-slate-800/50 p-3 rounded-lg">No videos yet. Add inspiration clips below.</div>}
+              {allVideos.map(v => (
                 <VideoCard key={`${v._global ? 'g' : 'p'}-${v.url}-${v.type || ''}`} video={v} onRemove={() => removeVideo(v)} onTogglePrimary={() => togglePrimary(v)}
                   autoplay={isAutoplayVideo(v)} scrollRef={isAutoplayVideo(v) ? autoplayRef : null}
                   isGlobal={!!v._global} canEdit={!v._global || isAdmin} />
@@ -2664,19 +2645,6 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
             </button>
             {addVideoOpen && (
               <div className="px-3 pb-3 space-y-2">
-                <div>
-                  <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Tag as</div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setNewVideoIsReference(v => !v)}
-                      className={`flex-1 py-2 rounded-lg text-sm font-bold transition border ${newVideoIsReference ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
-                      📹 Reference
-                    </button>
-                    <button onClick={() => setNewVideoIsTutorial(v => !v)}
-                      className={`flex-1 py-2 rounded-lg text-sm font-bold transition border ${newVideoIsTutorial ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
-                      🎓 Tutorial
-                    </button>
-                  </div>
-                </div>
                 <input type="text" value={newVideoLabel} onChange={(e) => setNewVideoLabel(e.target.value)}
                   placeholder="Label (e.g. Sick line by Jason Paul)"
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
