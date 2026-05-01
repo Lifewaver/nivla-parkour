@@ -1570,7 +1570,7 @@ function MainApp({ user }) {
             plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
             plannedSessionIntents={plannedSessionIntents} savePlannedSessionIntents={savePlannedSessionIntents}
             templates={templates} saveTemplates={saveTemplates}
-            streak={streak}
+            streak={streak} weeklyGoals={weeklyGoals}
             section={trainingSection} setSection={setTrainingSection} />
         )}
         {activeTab === 'progress' && (
@@ -2481,7 +2481,7 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, inFocus = false, onTogg
   );
 }
 
-function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, streak = 0, section, setSection, journal = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionIntents = {}, savePlannedSessionIntents, plannedDays = [], plannedMonths = [], plannedWeeks = [], templates = [], saveTemplates, onOpenTrick }) {
+function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, streak = 0, weeklyGoals = [], section, setSection, journal = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionIntents = {}, savePlannedSessionIntents, plannedDays = [], plannedMonths = [], plannedWeeks = [], templates = [], saveTemplates, onOpenTrick }) {
   const today = todayLocal();
   const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
   const sessionsByDate = (ds) => safeSessions.filter(s => s.date === ds);
