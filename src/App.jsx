@@ -3797,8 +3797,6 @@ function AddTab({ user, tricks = [] }) {
   const [videos, setVideos] = useState([]);
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
-  const [newVideoIsReference, setNewVideoIsReference] = useState(true);
-  const [newVideoIsTutorial, setNewVideoIsTutorial] = useState(false);
   const [addVideoOpen, setAddVideoOpen] = useState(false);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -3809,11 +3807,8 @@ function AddTab({ user, tricks = [] }) {
   const addVideo = () => {
     if (!newVideoUrl.trim()) return;
     const url = normalizeUrl(newVideoUrl.trim());
-    const isRef = newVideoIsReference || (!newVideoIsReference && !newVideoIsTutorial);
-    const type = computeVideoType(isRef, newVideoIsTutorial);
-    const defaultLabel = type === 'tutorial' ? 'Tutorial' : 'Video';
     const noPrimaryYet = !videos.some(v => v.primary);
-    setVideos([...videos, { url, label: newVideoLabel.trim() || defaultLabel, type, primary: noPrimaryYet }]);
+    setVideos([...videos, { url, label: newVideoLabel.trim() || 'Video', type: 'reference', primary: noPrimaryYet }]);
     setNewVideoUrl(''); setNewVideoLabel('');
   };
   const removeVideo = (idx) => {
@@ -3832,7 +3827,6 @@ function AddTab({ user, tricks = [] }) {
     setName(''); setCategory('Flips'); setDifficulty('Medium');
     setCoolness(0); setVideos([]); setNotes('');
     setNewVideoUrl(''); setNewVideoLabel('');
-    setNewVideoIsReference(true); setNewVideoIsTutorial(false);
     setAddVideoOpen(false);
   };
   const submit = async () => {
@@ -3945,15 +3939,6 @@ function AddTab({ user, tricks = [] }) {
               </button>
               {addVideoOpen && (
               <div className="p-2 pt-0 space-y-2">
-              <div>
-                <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Tag as</div>
-                <div className="flex gap-2">
-                  <button onClick={() => setNewVideoIsReference(v => !v)}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition border ${newVideoIsReference ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>📹 Reference</button>
-                  <button onClick={() => setNewVideoIsTutorial(v => !v)}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition border ${newVideoIsTutorial ? 'bg-purple-500 text-white border-purple-400' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>🎓 Tutorial</button>
-                </div>
-              </div>
               <input type="text" value={newVideoLabel} onChange={e => setNewVideoLabel(e.target.value)} placeholder="Label (e.g. Storror tutorial)" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
               <div className="flex gap-2">
                 <input type="url" value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} placeholder="YouTube or Vimeo URL" className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
