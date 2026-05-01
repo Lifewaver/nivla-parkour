@@ -2030,7 +2030,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
     const focusIds = new Set(weeklyGoals.map(g => g.trickId));
     const hasPlayableVideo = (t) => Array.isArray(t.videos) && t.videos.some(v => getVideoEmbed(normalizeUrl(v.url)));
     const primary = tricks.filter(t => t.status !== 'got_it' && !focusIds.has(t.id) && hasPlayableVideo(t));
-    const pool = primary.length > 0 ? primary : tricks.filter(hasPlayableVideo);
+    const pool = primary.length > 0 ? primary : tricks.filter(t => t.status !== 'got_it' && hasPlayableVideo(t));
     if (pool.length === 0) return null;
     const seed = todayLocal();
     let hash = 0;
