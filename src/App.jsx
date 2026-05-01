@@ -1749,12 +1749,15 @@ function MainApp({ user }) {
       <div className="px-4 py-4">
         {activeTab === 'home' && (
           <TodayTab streak={streak} weeklyGoals={weeklyGoals} tricks={displayTricks} onOpenTrick={openTrick}
-            plannedSessionFocus={plannedSessionFocus} savePlannedSessionFocus={savePlannedSessionFocus}
             hasTrainedToday={trainingDays.includes(todayLocal())}
-            fireCelebration={fireCelebration}
             goToWarmup={() => { setTrainingSection('warmup'); setActiveTab('training'); }}
             goToStrength={() => { setTrainingSection('conditioning'); setActiveTab('training'); }}
-            goToLog={() => { setTrainingSection('log'); setActiveTab('training'); }} />
+            goToLog={() => { setTrainingSection('log'); setActiveTab('training'); }}
+            goToTree={() => {
+              try { window.localStorage.setItem('skillTreeLastCategory', JSON.stringify('__focus__')); } catch {}
+              closeTrick();
+              setActiveTab('skilltree');
+            }} />
         )}
         {activeTab === 'tricks' && (
           <TricksTab tricks={displayTricks} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -2019,54 +2022,9 @@ function NavButton({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedSessionFocus = {}, savePlannedSessionFocus, hasTrainedToday, fireCelebration, goToWarmup, goToStrength, goToLog }) {
-  const today = todayLocal();
+function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrainedToday, goToWarmup, goToStrength, goToLog, goToTree }) {
   const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-  const lockedIds = Array.isArray(plannedSessionFocus[today]) ? plannedSessionFocus[today] : [];
-  const lockedTricks = lockedIds.map(id => tricks.find(t => t.id === id)).filter(Boolean);
-
-  const computedSuggestions = useMemo(() => {
-    const seen = new Set();
-    const out = [];
-    const tryAdd = (t) => {
-      if (!t || seen.has(t.id) || out.length >= 3) return;
-      seen.add(t.id); out.push(t);
-    };
-    const trickById = new Map(tricks.map(t => [t.id, t]));
-    const masteredById = new Map(tricks.map(t => [t.id, t.status === 'got_it']));
-    const newlyUnlocked = tricks.filter(t => {
-      if (t.status === 'got_it' || t.status === 'training') return false;
-      const prereqs = (PREREQUISITES[t.id] || []).filter(p => {
-        const pt = trickById.get(p);
-        return pt && pt.category === t.category;
-      });
-      if (prereqs.length === 0) return false;
-      return prereqs.every(p => masteredById.get(p));
-    });
-    newlyUnlocked.forEach(tryAdd);
-    weeklyGoals.forEach(g => tryAdd(trickById.get(g.trickId)));
-    tricks.filter(t => t.status === 'training').forEach(tryAdd);
-    tricks.filter(t => t.status === 'want_to_learn' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).forEach(tryAdd);
-    tricks.filter(t => t.status === 'not_started' && (t.difficulty === 'Easy' || t.difficulty === 'Medium')).forEach(tryAdd);
-    return out;
-  }, [tricks, weeklyGoals]);
-  const suggestions = lockedTricks.length > 0 ? lockedTricks.slice(0, 3) : computedSuggestions;
-  const isPlanned = lockedTricks.length > 0;
-
-  const useTheseForToday = () => {
-    if (!savePlannedSessionFocus || suggestions.length === 0) return;
-    savePlannedSessionFocus({ ...plannedSessionFocus, [today]: suggestions.map(t => t.id) });
-    if (fireCelebration) {
-      fireCelebration({
-        _id: Date.now(),
-        kind: 'small',
-        icon: '🎯',
-        title: `${suggestions.length} ${suggestions.length === 1 ? 'trick' : 'tricks'} locked in`,
-        subtitle: 'Hit Log it when you\'re done training.',
-        tone: 'cyan',
-      });
-    }
-  };
+  const focusTricks = weeklyGoals.map(g => tricks.find(t => t.id === g.trickId)).filter(Boolean);
 
   const renderTrickRow = (t) => {
     const diff = DIFFICULTY_COLORS[t.difficulty];
@@ -2119,31 +2077,27 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, plannedS
       <div className="bg-gradient-to-br from-purple-600/20 via-slate-900 to-pink-600/20 border border-purple-500/40 rounded-3xl p-5 shadow-xl shadow-purple-500/10">
         <div className="flex items-center gap-2 mb-3">
           <Target className="w-5 h-5 text-purple-300" />
-          <div className="font-black text-lg">{isPlanned ? "Today's session" : 'Want to train? Pick 3 tricks'}</div>
+          <div className="font-black text-lg">Tricks in focus</div>
+          {focusTricks.length > 0 && (
+            <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-200">{focusTricks.length}</span>
+          )}
         </div>
-        {suggestions.length === 0 ? (
+        {focusTricks.length === 0 ? (
           <div className="bg-slate-900/60 border border-dashed border-slate-700 rounded-xl p-4 text-center">
-            <div className="text-2xl mb-1">🤸</div>
-            <div className="text-sm font-bold text-slate-200 mb-1">Nothing to suggest yet</div>
-            <div className="text-xs text-slate-400">Browse the Tricks tab and tap a trick to mark it 👀 Want to learn or 💪 Training. Then come back here.</div>
-          </div>
-        ) : (
-          <>
-            <div className="space-y-2">
-              {suggestions.map(renderTrickRow)}
-            </div>
-            {!isPlanned && savePlannedSessionFocus && (
-              <button onClick={useTheseForToday}
-                className="mt-3 w-full py-2.5 rounded-xl font-bold text-sm bg-purple-500 hover:bg-purple-400 text-white transition">
-                Use these for today →
+            <div className="text-2xl mb-1">🎯</div>
+            <div className="text-sm font-bold text-slate-200 mb-1">No tricks in focus yet</div>
+            <div className="text-xs text-slate-400 mb-3">Pick what you're working on this week from the Tree.</div>
+            {goToTree && (
+              <button onClick={goToTree}
+                className="px-4 py-2 rounded-xl font-bold text-sm bg-purple-500 hover:bg-purple-400 text-white transition">
+                Open Tree → In Focus
               </button>
             )}
-            {isPlanned && (
-              <div className="mt-3 text-[11px] text-purple-300/80 flex items-center gap-1">
-                <Check className="w-3 h-3" /> Locked in for today {hasTrainedToday && '· you trained today!'}
-              </div>
-            )}
-          </>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {focusTricks.map(renderTrickRow)}
+          </div>
         )}
       </div>
 
