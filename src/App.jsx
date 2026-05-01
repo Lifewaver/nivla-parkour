@@ -2626,6 +2626,7 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
       <LogSessionSheet
         inline
         tricks={tricks}
+        weeklyGoals={weeklyGoals}
         existing={editingSession}
         onCancel={editingSession ? () => setEditingSession(null) : null}
         onSave={onSaveSession}
@@ -2685,12 +2686,16 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
   );
 }
 
-function LogSessionSheet({ tricks = [], existing = null, onCancel, onSave, onDelete, inline = false }) {
+function LogSessionSheet({ tricks = [], weeklyGoals = [], existing = null, onCancel, onSave, onDelete, inline = false }) {
   const today = todayLocal();
   const [date, setDate] = useState(existing?.date || today);
   const [duration, setDuration] = useState(existing?.durationMinutes ? String(existing.durationMinutes) : '');
   const [rpe, setRpe] = useState(existing?.rpe ?? 6);
-  const [practicedTricks, setPracticedTricks] = useState(Array.isArray(existing?.practicedTricks) ? existing.practicedTricks : []);
+  const [practicedTricks, setPracticedTricks] = useState(
+    Array.isArray(existing?.practicedTricks)
+      ? existing.practicedTricks
+      : weeklyGoals.map(g => g.trickId)
+  );
   const [notes, setNotes] = useState(existing?.notes || '');
   const [trickQuery, setTrickQuery] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -2782,7 +2787,7 @@ function LogSessionSheet({ tricks = [], existing = null, onCancel, onSave, onDel
               placeholder="Search tricks…"
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 mb-2 focus:outline-none focus:border-purple-500" />
             <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
-              {filteredTricks.slice(0, 80).map(t => {
+              {filteredTricks.slice(0, 20).map(t => {
                 const on = practicedTricks.includes(t.id);
                 return (
                   <button key={t.id} onClick={() => togglePracticed(t.id)}
@@ -2863,7 +2868,7 @@ function LogSessionSheet({ tricks = [], existing = null, onCancel, onSave, onDel
               placeholder="Search tricks…"
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 mb-2 focus:outline-none focus:border-purple-500" />
             <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
-              {filteredTricks.slice(0, 80).map(t => {
+              {filteredTricks.slice(0, 20).map(t => {
                 const on = practicedTricks.includes(t.id);
                 return (
                   <button key={t.id} onClick={() => togglePracticed(t.id)}
