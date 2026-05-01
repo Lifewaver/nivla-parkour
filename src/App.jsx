@@ -1967,7 +1967,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
     const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
     const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
     return (
-      <div key={t.id} className="w-full bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 rounded-xl p-3 flex items-center gap-2 transition" style={{ boxShadow: '0 0 12px rgba(168,85,247,0.3)' }}>
+      <div key={t.id} className="w-full bg-gradient-to-r from-purple-900/40 to-orange-900/20 hover:from-purple-900/60 hover:to-orange-900/30 border border-orange-500/40 rounded-xl p-3 flex items-center gap-2 transition" style={{ boxShadow: '0 0 14px rgba(168,85,247,0.3), 0 0 8px rgba(249,115,22,0.2)' }}>
         <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
           <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
           <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
@@ -2274,9 +2274,9 @@ function TrickCard({ trick, onOpen, isGymnastics, inFocus }) {
   const video = trick.videos?.find(v => v.primary) || trick.videos?.[0];
   const playVideo = (e, v) => { e.stopPropagation(); if (v?.url) onOpen(normalizeUrl(v.url)); };
   const openCard = () => onOpen();
-  const focusStyle = inFocus ? { boxShadow: '0 0 12px rgba(168,85,247,0.3)' } : undefined;
+  const focusStyle = inFocus ? { boxShadow: '0 0 14px rgba(168,85,247,0.3), 0 0 8px rgba(249,115,22,0.2)' } : undefined;
   const baseClass = inFocus
-    ? 'bg-purple-900/30 hover:bg-purple-900/50 border-purple-500/50'
+    ? 'bg-gradient-to-r from-purple-900/40 to-orange-900/20 hover:from-purple-900/60 hover:to-orange-900/30 border-orange-500/40'
     : isGymnastics ? 'bg-cyan-900/30 hover:bg-cyan-900/50 border-cyan-500/30' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700';
   return (
     <div className={`relative w-full border rounded-xl p-3 transition ${baseClass}`} style={focusStyle}>
@@ -4473,7 +4473,7 @@ function SkillTreeTab({ tricks, onOpenTrick, weeklyGoals = [], saveGoals, traini
                     const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
                     const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
                     return (
-                      <div key={g.trickId} className="w-full bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 rounded-xl p-3 flex items-center gap-2 transition" style={{ boxShadow: '0 0 12px rgba(168,85,247,0.3)' }}>
+                      <div key={g.trickId} className="w-full bg-gradient-to-r from-purple-900/40 to-orange-900/20 hover:from-purple-900/60 hover:to-orange-900/30 border border-orange-500/40 rounded-xl p-3 flex items-center gap-2 transition" style={{ boxShadow: '0 0 14px rgba(168,85,247,0.3), 0 0 8px rgba(249,115,22,0.2)' }}>
                         <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                           <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
                           <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
