@@ -3797,7 +3797,6 @@ function AddTab({ user, tricks = [] }) {
   const [videos, setVideos] = useState([]);
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
-  const [addVideoOpen, setAddVideoOpen] = useState(false);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -3827,7 +3826,6 @@ function AddTab({ user, tricks = [] }) {
     setName(''); setCategory('Flips'); setDifficulty('Medium');
     setCoolness(0); setVideos([]); setNotes('');
     setNewVideoUrl(''); setNewVideoLabel('');
-    setAddVideoOpen(false);
   };
   const submit = async () => {
     if (!name.trim() || submitting) return;
@@ -3929,23 +3927,12 @@ function AddTab({ user, tricks = [] }) {
                 ))}
               </div>
             )}
-            <div className="bg-slate-900/50 border border-slate-700 rounded-lg">
-              <button onClick={() => setAddVideoOpen(o => !o)}
-                className="w-full flex items-center justify-between p-2 hover:bg-slate-800/50 transition rounded-lg">
-                <span className="text-xs font-semibold text-slate-400 flex items-center gap-2">
-                  <Plus className="w-3.5 h-3.5" /> Add a video
-                </span>
-                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${addVideoOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {addVideoOpen && (
-              <div className="p-2 pt-0 space-y-2">
+            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-2 space-y-2">
               <input type="text" value={newVideoLabel} onChange={e => setNewVideoLabel(e.target.value)} placeholder="Label (e.g. Storror tutorial)" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
               <div className="flex gap-2">
                 <input type="url" value={newVideoUrl} onChange={e => setNewVideoUrl(e.target.value)} placeholder="YouTube or Vimeo URL" className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm" />
                 <button onClick={addVideo} disabled={!newVideoUrl.trim()} className="px-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg font-bold text-sm">Add</button>
               </div>
-              </div>
-              )}
             </div>
           </div>
           <div>
