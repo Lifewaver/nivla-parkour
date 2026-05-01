@@ -1679,11 +1679,6 @@ function MainApp({ user }) {
             filterTracker={filterTracker} setFilterTracker={setFilterTracker}
             filterVideo={filterVideo} setFilterVideo={setFilterVideo}
             filterStars={filterStars} setFilterStars={setFilterStars}
-            weeklyGoals={weeklyGoals}
-            onToggleFocus={(id) => {
-              const exists = weeklyGoals.some(g => g.trickId === id);
-              saveGoals(exists ? weeklyGoals.filter(g => g.trickId !== id) : [...weeklyGoals, { trickId: id, addedAt: Date.now() }]);
-            }}
             onOpenTrick={openTrick}
             onAddNew={() => setActiveTab('add')} />
         )}
@@ -1970,7 +1965,6 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
     const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
     const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
     const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
-    const inFocus = weeklyGoals?.some(g => g.trickId === t.id);
     return (
       <div key={t.id} className="w-full bg-slate-800/70 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
         <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
@@ -1984,7 +1978,6 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
             </div>
           </div>
         </button>
-        <StatusPill trick={t} onClick={() => onOpenTrick(t)} />
         {referenceVideo && (
           <button onClick={(e) => playVideo(e, referenceVideo)} className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 flex items-center justify-center transition" title={referenceVideo.label}>
             <Play className="w-4 h-4 fill-current" />
@@ -1995,11 +1988,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
             <span className="text-base">🎓</span>
           </button>
         )}
-        <button onClick={(e) => { e.stopPropagation(); onToggleFocus(t.id); }}
-          className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition ${inFocus ? 'bg-green-500/20 hover:bg-green-500/40 text-green-400' : 'bg-slate-700/50 hover:bg-slate-600/50 text-slate-500'}`}
-          title={inFocus ? 'Remove from focus' : 'Add to focus'}>
-          <Target className="w-4 h-4" />
-        </button>
+        <StatusPill trick={t} onClick={() => onOpenTrick(t)} />
       </div>
     );
   };
@@ -2100,7 +2089,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterStars, setFilterStars, weeklyGoals, onToggleFocus, onOpenTrick, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterStars, setFilterStars, onOpenTrick, onAddNew }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState(() => new Set());
   const toggleCategory = (cat) => setCollapsedCategories(prev => {
