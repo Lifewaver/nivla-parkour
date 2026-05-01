@@ -1305,7 +1305,7 @@ function MainApp({ user }) {
           const existingIds = new Set(existing.map(t => t.id));
           const additions = loadedCommunity
             .filter(ct => ct && ct.id != null && !existingIds.has(ct.id) && !deletedSet.has(ct.id))
-            .map(ct => applyOverrides({ ...ct, status: 'not_started', videos: [], notes: '', progress: [], coolness: 0 }));
+            .map(ct => applyOverrides({ ...ct, status: 'not_started', videos: [], notes: '', progress: [], coolness: Number(ct.coolness) || 0 }));
           return additions.length > 0 ? [...existing, ...additions] : existing;
         };
 
@@ -4736,6 +4736,7 @@ function AddTab({ user, setActiveTab }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Flips');
   const [difficulty, setDifficulty] = useState('Medium');
+  const [coolness, setCoolness] = useState(0);
   const [videos, setVideos] = useState([]);
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
@@ -4760,7 +4761,7 @@ function AddTab({ user, setActiveTab }) {
   const removeVideo = (idx) => setVideos(videos.filter((_, i) => i !== idx));
   const reset = () => {
     setName(''); setCategory('Flips'); setDifficulty('Medium');
-    setVideos([]); setNotes('');
+    setCoolness(0); setVideos([]); setNotes('');
     setNewVideoUrl(''); setNewVideoLabel('');
     setNewVideoIsReference(true); setNewVideoIsTutorial(false);
     setAddVideoOpen(false);
@@ -4771,7 +4772,7 @@ function AddTab({ user, setActiveTab }) {
     setSubmitError(null);
     try {
       await addDoc(collection(db, 'trickSuggestions'), {
-        trick: { name: name.trim(), category, difficulty, notes },
+        trick: { name: name.trim(), category, difficulty, notes, coolness },
         videos,
         requestedByUid: user.uid,
         requestedByEmail: user.email || '',
@@ -4805,6 +4806,23 @@ function AddTab({ user, setActiveTab }) {
             <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Difficulty</div>
             <div className="flex gap-2">
               {difficulties.map(d => { const col = DIFFICULTY_COLORS[d]; return <button key={d} onClick={() => setDifficulty(d)} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${difficulty === d ? `${col.strip} text-white` : 'bg-slate-800 text-slate-300'}`}>{d}</button>; })}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-400 uppercase mb-1">Cool factor (optional)</div>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(n => {
+                const filled = coolness >= n;
+                return (
+                  <button key={n} onClick={() => setCoolness(coolness === n ? 0 : n)}
+                    className="transition hover:scale-110 p-1" title={`${n} / 5`}>
+                    <Star className={`w-7 h-7 ${filled ? 'fill-yellow-400 text-yellow-400' : 'text-slate-500 hover:text-yellow-300'}`} />
+                  </button>
+                );
+              })}
+              {coolness > 0 && (
+                <button onClick={() => setCoolness(0)} className="ml-2 text-[10px] font-bold uppercase text-slate-500 hover:text-slate-300">Clear</button>
+              )}
             </div>
           </div>
           <div>
@@ -5018,6 +5036,7 @@ function AdminTab({ currentUserUid, myTricks = [], saveTricks }) {
         category: s.trick.category,
         difficulty: s.trick.difficulty,
         notes: s.trick.notes || '',
+        coolness: Number(s.trick.coolness) || 0,
         suggestedBy: s.requestedByName || s.requestedByEmail || 'Unknown',
       }];
       const updates = { communityTricks: newCommunity, updatedAt: Date.now() };
@@ -5860,6 +5879,13 @@ service cloud.firestore {
                         <span className="text-xs text-slate-500">{t.category}</span>
                         <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ml-auto ${statusBadge}`}>{s.status || 'pending'}</span>
                       </div>
+                      {(Number(t.coolness) || 0) > 0 && (
+                        <div className="flex items-center gap-0.5 mt-1" title={`Suggested cool factor: ${t.coolness} / 5`}>
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <Star key={n} className={`w-3.5 h-3.5 ${n <= t.coolness ? 'fill-yellow-400 text-yellow-400' : 'text-slate-600'}`} />
+                          ))}
+                        </div>
+                      )}
                       <div className="text-xs text-slate-500 mt-1">By {s.requestedByName || s.requestedByEmail || 'Unknown'}</div>
                       {t.notes && <div className="text-xs text-slate-400 mt-1 whitespace-pre-wrap">{t.notes}</div>}
                       {Array.isArray(s.videos) && s.videos.length > 0 && (
