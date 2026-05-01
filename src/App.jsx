@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Home, Dumbbell, Calendar, Trophy, Plus, Flame, Search, X, ExternalLink,
   Check, Video, Target, TrendingUp, ChevronRight, ChevronDown, Play,
-  LogOut, Shield, Eye, ArrowLeft, ScrollText, GitBranch, Star
+  LogOut, Shield, Eye, ArrowLeft, ScrollText, Star
 } from 'lucide-react';
 import { auth, db, googleProvider, ALLOWED_EMAILS, ADMIN_EMAILS, isAdmin } from './firebase';
 import { GiAcrobatic, GiJumpAcross, GiHighKick, GiLeapfrog, GiMuscleUp, GiRunningNinja, GiContortionist, GiBodyBalance } from 'react-icons/gi';
@@ -616,119 +616,6 @@ const INITIAL_TRICKS = [
   { id: 92, name: 'Spider', difficulty: 'Medium', category: 'Gymnastics' },
 ];
 
-// Trick prerequisites: trickId → [prereqIds]. Only the obvious within-category
-// chains — most tricks stand alone with no prereq.
-const PREREQUISITES = {
-  // Flips
-  8: [1],   // Gainer ← Front Flip
-  9: [8],   // Cork ← Gainer
-  6: [5],   // Double backflip ← Backflip
-  4: [3],   // Double sideflip ← Side Flips
-  7: [5],   // Side Roll Back Flip ← Backflip
-
-  // Jump · Tic Tac chain
-  12: [11], // Tic Tac Kong ← Tic Tac
-  13: [11], // Tic Tac Dash ← Tic Tac
-  14: [11], // 270 Tic Tak ← Tic Tac
-  15: [14], // 180 Tic Tak Handspring ← 270 Tic Tak
-  16: [14], // 181 Tic Tac Cart ← 270 Tic Tak
-  17: [12], // Kong 180 Tac Tak ← Tic Tac Kong
-  // Jump · Roll chain
-  28: [27], // Dive Roll ← Roll
-  29: [28], // 360 Dive Roll ← Dive Roll
-  30: [28], // High Dive Roll ← Dive Roll
-  31: [30], // High Dive Roll Cart ← High Dive Roll
-  32: [28], // Dive Roll Gap ← Dive Roll
-  33: [28], // Cartwheel in Roll out ← Dive Roll
-  // Jump · Cork
-  22: [21], // Cork Olley ← Cork (Jump)
-  23: [21], // Cork Swipe ← Cork (Jump)
-  // Jump · misc
-  20: [19], // Climb up ← Jump Up
-
-  // Tricks
-  40: [39], // Windmill ← Helicoptero
-  41: [40], // Flare ← Windmill
-
-  // Leap
-  44: [43], // Kong to Cat Leap ← 180 Cat to Cat
-  45: [43], // 360 Cat Leap ← 180 Cat to Cat
-
-  // Swings
-  46: [47], // Swing to cat leap ← Lache Catch
-  48: [47], // Swing gainer ← Lache Catch
-  49: [47], // Swing press ← Lache Catch
-  50: [47], // Swing to Lazy Vault ← Lache Catch
-  51: [47], // Swing reverse ← Lache Catch
-
-  // Vaults
-  56: [55], // Step Through reverse ← Step Through
-  58: [57], // Kong Press ← Kong Vaults
-  59: [57], // Kong gainer ← Kong Vaults
-  61: [60], // Dash press ← Dash Vaults
-  62: [57], // Double Kong ← Kong Vaults
-  63: [57], // Kong Dive Roll ← Kong Vaults
-  68: [67], // Wall Spin ← Palm Spin
-
-  // Gymnastics · Tucked → PIK → Straight
-  70: [69], // PIK ← Tucked
-  71: [70], // Straight ← PIK
-  72: [69], // Tucked 180 ← Tucked
-  73: [70], // PIK 180 ← PIK
-  74: [71], // Straight 180 ← Straight
-  75: [72], // Tucked 360 ← Tucked 180
-  76: [73], // PIK 360 ← PIK 180
-  77: [74], // Straight 360 ← Straight 180
-  // Gymnastics · Cartwheel chain
-  79: [80], // Round-off ← Cartwheel
-  81: [80], // One-hand Cartwheel ← Cartwheel
-  82: [81], // No-hand Cartwheel ← One-hand Cartwheel
-  83: [79], // Round-off Back Handspring ← Round-off
-  84: [83], // Round-off Back Handspring x2 ← Round-off Back Handspring
-  85: [79], // Round-off Handspring ← Round-off
-  86: [79], // Round-off Salto ← Round-off
-  87: [83], // Round-off Back Handspring - Salto ← Round-off Back Handspring
-  88: [79], // Round-off Front Salto ← Round-off
-  89: [88], // Round-off Front Salto - Handspring ← Round-off Front Salto
-};
-
-// XP awarded per mastered trick by difficulty.
-const XP_PER_DIFFICULTY = { Easy: 10, Medium: 25, Hard: 60, Super: 150 };
-// Partial XP for in-progress states (landings count toward training XP).
-const TRAINING_LANDING_XP = 3;
-
-const computeTrickXp = (t) => {
-  if (!t) return 0;
-  const full = XP_PER_DIFFICULTY[t.difficulty] || 0;
-  if (t.status === 'got_it') return full;
-  if (t.status === 'training') {
-    const landings = (Array.isArray(t.progress) ? t.progress : []).filter(p => LANDING_IDS.includes(p)).length;
-    return Math.min(full * 0.4, landings * TRAINING_LANDING_XP);
-  }
-  return 0;
-};
-
-// Level thresholds as fraction of category's max possible XP.
-const LEVEL_THRESHOLDS = [0, 0.10, 0.25, 0.50, 0.75, 1.0];
-const xpToLevel = (earned, max) => {
-  if (max <= 0) return 1;
-  const frac = earned / max;
-  let lv = 1;
-  for (let i = 0; i < LEVEL_THRESHOLDS.length; i++) if (frac >= LEVEL_THRESHOLDS[i]) lv = i + 1;
-  return lv;
-};
-
-// One headline "boss" trick per category — render above the tree.
-const BOSS_TRICKS = {
-  Flips: 6,        // Double backflip
-  Jump: 17,        // Kong 180 Tac Tak
-  Tricks: 35,      // Atwist Gumbi
-  Leap: 45,        // 360 Cat Leap
-  Swings: 48,      // Swing gainer
-  Vaults: 59,      // Kong gainer
-  Gymnastics: 82,  // No-hand Cartwheel
-};
-
 const BADGES = [
   { id: 'first_trick', name: 'First Steps', desc: 'Master your first trick', icon: '🌟', check: (s) => s.mastered >= 1 },
   { id: 'easy_5', name: 'Getting Started', desc: 'Master 5 Easy tricks', icon: '🎯', check: (s) => s.easyMastered >= 5 },
@@ -1221,7 +1108,6 @@ function MainApp({ user }) {
   const [filterStars, setFilterStars] = useState('all');
   const [celebrationTrick, setCelebrationTrick] = useState(null);
   const [celebrationToast, setCelebrationToast] = useState(null);
-  const [recentlyMasteredId, setRecentlyMasteredId] = useState(null);
 
   const fireCelebration = (toast) => {
     setCelebrationToast(toast);
@@ -1438,8 +1324,6 @@ function MainApp({ user }) {
     if (status === 'got_it' && oldTrick?.status !== 'got_it') {
       setCelebrationTrick(oldTrick);
       setTimeout(() => setCelebrationTrick(null), 2500);
-      setRecentlyMasteredId(id);
-      setTimeout(() => setRecentlyMasteredId(curr => curr === id ? null : curr), 2000);
     }
   };
 
@@ -1453,8 +1337,6 @@ function MainApp({ user }) {
     if (status === 'got_it' && oldTrick?.status !== 'got_it') {
       setCelebrationTrick(oldTrick);
       setTimeout(() => setCelebrationTrick(null), 2500);
-      setRecentlyMasteredId(id);
-      setTimeout(() => setRecentlyMasteredId(curr => curr === id ? null : curr), 2000);
     } else {
       celebrateLanding(oldTrick?.progress, progress, oldTrick);
     }
@@ -1552,8 +1434,6 @@ function MainApp({ user }) {
     }
     return { mastered, easyMastered: easy, mediumMastered: medium, hardMastered: hard, superMastered: sup, vaultMastered: vault, flipMastered: flip };
   }, [tricks]);
-  const mastered = trickCounts.mastered;
-
   const stats = useMemo(() => ({ ...trickCounts, streak }), [trickCounts, streak]);
 
   const earnedBadges = useMemo(() => BADGES.filter(b => b.check(stats)), [stats]);
@@ -1698,7 +1578,7 @@ function MainApp({ user }) {
         )}
 
         {activeTab === 'add' && (
-          <AddTab user={user} setActiveTab={setActiveTab} />
+          <AddTab user={user} />
         )}
         {activeTab === 'admin' && userIsAdmin && (
          <AdminTab currentUserUid={user.uid} myTricks={tricks} saveTricks={saveTricks} />
@@ -1954,7 +1834,6 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
 
   const renderTrickRow = (t) => {
     const diff = DIFFICULTY_COLORS[t.difficulty];
-    const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
     const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
     const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
     const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
@@ -2262,7 +2141,6 @@ function normalizeUrl(url) {
 
 function TrickCard({ trick, onOpen, isGymnastics, inFocus }) {
   const diff = DIFFICULTY_COLORS[trick.difficulty];
-  const status = STATUS_LEVELS.find(s => s.id === trick.status);
   const unread = !!trick._unread;
   const video = trick.videos?.find(v => v.primary) || trick.videos?.[0];
   const playVideo = (e, v) => { e.stopPropagation(); if (v?.url) onOpen(normalizeUrl(v.url)); };
@@ -3006,7 +2884,6 @@ function UseAsTemplateModal({ sourceSession, tricks = [], plannedDays = [], plan
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayStr = formatLocalDate(today);
   const sourceDate = sourceSession?.date;
-  const sourceWeekday = sourceDate ? new Date(sourceDate + 'T00:00:00').getDay() : null;
 
   const weekOfMonth = (date) => Math.ceil(date.getDate() / 7);
   const isPlannedDay = (dateStr) => {
@@ -3083,8 +2960,6 @@ function UseAsTemplateModal({ sourceSession, tricks = [], plannedDays = [], plan
     const tIds = Array.isArray(t.trickIds) ? [...t.trickIds].sort().join(',') : '';
     return tIds === carrySetKey;
   });
-
-  const datePickAt = step === 1 && targetDate ? targetDate : null;
 
   const applyPlan = async () => {
     if (!targetDate || submitting) return;
@@ -3761,16 +3636,13 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
     const order = (t) => t.status === 'got_it' ? 0 : t.status === 'training' ? 1 : t.status === 'want_to_learn' ? 2 : 3;
     return order(a) - order(b) || a.name.localeCompare(b.name);
   };
-  const TrickRow = ({ t }) => {
-    const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-    return (
-      <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
-        <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
-        <span className="flex-1 truncate">{t.name}</span>
-        <StatusPill trick={t} size="sm" />
-      </div>
-    );
-  };
+  const TrickRow = ({ t }) => (
+    <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
+      <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
+      <span className="flex-1 truncate">{t.name}</span>
+      <StatusPill trick={t} size="sm" />
+    </div>
+  );
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <div className="grid grid-cols-2 gap-3">
@@ -3909,68 +3781,7 @@ function ProgressTab({ stats, tricks, earnedBadges, trainingDays }) {
   );
 }
 
-// =============================================================
-// QUEST SYSTEM
-// =============================================================
-const QUESTS = [
-  // Daily / weekly: standalone — no badge, just the satisfaction of finishing.
-  { id: 'q_daily_focus', type: 'daily',  icon: '🎯', title: 'Train 3 focus tricks today',     target: 3, reward: 'Focus quest done' },
-  { id: 'q_daily_log',   type: 'daily',  icon: '📝', title: 'Log a training session today',   target: 1, reward: 'Streak day banked' },
-  { id: 'q_weekly_3',    type: 'weekly', icon: '📅', title: 'Train 3 sessions this week',     target: 3, reward: 'Weekly quest done' },
-  // Streak / mastery: linked to existing achievement badges that auto-fire on completion.
-  { id: 'q_streak_3',    type: 'streak',         icon: '🔥', title: 'Train 3 days in a row',  target: 3, badgeId: 'streak_3' },
-  { id: 'q_streak_7',    type: 'streak',         icon: '🚀', title: 'Train 7 days in a row',  target: 7, badgeId: 'streak_7' },
-  { id: 'q_first_master',type: 'totalMastered',  icon: '🌟', title: 'Master your first trick', target: 1, badgeId: 'first_trick' },
-  { id: 'q_easy_5',      type: 'masteredByDiff', diff: 'Easy',   icon: '🌱', title: 'Master 5 Easy tricks',   target: 5, badgeId: 'easy_5' },
-  { id: 'q_medium_5',    type: 'masteredByDiff', diff: 'Medium', icon: '💪', title: 'Master 5 Medium tricks', target: 5, badgeId: 'medium_5' },
-];
-
-const getMondayOf = (d) => {
-  const date = new Date(d);
-  const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(date);
-  monday.setDate(diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
-};
-
-const computeQuestProgress = (quest, ctx) => {
-  const { tricks = [], weeklyGoals = [], trainingSessions = [], streak = 0 } = ctx;
-  const today = todayLocal();
-  if (quest.type === 'streak') return Math.min(streak, quest.target);
-  if (quest.type === 'totalMastered') return Math.min(tricks.filter(t => t.status === 'got_it').length, quest.target);
-  if (quest.type === 'masteredByDiff') return Math.min(tricks.filter(t => t.status === 'got_it' && t.difficulty === quest.diff).length, quest.target);
-  if (quest.type === 'daily') {
-    if (quest.id === 'q_daily_focus') {
-      const todaySession = trainingSessions.find(s => s.date === today);
-      if (!todaySession) return 0;
-      const focusIds = new Set(weeklyGoals.map(g => g.trickId));
-      const practiced = (todaySession.practicedTricks || []).filter(id => focusIds.has(id));
-      return Math.min(practiced.length, quest.target);
-    }
-    if (quest.id === 'q_daily_log') return trainingSessions.some(s => s.date === today) ? 1 : 0;
-  }
-  if (quest.type === 'weekly') {
-    const monday = getMondayOf(new Date());
-    const sessionsThisWeek = trainingSessions.filter(s => {
-      const d = new Date(s.date + 'T00:00:00');
-      return d >= monday;
-    }).length;
-    return Math.min(sessionsThisWeek, quest.target);
-  }
-  return 0;
-};
-
-const QUEST_TYPE_LABEL = {
-  daily: 'Daily',
-  weekly: 'Weekly',
-  streak: 'Streak',
-  totalMastered: 'Milestone',
-  masteredByDiff: 'Milestone',
-};
-
-function AddTab({ user, setActiveTab }) {
+function AddTab({ user }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Flips');
   const [difficulty, setDifficulty] = useState('Medium');
@@ -4492,21 +4303,17 @@ function AdminTab({ currentUserUid, myTricks = [], saveTricks }) {
     setLoadingUser(true);
     setUserData(null);
     try {
-      const [tricks, days, journal, goals, warmups, conditioning] = await Promise.all([
+      const [tricks, days, journal, goals] = await Promise.all([
         loadUserData(profile.uid, 'tricks'),
         loadUserData(profile.uid, 'trainingDays'),
         loadUserData(profile.uid, 'journal'),
         loadUserData(profile.uid, 'weeklyGoals'),
-        loadUserData(profile.uid, 'completedWarmups'),
-        loadUserData(profile.uid, 'completedConditioning'),
       ]);
       setUserData({
         tricks: tricks || [],
         trainingDays: days || [],
         journal: journal || [],
         weeklyGoals: goals || [],
-        completedWarmups: warmups || {},
-        completedConditioning: conditioning || {},
       });
     } catch (e) {
       console.error('User data load error', e);
@@ -4696,16 +4503,13 @@ service cloud.firestore {
                           <div className="space-y-1 mt-2 ml-4">
                             {rows.length === 0 ? (
                               <div className="text-xs text-slate-500 italic">No tricks at this difficulty.</div>
-                            ) : rows.map(t => {
-                              const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-                              return (
+                            ) : rows.map(t => (
                                 <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
                                   <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
                                   <span className="flex-1 truncate">{t.name}</span>
                                   <StatusPill trick={t} size="sm" />
                                 </div>
-                              );
-                            })}
+                            ))}
                           </div>
                         )}
                       </div>
@@ -4746,16 +4550,13 @@ service cloud.firestore {
                           <div className="space-y-1 mt-2 ml-4">
                             {rows.length === 0 ? (
                               <div className="text-xs text-slate-500 italic">No tricks at this landing yet.</div>
-                            ) : rows.map(t => {
-                              const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-                              return (
+                            ) : rows.map(t => (
                                 <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
                                   <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
                                   <span className="flex-1 truncate">{t.name}</span>
                                   <StatusPill trick={t} size="sm" />
                                 </div>
-                              );
-                            })}
+                            ))}
                           </div>
                         )}
                       </div>
@@ -4793,16 +4594,13 @@ service cloud.firestore {
                           <div className="space-y-1 mt-2 ml-4">
                             {rows.length === 0 ? (
                               <div className="text-xs text-slate-500 italic">No tricks in this category.</div>
-                            ) : rows.map(t => {
-                              const status = STATUS_LEVELS.find(s => s.id === t.status) || STATUS_LEVELS[0];
-                              return (
+                            ) : rows.map(t => (
                                 <div key={t.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-2 text-sm">
                                   <CategoryIcon category={t.category} size={14} className="text-slate-400 flex-shrink-0" />
                                   <span className="flex-1 truncate">{t.name}</span>
                                   <StatusPill trick={t} size="sm" />
                                 </div>
-                              );
-                            })}
+                            ))}
                           </div>
                         )}
                       </div>
