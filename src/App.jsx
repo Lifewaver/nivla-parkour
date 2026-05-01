@@ -2637,45 +2637,7 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
         } : null}
       />
 
-      <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-bold text-sm">Last {HEATMAP_WEEKS} weeks</div>
-          <div className="flex items-center gap-1 text-[10px] text-slate-400">
-            <span>Less</span>
-            {[0, 1, 2, 3, 4].map(l => (
-              <span key={l} className={`inline-block w-2.5 h-2.5 rounded-sm ${cellTone(l)}`} />
-            ))}
-            <span>More</span>
-          </div>
-        </div>
-        <div className="flex gap-1 overflow-x-auto pb-1">
-          {heatmapColumns.map((col, ci) => (
-            <div key={ci} className="flex flex-col gap-1 flex-shrink-0">
-              {col.map(ds => {
-                const all = sessionsByDate(ds);
-                const lvl = intensityForDate(ds);
-                const isFuture = ds > today;
-                const isToday = ds === today;
-                const tip = all.length > 0
-                  ? all.length === 1
-                    ? `${ds} · RPE ${all[0].rpe ?? '—'} · ${all[0].durationMinutes || 0} min`
-                    : `${ds} · ${all.length} sessions · ${all.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0)} min total`
-                  : isFuture ? ds : `${ds} · no session`;
-                const baseClass = isFuture
-                  ? 'bg-slate-900/40 border border-dashed border-slate-700'
-                  : cellTone(lvl);
-                return (
-                  <button key={ds} title={tip}
-                    onClick={() => { if (all[0]) setSelectedSessionId(all[0].id); }}
-                    disabled={all.length === 0}
-                    className={`w-3.5 h-3.5 rounded-sm ${baseClass} ${isToday ? 'ring-1 ring-orange-400' : ''} ${all.length > 0 ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
+
 
       <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
