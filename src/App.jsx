@@ -1719,6 +1719,13 @@ function MainApp({ user }) {
         <TrickDetailModal trick={displayTricks.find(t => t.id === selectedTrick.id) || selectedTrick}
           autoplayUrl={autoplayVideoUrl}
           isAdmin={userIsAdmin}
+          inFocus={weeklyGoals.some(g => g.trickId === selectedTrick.id)}
+          onToggleFocus={(id) => {
+            const exists = weeklyGoals.some(g => g.trickId === id);
+            saveGoals(exists
+              ? weeklyGoals.filter(g => g.trickId !== id)
+              : [...weeklyGoals, { trickId: id, addedAt: Date.now() }]);
+          }}
           onClose={closeTrick} onUpdateStatus={updateTrickStatus} onUpdateProgress={updateTrickProgress}
           onUpdateStatusAndProgress={updateTrickStatusAndProgress} onUpdateCoolness={updateTrickCoolness}
           onUpdateVideos={updateTrickVideos} onUpdateGlobalVideos={updateGlobalVideos}
@@ -2349,7 +2356,7 @@ function VideoCard({ video, onRemove, onTogglePrimary, autoplay, scrollRef, isGl
   );
 }
 
-function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus, onUpdateProgress, onUpdateStatusAndProgress, onUpdateCoolness, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
+function TrickDetailModal({ trick, autoplayUrl, isAdmin, inFocus = false, onToggleFocus, onClose, onUpdateStatus, onUpdateProgress, onUpdateStatusAndProgress, onUpdateCoolness, onUpdateVideos, onUpdateGlobalVideos, onUpdateNotes }) {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoLabel, setNewVideoLabel] = useState('');
   const [newVideoGlobal, setNewVideoGlobal] = useState(false);
@@ -2441,6 +2448,15 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, onClose, onUpdateStatus
                   isGlobal={!!v._global} canEdit={!v._global || isAdmin} flush />
               ))}
             </div>
+          )}
+          {onToggleFocus && trick.status !== 'got_it' && (
+            <button onClick={() => onToggleFocus(trick.id)}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition ${inFocus
+                ? 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-100 border-purple-400/50'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'}`}>
+              <Target className="w-4 h-4" />
+              {inFocus ? 'In focus · tap to remove' : 'Add to focus'}
+            </button>
           )}
           {(() => {
             const progressArr = Array.isArray(trick.progress) ? trick.progress : [];
