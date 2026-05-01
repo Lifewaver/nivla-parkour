@@ -1679,7 +1679,6 @@ function MainApp({ user }) {
             filterTracker={filterTracker} setFilterTracker={setFilterTracker}
             filterVideo={filterVideo} setFilterVideo={setFilterVideo}
             filterStars={filterStars} setFilterStars={setFilterStars}
-            weeklyGoals={weeklyGoals}
             onOpenTrick={openTrick}
             onAddNew={() => setActiveTab('add')} />
         )}
@@ -1966,10 +1965,8 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
     const tutorialVideo = t.videos?.find(v => isTutorialVideo(v) && v.primary) || t.videos?.find(v => isTutorialVideo(v));
     const referenceVideo = t.videos?.find(v => v.type !== 'tutorial' && v.primary) || t.videos?.find(v => v.type !== 'tutorial');
     const playVideo = (e, video) => { e.stopPropagation(); if (video?.url) onOpenTrick(t, normalizeUrl(video.url)); };
-    const inFocus = weeklyGoals?.some(g => g.trickId === t.id);
     return (
-      <div key={t.id} className={`w-full rounded-xl p-3 flex items-center gap-2 transition ${inFocus ? 'bg-green-900/30 hover:bg-green-900/50 border border-green-500/50' : 'bg-slate-800/70 hover:bg-slate-800 border border-slate-700'}`}
-        style={inFocus ? { boxShadow: '0 0 12px rgba(34,197,94,0.35)' } : undefined}>
+      <div key={t.id} className="w-full bg-slate-800/70 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-2 transition">
         <button onClick={() => onOpenTrick(t)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
           <div className={`w-1 h-12 ${diff?.strip} rounded-full flex-shrink-0`} />
           <CategoryIcon category={t.category} size={20} className="text-slate-300 flex-shrink-0" />
@@ -2092,7 +2089,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterStars, setFilterStars, weeklyGoals, onOpenTrick, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterStars, setFilterStars, onOpenTrick, onAddNew }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState(() => new Set());
   const toggleCategory = (cat) => setCollapsedCategories(prev => {
