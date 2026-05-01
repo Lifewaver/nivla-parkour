@@ -2484,15 +2484,15 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, inFocus = false, onTogg
 function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], saveTrainingSessions, markDayTrained, streak = 0, section, setSection, journal = [], plannedSessionFocus = {}, savePlannedSessionFocus, plannedSessionIntents = {}, savePlannedSessionIntents, plannedDays = [], plannedMonths = [], plannedWeeks = [], templates = [], saveTemplates, onOpenTrick }) {
   const today = todayLocal();
   const safeSessions = Array.isArray(trainingSessions) ? trainingSessions : [];
-  const sessionByDate = (ds) => safeSessions.find(s => s.date === ds);
-  const todaySession = sessionByDate(today);
+  const sessionsByDate = (ds) => safeSessions.filter(s => s.date === ds);
+  const todaySessions = sessionsByDate(today);
 
   // Today's "Log it" routes here with section='log'; consume that on first
   // render so the sheet opens immediately, then clear the parent signal so
   // tab re-entries don't keep re-opening it.
   const initialOpenLog = section === 'log';
   const [logOpen, setLogOpen] = useState(initialOpenLog);
-  const [editingSession, setEditingSession] = useState(() => initialOpenLog ? (todaySession || null) : null);
+  const [editingSession, setEditingSession] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
 
   useEffect(() => {
@@ -2543,6 +2543,13 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
     if (score >= 7) return 3;
     if (score >= 3) return 2;
     return 1;
+  };
+  const intensityForDate = (ds) => {
+    const all = sessionsByDate(ds);
+    if (all.length === 0) return 0;
+    const totalMin = all.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0);
+    const maxRpe = Math.max(...all.map(s => Number(s.rpe) || 0));
+    return intensityLevel({ rpe: maxRpe, durationMinutes: totalMin });
   };
   const cellTone = (level) => {
     if (level === 4) return 'bg-emerald-300';
@@ -2622,19 +2629,32 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
         </div>
       </div>
 
-      <button onClick={() => { setEditingSession(todaySession || null); setLogOpen(true); }}
-        className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 shadow-lg transition active:scale-[0.99] ${todaySession ? 'bg-gradient-to-r from-emerald-500/25 to-green-500/25 border-2 border-emerald-500/50 text-emerald-100 hover:from-emerald-500/35 hover:to-green-500/35' : 'bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white'}`}>
-        {todaySession ? (
-          <>
-            <Check className="w-5 h-5" /> Logged today
-            <span className="text-xs font-bold opacity-80">· edit</span>
-          </>
-        ) : (
-          <>
-            <Plus className="w-5 h-5" /> Log today's session
-          </>
-        )}
+      <button onClick={() => { setEditingSession(null); setLogOpen(true); }}
+        className="w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 shadow-lg transition active:scale-[0.99] bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white">
+        <Plus className="w-5 h-5" /> Log Session
       </button>
+
+      {todaySessions.length > 0 && (
+        <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-3">
+          <div className="text-xs font-semibold text-slate-400 uppercase mb-2">Today ({todaySessions.length})</div>
+          <div className="space-y-1.5">
+            {todaySessions.map(s => {
+              const rpe = Number(s.rpe) || 0;
+              const dur = Number(s.durationMinutes) || 0;
+              const trickCount = (Array.isArray(s.practicedTricks) ? s.practicedTricks : []).length;
+              return (
+                <button key={s.id} onClick={() => { setEditingSession(s); setLogOpen(true); }}
+                  className="w-full flex items-center gap-3 bg-slate-900/60 hover:bg-slate-900 border border-slate-700 rounded-xl p-3 text-left transition">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${rpePillClass(rpe)}`}>RPE {rpe || '—'}</span>
+                  <span className="text-xs text-slate-400">{dur} min</span>
+                  <span className="text-xs text-slate-400 ml-auto">{trickCount} {trickCount === 1 ? 'trick' : 'tricks'}</span>
+                  <span className="text-[11px] text-purple-300 font-bold">edit →</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
@@ -2651,21 +2671,23 @@ function TrainingTab({ tricks = [], trainingDays = [], trainingSessions = [], sa
           {heatmapColumns.map((col, ci) => (
             <div key={ci} className="flex flex-col gap-1 flex-shrink-0">
               {col.map(ds => {
-                const s = sessionByDate(ds);
-                const lvl = intensityLevel(s);
+                const all = sessionsByDate(ds);
+                const lvl = intensityForDate(ds);
                 const isFuture = ds > today;
                 const isToday = ds === today;
-                const tip = s
-                  ? `${ds} · RPE ${s.rpe ?? '—'} · ${s.durationMinutes || 0} min`
+                const tip = all.length > 0
+                  ? all.length === 1
+                    ? `${ds} · RPE ${all[0].rpe ?? '—'} · ${all[0].durationMinutes || 0} min`
+                    : `${ds} · ${all.length} sessions · ${all.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0)} min total`
                   : isFuture ? ds : `${ds} · no session`;
                 const baseClass = isFuture
                   ? 'bg-slate-900/40 border border-dashed border-slate-700'
                   : cellTone(lvl);
                 return (
                   <button key={ds} title={tip}
-                    onClick={() => { if (s) setSelectedSessionId(s.id); }}
-                    disabled={!s}
-                    className={`w-3.5 h-3.5 rounded-sm ${baseClass} ${isToday ? 'ring-1 ring-orange-400' : ''} ${s ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                    onClick={() => { if (all[0]) setSelectedSessionId(all[0].id); }}
+                    disabled={all.length === 0}
+                    className={`w-3.5 h-3.5 rounded-sm ${baseClass} ${isToday ? 'ring-1 ring-orange-400' : ''} ${all.length > 0 ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
                   />
                 );
               })}
