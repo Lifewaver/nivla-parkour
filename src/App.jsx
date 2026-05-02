@@ -1102,10 +1102,11 @@ function MainApp({ user }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState([]);
   const [filterDifficulty, setFilterDifficulty] = useState([]);
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterTracker, setFilterTracker] = useState('all');
-  const [filterVideo, setFilterVideo] = useState('all');
-  const [filterStars, setFilterStars] = useState('all');
+  const [filterStatus, setFilterStatus] = useState([]);
+  const [filterTracker, setFilterTracker] = useState([]);
+  const [filterVideo, setFilterVideo] = useState([]);
+  const [filterVideoLabel, setFilterVideoLabel] = useState([]);
+  const [filterStars, setFilterStars] = useState([]);
   const [celebrationTrick, setCelebrationTrick] = useState(null);
   const [celebrationToast, setCelebrationToast] = useState(null);
 
@@ -1554,6 +1555,7 @@ function MainApp({ user }) {
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             filterTracker={filterTracker} setFilterTracker={setFilterTracker}
             filterVideo={filterVideo} setFilterVideo={setFilterVideo}
+            filterVideoLabel={filterVideoLabel} setFilterVideoLabel={setFilterVideoLabel}
             filterStars={filterStars} setFilterStars={setFilterStars}
             weeklyGoals={weeklyGoals}
             onOpenTrick={openTrick}
@@ -1962,7 +1964,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterStars, setFilterStars, weeklyGoals, onOpenTrick, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterVideoLabel, setFilterVideoLabel, filterStars, setFilterStars, weeklyGoals, onOpenTrick, onAddNew }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState(() => new Set());
   const toggleCategory = (cat) => setCollapsedCategories(prev => {
@@ -1974,6 +1976,11 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
   const difficulties = ['all', 'Easy', 'Medium', 'Hard', 'Super'];
   const trackerOptions = ['all', ...STATUS_LEVELS.map(s => s.id)];
   const progressOptions = ['all', 'none', ...LANDING_IDS];
+  const allVideoLabels = useMemo(() => {
+    const labels = new Set();
+    tricks.forEach(t => (t.videos || []).forEach(v => { if (v.label) labels.add(v.label); }));
+    return [...labels].sort();
+  }, [tricks]);
   const progressLabel = (opt) => {
     if (opt === 'all') return 'All';
     if (opt === 'none') return 'No landing';
@@ -1983,25 +1990,36 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
     if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterCategory.length > 0 && !filterCategory.includes(t.category)) return false;
     if (filterDifficulty.length > 0 && !filterDifficulty.includes(t.difficulty)) return false;
-    if (filterStatus !== 'all') {
+    if (filterTracker.length > 0 && !filterTracker.includes(t.status)) return false;
+    if (filterStatus.length > 0) {
       const progressArr = Array.isArray(t.progress) ? t.progress : [];
-      if (filterStatus === 'none' && progressArr.length !== 0) return false;
-      if (filterStatus !== 'none' && !progressArr.includes(filterStatus)) return false;
+      const hasNone = filterStatus.includes('none');
+      const others = filterStatus.filter(s => s !== 'none');
+      const matchesNone = hasNone && progressArr.length === 0;
+      const matchesOther = others.length > 0 && others.some(fs => progressArr.includes(fs));
+      if (!matchesNone && !matchesOther) return false;
     }
-    if (filterTracker !== 'all' && t.status !== filterTracker) return false;
-    if (filterVideo !== 'all') {
+    if (filterVideo.length > 0) {
       const vids = Array.isArray(t.videos) ? t.videos : [];
-      if (filterVideo === 'none' && vids.length > 0) return false;
-      if (filterVideo === 'video' && vids.length === 0) return false;
-      if (filterVideo === 'starred' && !vids.some(v => v.primary)) return false;
+      const matches = filterVideo.some(fv => {
+        if (fv === 'none') return vids.length === 0;
+        if (fv === 'video') return vids.length > 0;
+        if (fv === 'starred') return vids.some(v => v.primary);
+        if (fv === 'unstarred') return vids.length > 0 && !vids.some(v => v.primary);
+        if (fv === 'global') return vids.some(v => v._global);
+        if (fv === 'personal') return vids.some(v => !v._global);
+        return false;
+      });
+      if (!matches) return false;
     }
-    if (filterStars !== 'all') {
+    if (filterVideoLabel.length > 0) {
+      const vids = Array.isArray(t.videos) ? t.videos : [];
+      if (!vids.some(v => filterVideoLabel.includes(v.label))) return false;
+    }
+    if (filterStars.length > 0) {
       const stars = t.coolness || 0;
-      if (filterStars === 'unrated' && stars !== 0) return false;
-      if (filterStars !== 'unrated') {
-        const min = parseInt(filterStars, 10);
-        if (stars < min) return false;
-      }
+      const matches = filterStars.some(fs => fs === 'unrated' ? stars === 0 : stars === parseInt(fs, 10));
+      if (!matches) return false;
     }
     return true;
   });
@@ -2026,15 +2044,15 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
         <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tricks..." className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-purple-500" />
       </div>
       {(() => {
-        const videoOptions = ['all', 'none', 'video', 'starred'];
-        const videoLabel = (opt) => ({ all: 'All', none: 'No Video', video: 'Video', starred: 'Video with Star' }[opt] || opt);
+        const videoOptions = ['all', 'none', 'video', 'starred', 'unstarred', 'global', 'personal'];
+        const videoLabel = (opt) => ({ all: 'All', none: 'No video', video: 'Video', starred: 'Video ★', unstarred: 'Video no ★', global: 'Global video', personal: 'My video' }[opt] || opt);
         const starsOptions = ['all', 'unrated', '1', '2', '3', '4', '5'];
         const starsLabel = (opt) => {
           if (opt === 'all') return 'All';
           if (opt === 'unrated') return 'Unrated';
-          return opt === '5' ? '★★★★★' : `★${opt}+`;
+          return '★'.repeat(parseInt(opt, 10));
         };
-        const moreActive = [filterTracker, filterStatus, filterVideo, filterStars].filter(v => v !== 'all').length;
+        const moreActive = [filterTracker, filterStatus, filterVideo, filterVideoLabel, filterStars].filter(arr => arr.length > 0).length;
         const activeFilterCount = (filterCategory.length > 0 ? 1 : 0) + (filterDifficulty.length > 0 ? 1 : 0) + moreActive;
         return (
           <div className="space-y-2">
@@ -2052,14 +2070,15 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
             </button>
             {filtersOpen && (
               <div className="space-y-2 pt-1">
-                <FilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
-                <FilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
-                <FilterRow label="Video" options={videoOptions} selected={filterVideo} onChange={setFilterVideo} labelMap={videoLabel} />
-                <FilterRow label="Stars" options={starsOptions} selected={filterStars} onChange={setFilterStars} labelMap={starsLabel} />
+                <MultiFilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
+                <MultiFilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
+                <MultiFilterRow label="Video" options={videoOptions} selected={filterVideo} onChange={setFilterVideo} labelMap={videoLabel} />
+                <MultiFilterRow label="Video label" options={['all', ...allVideoLabels]} selected={filterVideoLabel} onChange={setFilterVideoLabel} />
+                <MultiFilterRow label="Stars" options={starsOptions} selected={filterStars} onChange={setFilterStars} labelMap={starsLabel} />
               </div>
             )}
             {activeFilterCount > 0 && (
-              <button onClick={() => { setFilterCategory([]); setFilterDifficulty([]); setFilterTracker('all'); setFilterStatus('all'); setFilterVideo('all'); setFilterStars('all'); }}
+              <button onClick={() => { setFilterCategory([]); setFilterDifficulty([]); setFilterTracker([]); setFilterStatus([]); setFilterVideo([]); setFilterVideoLabel([]); setFilterStars([]); }}
                 className="text-xs text-slate-400 hover:text-white underline">
                 Clear all filters
               </button>
