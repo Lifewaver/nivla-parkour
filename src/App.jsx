@@ -2309,9 +2309,20 @@ function TrickDetailModal({ trick, autoplayUrl, isAdmin, inFocus = false, onTogg
     }
   };
   const saveNotes = () => onUpdateNotes(trick.id, notesInput);
+  const swipeStartRef = React.useRef(null);
+  const handleTouchStart = (e) => {
+    swipeStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+  const handleTouchEnd = (e) => {
+    if (!swipeStartRef.current) return;
+    const dx = e.changedTouches[0].clientX - swipeStartRef.current.x;
+    const dy = e.changedTouches[0].clientY - swipeStartRef.current.y;
+    if (dx < -60 && Math.abs(dx) > Math.abs(dy)) onClose();
+    swipeStartRef.current = null;
+  };
   return (
     <div className="fixed inset-x-0 top-0 bottom-20 z-40 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-slate-900 border-t sm:border border-purple-500/30 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-full sm:max-h-[85vh] overflow-y-auto">
+      <div onClick={(e) => e.stopPropagation()} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} className="bg-slate-900 border-t sm:border border-purple-500/30 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-full sm:max-h-[85vh] overflow-y-auto">
         <div className={`relative ${diff.bg} p-6 border-b border-slate-700`}>
           <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-slate-700"><X className="w-5 h-5" /></button>
           <div className="mb-2"><CategoryIcon category={trick.category} size={36} className="text-white/90" /></div>
