@@ -2163,11 +2163,11 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
             {filtersOpen && (
               <div className="space-y-2 pt-1">
                 <MultiFilterRow label="Status" options={trackerOptions} selected={filterTracker} onChange={setFilterTracker} labelMap={(opt) => opt === 'all' ? 'All' : STATUS_LEVELS.find(s => s.id === opt)?.label || opt} />
+                <MultiFilterRow label="Seen" options={['all', 'new', 'seen']} selected={filterUnseen} onChange={setFilterUnseen} labelMap={(opt) => ({ all: 'All', new: 'New ✨', seen: 'Seen' }[opt] || opt)} />
                 <MultiFilterRow label="Progress" options={progressOptions} selected={filterStatus} onChange={setFilterStatus} labelMap={progressLabel} />
                 <MultiFilterRow label="Video" options={videoOptions} selected={filterVideo} onChange={setFilterVideo} labelMap={videoLabel} />
                 <MultiFilterRow label="Video label" options={['all', ...allVideoLabels]} selected={filterVideoLabel} onChange={setFilterVideoLabel} />
                 <MultiFilterRow label="Stars" options={starsOptions} selected={filterStars} onChange={setFilterStars} labelMap={starsLabel} />
-                <MultiFilterRow label="Seen" options={['all', 'new', 'seen']} selected={filterUnseen} onChange={setFilterUnseen} labelMap={(opt) => ({ all: 'All', new: 'New ✨', seen: 'Seen' }[opt] || opt)} />
               </div>
             )}
             {activeFilterCount > 0 && (
