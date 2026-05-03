@@ -1107,6 +1107,7 @@ function MainApp({ user }) {
   const [filterVideo, setFilterVideo] = useState([]);
   const [filterVideoLabel, setFilterVideoLabel] = useState([]);
   const [filterStars, setFilterStars] = useState([]);
+  const [filterUnseen, setFilterUnseen] = useState([]);
   const [celebrationTrick, setCelebrationTrick] = useState(null);
   const [celebrationToast, setCelebrationToast] = useState(null);
 
@@ -1546,7 +1547,8 @@ function MainApp({ user }) {
           <TodayTab streak={streak} weeklyGoals={weeklyGoals} tricks={displayTricks} onOpenTrick={openTrick}
             hasTrainedToday={trainingDays.includes(todayLocal())}
             goToLog={() => { setTrainingSection('log'); setActiveTab('training'); }}
-            goToTricks={() => setActiveTab('tricks')} />
+            goToTricks={() => setActiveTab('tricks')}
+            goToUnseenTricks={() => { setFilterUnseen(['new']); setActiveTab('tricks'); }} />
         )}
         {activeTab === 'tricks' && (
           <TricksTab tricks={displayTricks} searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -1557,6 +1559,7 @@ function MainApp({ user }) {
             filterVideo={filterVideo} setFilterVideo={setFilterVideo}
             filterVideoLabel={filterVideoLabel} setFilterVideoLabel={setFilterVideoLabel}
             filterStars={filterStars} setFilterStars={setFilterStars}
+            filterUnseen={filterUnseen} setFilterUnseen={setFilterUnseen}
             weeklyGoals={weeklyGoals}
             onOpenTrick={openTrick}
             onAddNew={() => setActiveTab('add')} />
@@ -1812,9 +1815,11 @@ function NavButton({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrainedToday, goToLog, goToTricks }) {
+function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrainedToday, goToLog, goToTricks, goToUnseenTricks }) {
   const todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
   const focusTricks = weeklyGoals.map(g => tricks.find(t => t.id === g.trickId)).filter(Boolean);
+
+  const unseenCount = tricks.filter(t => t._unread).length;
 
   const inspirationTrick = useMemo(() => {
     const focusIds = new Set(weeklyGoals.map(g => g.trickId));
@@ -1924,6 +1929,18 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
         )}
       </div>
 
+      {unseenCount > 0 && goToUnseenTricks && (
+        <button onClick={goToUnseenTricks}
+          className="w-full bg-slate-900/60 border border-cyan-500/40 hover:border-cyan-500/70 hover:bg-slate-800/60 rounded-2xl p-4 flex items-center gap-3 transition text-left active:scale-[0.99]">
+          <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center flex-shrink-0 text-xl">✨</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-black text-sm text-cyan-200">New tricks to discover</div>
+            <div className="text-xs text-slate-400 mt-0.5">{unseenCount} trick{unseenCount === 1 ? '' : 's'} you haven't seen yet</div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-500 flex-shrink-0" />
+        </button>
+      )}
+
       {inspirationTrick && inspirationEmbed && (() => {
         const t = inspirationTrick;
         const diff = DIFFICULTY_COLORS[t.difficulty];
@@ -1964,7 +1981,7 @@ function TodayTab({ streak, weeklyGoals = [], tricks = [], onOpenTrick, hasTrain
   );
 }
 
-function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterVideoLabel, setFilterVideoLabel, filterStars, setFilterStars, weeklyGoals, onOpenTrick, onAddNew }) {
+function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFilterCategory, filterDifficulty, setFilterDifficulty, filterStatus, setFilterStatus, filterTracker, setFilterTracker, filterVideo, setFilterVideo, filterVideoLabel, setFilterVideoLabel, filterStars, setFilterStars, filterUnseen, setFilterUnseen, weeklyGoals, onOpenTrick, onAddNew }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState(() => new Set());
   const toggleCategory = (cat) => setCollapsedCategories(prev => {
@@ -2021,6 +2038,12 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
       const matches = filterStars.some(fs => fs === 'unrated' ? stars === 0 : stars === parseInt(fs, 10));
       if (!matches) return false;
     }
+    if (filterUnseen.length > 0) {
+      const wantNew = filterUnseen.includes('new');
+      const wantSeen = filterUnseen.includes('seen');
+      if (wantNew && !wantSeen && !t._unread) return false;
+      if (wantSeen && !wantNew && t._unread) return false;
+    }
     return true;
   });
   const grouped = filtered.reduce((acc, t) => { if (!acc[t.category]) acc[t.category] = []; acc[t.category].push(t); return acc; }, {});
@@ -2052,7 +2075,7 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
           if (opt === 'unrated') return 'Unrated';
           return '★'.repeat(parseInt(opt, 10));
         };
-        const moreActive = [filterTracker, filterStatus, filterVideo, filterVideoLabel, filterStars].filter(arr => arr.length > 0).length;
+        const moreActive = [filterTracker, filterStatus, filterVideo, filterVideoLabel, filterStars, filterUnseen].filter(arr => arr.length > 0).length;
         const activeFilterCount = (filterCategory.length > 0 ? 1 : 0) + (filterDifficulty.length > 0 ? 1 : 0) + moreActive;
         return (
           <div className="space-y-2">
@@ -2075,10 +2098,11 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
                 <MultiFilterRow label="Video" options={videoOptions} selected={filterVideo} onChange={setFilterVideo} labelMap={videoLabel} />
                 <MultiFilterRow label="Video label" options={['all', ...allVideoLabels]} selected={filterVideoLabel} onChange={setFilterVideoLabel} />
                 <MultiFilterRow label="Stars" options={starsOptions} selected={filterStars} onChange={setFilterStars} labelMap={starsLabel} />
+                <MultiFilterRow label="Seen" options={['all', 'new', 'seen']} selected={filterUnseen} onChange={setFilterUnseen} labelMap={(opt) => ({ all: 'All', new: 'New ✨', seen: 'Seen' }[opt] || opt)} />
               </div>
             )}
             {activeFilterCount > 0 && (
-              <button onClick={() => { setFilterCategory([]); setFilterDifficulty([]); setFilterTracker([]); setFilterStatus([]); setFilterVideo([]); setFilterVideoLabel([]); setFilterStars([]); }}
+              <button onClick={() => { setFilterCategory([]); setFilterDifficulty([]); setFilterTracker([]); setFilterStatus([]); setFilterVideo([]); setFilterVideoLabel([]); setFilterStars([]); setFilterUnseen([]); }}
                 className="text-xs text-slate-400 hover:text-white underline">
                 Clear all filters
               </button>
