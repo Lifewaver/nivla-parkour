@@ -620,18 +620,32 @@ const BADGES = [
   { id: 'first_trick', name: 'First Steps', desc: 'Master your first trick', icon: '🌟', check: (s) => s.mastered >= 1 },
   { id: 'easy_5', name: 'Getting Started', desc: 'Master 5 Easy tricks', icon: '🎯', check: (s) => s.easyMastered >= 5 },
   { id: 'easy_10', name: 'Easy Rider', desc: 'Master 10 Easy tricks', icon: '⭐', check: (s) => s.easyMastered >= 10 },
+  { id: 'easy_all', name: 'Easy Done', desc: 'Master every Easy trick', icon: '🌈', check: (s) => s.easyTotal > 0 && s.easyMastered >= s.easyTotal },
   { id: 'medium_5', name: 'Leveling Up', desc: 'Master 5 Medium tricks', icon: '🔥', check: (s) => s.mediumMastered >= 5 },
   { id: 'medium_10', name: 'Mid-Tier Beast', desc: 'Master 10 Medium tricks', icon: '💪', check: (s) => s.mediumMastered >= 10 },
+  { id: 'medium_20', name: 'Medium Maverick', desc: 'Master 20 Medium tricks', icon: '🥋', check: (s) => s.mediumMastered >= 20 },
   { id: 'hard_1', name: 'Brave Heart', desc: 'Master your first Hard trick', icon: '⚡', check: (s) => s.hardMastered >= 1 },
   { id: 'hard_5', name: 'Hardcore', desc: 'Master 5 Hard tricks', icon: '🏆', check: (s) => s.hardMastered >= 5 },
+  { id: 'hard_10', name: 'Iron Will', desc: 'Master 10 Hard tricks', icon: '⚔️', check: (s) => s.hardMastered >= 10 },
   { id: 'super_1', name: 'Superhuman', desc: 'Master a Super trick!', icon: '👑', check: (s) => s.superMastered >= 1 },
+  { id: 'super_all', name: 'Untouchable', desc: 'Master every Super trick', icon: '🛸', check: (s) => s.superTotal > 0 && s.superMastered >= s.superTotal },
   { id: 'mastered_25', name: 'Quarter Master', desc: 'Master 25 tricks total', icon: '🎖️', check: (s) => s.mastered >= 25 },
   { id: 'mastered_50', name: 'Half Century', desc: 'Master 50 tricks total', icon: '🏅', check: (s) => s.mastered >= 50 },
+  { id: 'mastered_75', name: 'Triple Threat', desc: 'Master 75 tricks total', icon: '🥇', check: (s) => s.mastered >= 75 },
+  { id: 'mastered_all', name: 'Completionist', desc: 'Master every single trick', icon: '🌌', check: (s) => s.totalTricks > 0 && s.mastered >= s.totalTricks },
   { id: 'streak_3', name: 'On Fire', desc: '3 day training streak', icon: '🔥', check: (s) => s.streak >= 3 },
   { id: 'streak_7', name: 'Week Warrior', desc: '7 day training streak', icon: '🚀', check: (s) => s.streak >= 7 },
   { id: 'streak_30', name: 'Unstoppable', desc: '30 day training streak', icon: '💎', check: (s) => s.streak >= 30 },
   { id: 'vault_master', name: 'Vault Master', desc: 'Master 5 Vaults', icon: '🏃', check: (s) => s.vaultMastered >= 5 },
+  { id: 'vault_master_10', name: 'Vault Virtuoso', desc: 'Master 10 Vaults', icon: '🧗', check: (s) => s.vaultMastered >= 10 },
   { id: 'flip_master', name: 'Flip Master', desc: 'Master 5 Flips', icon: '🤸', check: (s) => s.flipMastered >= 5 },
+  { id: 'jump_master', name: 'Sky Jumper', desc: 'Master 5 Jump tricks', icon: '🦘', check: (s) => s.jumpMastered >= 5 },
+  { id: 'jump_master_10', name: 'Air Time', desc: 'Master 10 Jump tricks', icon: '🪂', check: (s) => s.jumpMastered >= 10 },
+  { id: 'leap_master', name: 'Cat Leaper', desc: 'Master every Leap trick', icon: '🐈', check: (s) => s.leapTotal > 0 && s.leapMastered >= s.leapTotal },
+  { id: 'swings_master', name: 'Swing King', desc: 'Master 5 Swing tricks', icon: '🐒', check: (s) => s.swingsMastered >= 5 },
+  { id: 'tricks_master', name: 'Trickster', desc: 'Master 5 Tricks', icon: '🎭', check: (s) => s.tricksCatMastered >= 5 },
+  { id: 'gym_master', name: 'Gymnast', desc: 'Master 5 Gymnastics tricks', icon: '🤾', check: (s) => s.gymnasticsMastered >= 5 },
+  { id: 'gym_master_10', name: 'Olympian', desc: 'Master 10 Gymnastics tricks', icon: '🤺', check: (s) => s.gymnasticsMastered >= 10 },
 ];
 
 // Format a Date in LOCAL time as YYYY-MM-DD. Avoids the UTC shift you get from
@@ -1492,18 +1506,39 @@ function MainApp({ user }) {
 
   const streak = computeStreakFor(trainingDays);
   const trickCounts = useMemo(() => {
-    let mastered = 0, easy = 0, medium = 0, hard = 0, sup = 0, vault = 0, flip = 0;
+    let mastered = 0, easy = 0, medium = 0, hard = 0, sup = 0;
+    let easyTotal = 0, mediumTotal = 0, hardTotal = 0, superTotal = 0;
+    const catMastered = {};
+    const catTotal = {};
     for (const t of tricks) {
+      const cat = t.category || 'Other';
+      catTotal[cat] = (catTotal[cat] || 0) + 1;
+      if (t.difficulty === 'Easy') easyTotal += 1;
+      else if (t.difficulty === 'Medium') mediumTotal += 1;
+      else if (t.difficulty === 'Hard') hardTotal += 1;
+      else if (t.difficulty === 'Super') superTotal += 1;
       if (t.status !== 'got_it') continue;
       mastered += 1;
+      catMastered[cat] = (catMastered[cat] || 0) + 1;
       if (t.difficulty === 'Easy') easy += 1;
       else if (t.difficulty === 'Medium') medium += 1;
       else if (t.difficulty === 'Hard') hard += 1;
       else if (t.difficulty === 'Super') sup += 1;
-      if (t.category === 'Vaults') vault += 1;
-      else if (t.category === 'Flips') flip += 1;
     }
-    return { mastered, easyMastered: easy, mediumMastered: medium, hardMastered: hard, superMastered: sup, vaultMastered: vault, flipMastered: flip };
+    return {
+      mastered,
+      totalTricks: tricks.length,
+      easyMastered: easy, mediumMastered: medium, hardMastered: hard, superMastered: sup,
+      easyTotal, mediumTotal, hardTotal, superTotal,
+      vaultMastered: catMastered['Vaults'] || 0,
+      flipMastered: catMastered['Flips'] || 0,
+      jumpMastered: catMastered['Jump'] || 0,
+      tricksCatMastered: catMastered['Tricks'] || 0,
+      leapMastered: catMastered['Leap'] || 0,
+      swingsMastered: catMastered['Swings'] || 0,
+      gymnasticsMastered: catMastered['Gymnastics'] || 0,
+      leapTotal: catTotal['Leap'] || 0,
+    };
   }, [tricks]);
   const stats = useMemo(() => ({ ...trickCounts, streak }), [trickCounts, streak]);
 
