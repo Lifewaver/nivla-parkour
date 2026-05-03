@@ -781,6 +781,54 @@ function LoginScreen({ error, requestStatus }) {
 }
 
 // =================================================================
+// ERROR BOUNDARY
+// =================================================================
+// React errors during render kill the whole tree to a blank screen with no
+// recovery. iOS Safari users would see this as "the app crashed" — Reload /
+// Sign out lets them recover without us needing to push a fix.
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error('ErrorBoundary caught', error, info);
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    const msg = String(this.state.error?.message || this.state.error);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center p-4 text-white">
+        <div className="max-w-sm w-full text-center">
+          <div className="text-7xl mb-6">😬</div>
+          <h1 className="text-2xl font-black mb-3">Something went wrong</h1>
+          <p className="text-slate-400 mb-5 text-sm">The app hit an unexpected error. Try Reload first; if that doesn't help, Sign out and back in.</p>
+          <div className="bg-slate-800/50 border border-red-500/30 rounded-xl p-3 mb-5 text-[11px] text-red-300 text-left font-mono break-all max-h-40 overflow-auto">
+            {msg}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => window.location.reload()}
+              className="flex-1 bg-purple-500 hover:bg-purple-400 text-white font-bold py-3 px-4 rounded-xl transition">
+              Reload
+            </button>
+            <button onClick={async () => {
+              try { await signOut(auth); } catch (e) { console.error('Sign out error', e); }
+              window.location.reload();
+            }}
+              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 px-4 rounded-xl transition">
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+// =================================================================
 // AUTH WRAPPER
 // =================================================================
 export default function ParkourApp() {
@@ -894,7 +942,11 @@ export default function ParkourApp() {
 
   if (!user) return <LoginScreen error={authError} requestStatus={requestStatus} />;
 
-  return <MainApp user={user} key={user.uid} />;
+  return (
+    <ErrorBoundary>
+      <MainApp user={user} key={user.uid} />
+    </ErrorBoundary>
+  );
 }
 
 // =================================================================
@@ -1123,6 +1175,23 @@ function MainApp({ user }) {
   useEffect(() => {
     const loadAll = async () => {
       try {
+        // Force-refresh the ID token before reading Firestore. iOS Safari can
+        // clear the refresh token from IndexedDB while keeping the cached
+        // currentUser, so onAuthStateChanged fires "logged in" but Firestore
+        // calls then fail silently with permission-denied. Catching it here
+        // surfaces a clean re-auth instead of leaving the app empty.
+        try {
+          await user.getIdToken(true);
+        } catch (e) {
+          const code = e?.code || '';
+          console.error('Token refresh failed', code, e);
+          if (code.startsWith('auth/') && !code.includes('network')) {
+            try { await signOut(auth); } catch (_) {}
+            return;
+          }
+          // Network errors: continue and let Firestore calls fail / retry.
+        }
+
         const [tricksData, daysData, journalData, goalsData, sessionsData, plannedData, plannedMonthsData, plannedWeeksData, plannedFocusData, plannedIntentsData, templatesData, viewedData, onboardingData, tricksReclassifiedV1] =
           await Promise.all([
             loadUserData(user.uid, 'tricks'),
