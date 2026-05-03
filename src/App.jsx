@@ -2125,15 +2125,19 @@ function TricksTab({ tricks, searchQuery, setSearchQuery, filterCategory, setFil
   });
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
-      <button
-        onClick={onAddNew}
-        className="w-full bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-lg"
-      >
-        <Plus className="w-5 h-5" /> Suggest a trick
-      </button>
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tricks..." className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-purple-500" />
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tricks..." className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-purple-500" />
+        </div>
+        <button
+          onClick={onAddNew}
+          aria-label="Suggest a trick"
+          title="Suggest a trick"
+          className="shrink-0 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white rounded-xl p-3 flex items-center justify-center transition shadow-lg"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
       </div>
       {(() => {
         const videoOptions = ['all', 'none', 'video', 'starred', 'unstarred', 'global', 'personal'];
